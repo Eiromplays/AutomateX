@@ -2,7 +2,9 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: M2.5 — platform polish.** Plugins can now *listen* to the engine, not just extend it: implement `IListenFor<TEvent>` for lifecycle events (`ExecutionStarted`, `StepCompleted`, `StepFailed`, `ExecutionCompleted`, `ExecutionFailed`). Events are best-effort and in-process — published after state is persisted, with per-listener fault isolation (a throwing listener is logged, never breaks an execution; encoded in tests). The whole engine composition lives in one shared `AddAutomateXEngine(...)` extension used by both `Program.cs` and the test fixture, so app/test config drift is impossible by construction. A `dotnet new automatex-plugin` template scaffolds new plugins.
+**Status: M3 — UI.** React Router v7 SPA in `src/web` (React 19, TanStack Query, Tailwind 4): workflow list + builder with config forms *generated from the action JSON schemas*, trigger management, and a live execution view — engine events flow through the same `IListenFor<T>` seam into a SignalR hub (`/hubs/executions`) that invalidates queries in real time. Aspire starts the Vite dev server alongside the API (`npm install` in `src/web` once, then `aspire run`).
+
+Previous (M2.5): Plugins can now *listen* to the engine, not just extend it: implement `IListenFor<TEvent>` for lifecycle events (`ExecutionStarted`, `StepCompleted`, `StepFailed`, `ExecutionCompleted`, `ExecutionFailed`). Events are best-effort and in-process — published after state is persisted, with per-listener fault isolation (a throwing listener is logged, never breaks an execution; encoded in tests). The whole engine composition lives in one shared `AddAutomateXEngine(...)` extension used by both `Program.cs` and the test fixture, so app/test config drift is impossible by construction. A `dotnet new automatex-plugin` template scaffolds new plugins.
 
 Previous (M2): actions are plugin-contributed — implement `IAction<TConfig, TResult>` against `AutomateX.Plugin.Sdk`, decorate with `[Action]`, drop the published assembly in `plugins/` and it loads in an isolated, collectible `AssemblyLoadContext`. Config/result types are exported as JSON Schema via `GET /api/actions`. The built-in `http.request` is itself an SDK action.
 
@@ -22,10 +24,12 @@ Previous milestone (M1.5): Workflows live in Postgres as immutable versions; cro
 
 ```bash
 dotnet tool restore
-dotnet dotnet-ef migrations add WolverineOutbox --project src/AutomateX   # after pulling M1.5
 aspire run   # or: dotnet run --project src/AutomateX.AppHost — or run AutomateX.AppHost from Rider
+             # the web resource uses pnpm (WithPnpm installs packages on first start)
 dotnet test  # engine integration tests (needs Docker — Testcontainers spins up Postgres)
 ```
+
+The dashboard shows both resources: `api` (backend) and `web` (the SPA — open this one).
 
 The M1.5 migration is expected to include Wolverine's envelope (inbox/outbox) tables — they're now mapped into the EF model so envelope writes commit atomically with entity saves. Easiest dev path: wipe the `automatex-postgres-data` volume first so EF owns the schema from scratch.
 
@@ -93,4 +97,4 @@ Restart, check `GET /api/actions`, then use `sample.echo` / `sample.delay` as wo
 
 ## Milestones
 
-M0 walking skeleton ✓ → M1 durable engine ✓ → M1.5 hardening ✓ → M2 plugin SDK ✓ → M2.5 platform polish (this) → M3 UI → M4 ship. Details and definition-of-done in [the plan](docs/v2-plan.md).
+M0 walking skeleton ✓ → M1 durable engine ✓ → M1.5 hardening ✓ → M2 plugin SDK ✓ → M2.5 platform polish ✓ → M3 UI (this) → M4 ship. Details and definition-of-done in [the plan](docs/v2-plan.md).

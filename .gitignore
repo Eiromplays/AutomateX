@@ -10,4 +10,6 @@ appsettings.*.Local.json
 .aspire/
 node_modules/
 dist/
+src/web/build/
+src/web/.react-router/
 TestResults/

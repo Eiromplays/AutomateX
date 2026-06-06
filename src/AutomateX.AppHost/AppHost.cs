@@ -5,9 +5,15 @@ var postgres = builder.AddPostgres("postgres")
 
 var db = postgres.AddDatabase("automatex");
 
-builder.AddProject<Projects.AutomateX>("api")
+var api = builder.AddProject<Projects.AutomateX>("api")
     .WithReference(db)
     .WaitFor(db)
+    .WithExternalHttpEndpoints();
+
+builder.AddViteApp("web", "../web")
+    .WithPnpm()
+    .WithReference(api)
+    .WaitFor(api)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();

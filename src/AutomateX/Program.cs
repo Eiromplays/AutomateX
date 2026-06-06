@@ -1,5 +1,7 @@
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Plugin.Sdk;
+using AutomateX.Web;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,11 +14,14 @@ var connectionString = builder.Configuration.GetConnectionString("automatex")
 
 builder.AddAutomateXEngine(connectionString);
 builder.Services.AddFastEndpoints();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IEngineEventListener, SignalRExecutionEventListener>();
 
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
 app.UseFastEndpoints(config => config.Endpoints.RoutePrefix = "api");
+app.MapHub<ExecutionEventsHub>("/hubs/executions");
 
 if (app.Environment.IsDevelopment())
 {
