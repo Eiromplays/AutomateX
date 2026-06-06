@@ -16,6 +16,8 @@ public sealed class StepExecution
 
     public ExecutionStatus Status { get; private set; }
 
+    // Completed invocations of the action, success included. Failed attempts are
+    // derived: Attempts - 1 when Succeeded, Attempts otherwise.
     public int Attempts { get; private set; }
 
     public string? Output { get; private set; }
@@ -44,6 +46,7 @@ public sealed class StepExecution
 
     public void Complete(string? output)
     {
+        Attempts++;
         Status = ExecutionStatus.Succeeded;
         Output = output;
         Error = null;

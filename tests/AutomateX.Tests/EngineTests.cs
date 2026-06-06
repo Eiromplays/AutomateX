@@ -27,6 +27,7 @@ public sealed class EngineTests(EngineFixture fixture) : IClassFixture<EngineFix
         {
             Assert.Equal(ExecutionStatus.Succeeded, step.Status);
             Assert.StartsWith("ok:", step.Output);
+            Assert.Equal(1, step.Attempts);
         });
         Assert.Equal([0, 1], execution.Steps.OrderBy(x => x.StepOrder).Select(x => x.StepOrder));
     }
@@ -41,7 +42,8 @@ public sealed class EngineTests(EngineFixture fixture) : IClassFixture<EngineFix
 
         Assert.Equal(ExecutionStatus.Succeeded, execution.Status);
         var step = Assert.Single(execution.Steps);
-        Assert.Equal(2, step.Attempts);
+        // Rule: Attempts = completed invocations (success included), so it equals the probe's call count.
+        Assert.Equal(3, step.Attempts);
         Assert.Equal(3, fixture.ProbeAction.Calls);
         Assert.Null(step.Error);
     }
