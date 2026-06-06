@@ -14,6 +14,8 @@ builder.AddViteApp("web", "../web")
     .WithPnpm()
     .WithReference(api)
     .WaitFor(api)
+    // Stable dev port — webhook URLs and bookmarks survive restarts.
+    .WithEndpoint("http", endpoint => endpoint.Port = 5173)
     .WithExternalHttpEndpoints();
 
 builder.Build().Run();

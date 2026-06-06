@@ -14,6 +14,7 @@ export default function WorkflowDetail() {
   const [triggerType, setTriggerType] = useState("cron");
   const [cron, setCron] = useState("*/5 * * * *");
   const [payload, setPayload] = useState("");
+  const [newWebhook, setNewWebhook] = useState<string | null>(null);
 
   const { data: workflow, isLoading } = useQuery({
     queryKey: ["workflow", id],
@@ -31,12 +32,20 @@ export default function WorkflowDetail() {
         type: triggerType,
         config: triggerType === "cron" ? { cron } : {},
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workflow", id] }),
+    onSuccess: (created) => {
+      setNewWebhook(created.webhookUrl);
+      queryClient.invalidateQueries({ queryKey: ["workflow", id] });
+    },
   });
 
   const removeTrigger = useMutation({
     mutationFn: (triggerId: string) => api.triggers.remove(triggerId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workflow", id] }),
+  });
+
+  const rotateSecret = useMutation({
+    mutationFn: (triggerId: string) => api.triggers.rotateSecret(triggerId),
+    onSuccess: (rotated) => setNewWebhook(rotated.webhookUrl),
   });
 
   if (isLoading || !workflow) return <p className="text-sm text-zinc-500">Loading…</p>;
@@ -103,7 +112,7 @@ export default function WorkflowDetail() {
                 <span className="font-medium">{trigger.type}</span>
                 {!trigger.enabled && <span className="text-xs text-red-400">disabled</span>}
                 {trigger.type === "webhook" && (
-                  <code className="text-xs text-zinc-500">POST /api/webhooks/{trigger.id}</code>
+                  <code className="text-xs text-zinc-500">POST /api/webhooks/{trigger.id}?secret=•••</code>
                 )}
                 {trigger.nextRunAt && (
                   <span className="text-xs text-zinc-500">
@@ -111,13 +120,24 @@ export default function WorkflowDetail() {
                   </span>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => removeTrigger.mutate(trigger.id)}
-                className="text-xs text-zinc-500 hover:text-red-400"
-              >
-                Delete
-              </button>
+              <div className="flex gap-3">
+                {trigger.type === "webhook" && (
+                  <button
+                    type="button"
+                    onClick={() => rotateSecret.mutate(trigger.id)}
+                    className="text-xs text-zinc-500 hover:text-amber-400"
+                  >
+                    Rotate secret
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => removeTrigger.mutate(trigger.id)}
+                  className="text-xs text-zinc-500 hover:text-red-400"
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
           {workflow.triggers.length === 0 && (
@@ -152,6 +172,14 @@ export default function WorkflowDetail() {
           </button>
         </div>
         {addTrigger.error && <p className="mt-2 text-sm text-red-400">{String(addTrigger.error)}</p>}
+        {newWebhook && (
+          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+            <span className="font-medium text-amber-400">Copy now — shown once: </span>
+            <code className="break-all text-xs">
+              POST {newWebhook.startsWith("http") ? newWebhook : `${window.location.origin}${newWebhook}`}
+            </code>
+          </div>
+        )}
       </section>
     </div>
   );

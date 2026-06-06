@@ -41,7 +41,10 @@ public sealed class ApiKeyMiddleware(RequestDelegate next, IOptions<ApiKeyOption
     }
 
     private static bool IsProtected(PathString path) =>
-        (path.StartsWithSegments("/api") && !path.StartsWithSegments("/api/auth"))
+        (path.StartsWithSegments("/api")
+            && !path.StartsWithSegments("/api/auth")
+            // Webhooks carry per-trigger secrets — third-party senders never hold the global key.
+            && !path.StartsWithSegments("/api/webhooks"))
         || path.StartsWithSegments("/hubs");
 
     internal static bool FixedTimeEquals(string provided, string configured) =>

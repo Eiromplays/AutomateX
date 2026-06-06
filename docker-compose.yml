@@ -27,6 +27,8 @@ services:
       # Auth__ApiKey: change-me
       # Required for connections (encrypted secrets) — generate: openssl rand -base64 32
       # Encryption__Key: <base64-32-bytes>  (losing it makes stored secrets unrecoverable)
+      # Public origin used in generated webhook URLs (defaults to relative paths):
+      # Engine__PublicBaseUrl: https://automatex.example.com
     volumes:
       - ./plugins:/app/plugins
     depends_on:

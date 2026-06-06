@@ -109,6 +109,12 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    // Merge semantics: value overwrites, null deletes, absent keys stay untouched.
+    update: (id: string, body: { provider: string | null; secrets: Record<string, string | null> }) =>
+      request<{ id: string; name: string; secretKeys: string[] }>(`/connections/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
     remove: (id: string) => request<void>(`/connections/${id}`, { method: "DELETE" }),
   },
   auth: {
@@ -135,9 +141,18 @@ export const api = {
   },
   triggers: {
     create: (workflowId: string, body: { type: string; config: Record<string, unknown> }) =>
-      request<{ id: string; type: string; enabled: boolean; nextRunAt: string | null }>(
-        `/workflows/${workflowId}/triggers`,
-        { method: "POST", body: JSON.stringify(body) },
+      request<{
+        id: string;
+        type: string;
+        enabled: boolean;
+        nextRunAt: string | null;
+        webhookSecret: string | null;
+        webhookUrl: string | null;
+      }>(`/workflows/${workflowId}/triggers`, { method: "POST", body: JSON.stringify(body) }),
+    rotateSecret: (id: string) =>
+      request<{ id: string; webhookSecret: string; webhookUrl: string }>(
+        `/triggers/${id}/rotate-secret`,
+        { method: "POST" },
       ),
     remove: (id: string) => request<void>(`/triggers/${id}`, { method: "DELETE" }),
   },

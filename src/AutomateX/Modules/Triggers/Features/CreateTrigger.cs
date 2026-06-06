@@ -1,14 +1,16 @@
 using System.Text.Json;
 using AutomateX.Database;
+using AutomateX.Engine;
 using Cronos;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AutomateX.Modules.Triggers.Features;
 
 public static class CreateTrigger
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -29,6 +31,7 @@ public static class CreateTrigger
                 : "{}";
 
             DateTimeOffset? nextRunAt = null;
+            string? webhookSecret = null;
 
             switch (req.Type)
             {
@@ -36,6 +39,7 @@ public static class CreateTrigger
                     nextRunAt = ParseCronOrThrow(configJson);
                     break;
                 case TriggerTypes.Webhook:
+                    (configJson, webhookSecret) = WebhookSecret.AddTo(configJson);
                     break;
                 default:
                     ThrowError($"Unknown trigger type '{req.Type}'. Supported: {TriggerTypes.Cron}, {TriggerTypes.Webhook}.");
@@ -46,7 +50,16 @@ public static class CreateTrigger
             dbContext.Triggers.Add(trigger);
             await dbContext.SaveChangesAsync(ct);
 
-            await Send.OkAsync(new Response(trigger.Id, trigger.Type, trigger.Enabled, trigger.NextRunAt), ct);
+            // The webhook secret is shown exactly once — it is not retrievable afterwards.
+            await Send.OkAsync(new Response(
+                trigger.Id,
+                trigger.Type,
+                trigger.Enabled,
+                trigger.NextRunAt,
+                webhookSecret,
+                webhookSecret is null
+                    ? null
+                    : WebhookSecret.BuildUrl(engineOptions.Value.PublicBaseUrl, trigger.Id, webhookSecret)), ct);
         }
 
         private DateTimeOffset? ParseCronOrThrow(string configJson)
@@ -80,5 +93,11 @@ public static class CreateTrigger
 
     public sealed record Request(Guid WorkflowId, string Type, JsonElement? Config);
 
-    public sealed record Response(Guid Id, string Type, bool Enabled, DateTimeOffset? NextRunAt);
+    public sealed record Response(
+        Guid Id,
+        string Type,
+        bool Enabled,
+        DateTimeOffset? NextRunAt,
+        string? WebhookSecret,
+        string? WebhookUrl);
 }

@@ -31,6 +31,16 @@ public static class FireWebhookTrigger
                 return;
             }
 
+            // Per-trigger secret (header or ?secret=) — webhooks sit outside the global
+            // API-key gate. Legacy triggers without a stored secret must be recreated.
+            var providedSecret = HttpContext.Request.Headers["X-Webhook-Secret"].FirstOrDefault()
+                ?? HttpContext.Request.Query["secret"].FirstOrDefault();
+            if (!WebhookSecret.Validate(trigger.ConfigJson, providedSecret))
+            {
+                await Send.UnauthorizedAsync(ct);
+                return;
+            }
+
             string? payload = null;
             try
             {

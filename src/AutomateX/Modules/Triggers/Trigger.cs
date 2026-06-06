@@ -41,6 +41,11 @@ public sealed class Trigger
         CreatedAt = DateTimeOffset.UtcNow,
     };
 
+    public void ReplaceConfig(string configJson)
+    {
+        ConfigJson = configJson;
+    }
+
     public void MarkFired(DateTimeOffset? nextRunAt)
     {
         LastFiredAt = DateTimeOffset.UtcNow;

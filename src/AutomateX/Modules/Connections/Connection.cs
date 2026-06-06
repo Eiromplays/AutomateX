@@ -27,4 +27,14 @@ public sealed class Connection
         EncryptedSecrets = encryptedSecrets,
         CreatedAt = DateTimeOffset.UtcNow,
     };
+
+    public void Update(string? provider, string encryptedSecrets)
+    {
+        if (provider is not null)
+        {
+            Provider = provider;
+        }
+
+        EncryptedSecrets = encryptedSecrets;
+    }
 }

@@ -2,7 +2,9 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: v1.2 — encrypted connections.** Secrets move out of step configs into named **connections**: AES-256-GCM-encrypted bundles (master key from `Encryption__Key`, never stored in the database) referenced via `{{connections.<name>.<field>}}` — decrypted only at execution time, never persisted resolved, never returned by the API (key names only). Plus opt-in execution retention (`Engine__ExecutionRetention`, e.g. `30.00:00:00`) so old outputs don't accumulate forever. Connection secrets are **masked** (`***`) in everything persisted or published — step outputs, error messages, live events — GitHub-Actions-style. Best-effort by definition: transformed secrets (base64'd, split, re-encoded by the action) can't be recognized, so still don't deliberately echo them. Losing the encryption key makes stored secrets unrecoverable.
+**Status: v1.3 — connections & webhook polish.** Connections gain `PUT /api/connections/{id}` with merge semantics (filled = overwrite, removed = delete, untouched = keep — rotate one field without re-entering the rest; names immutable) and an edit form in the UI. Webhook triggers get **per-trigger secrets**: generated server-side, shown exactly once at creation (`/api/webhooks/{id}?secret=…` or `X-Webhook-Secret`), validated fixed-time — and `/api/webhooks` moves *outside* the global API-key gate, so third-party senders never hold the instance key. Webhook triggers created before v1.3 must be recreated to obtain a secret.
+
+Previous (v1.2): Secrets move out of step configs into named **connections**: AES-256-GCM-encrypted bundles (master key from `Encryption__Key`, never stored in the database) referenced via `{{connections.<name>.<field>}}` — decrypted only at execution time, never persisted resolved, never returned by the API (key names only). Plus opt-in execution retention (`Engine__ExecutionRetention`, e.g. `30.00:00:00`) so old outputs don't accumulate forever. Connection secrets are **masked** (`***`) in everything persisted or published — step outputs, error messages, live events — GitHub-Actions-style. Best-effort by definition: transformed secrets (base64'd, split, re-encoded by the action) can't be recognized, so still don't deliberately echo them. Losing the encryption key makes stored secrets unrecoverable.
 
 Previous (v1.1): Step configs are templates: `{{trigger.payload.x}}` carries webhook/manual JSON bodies into steps, `{{steps.0.output.y}}` pipes prior step outputs forward with JSON types preserved, and template errors fail the step instantly with a precise message (no retries — deterministic errors don't earn them). `ActionContext` now carries execution metadata. See **Data flow between steps** below.
 
@@ -62,7 +64,8 @@ GET    /api/workflows · /api/workflows/{id}
 POST   /api/workflows/{id}/execute          manual run → { executionId }
 POST   /api/workflows/{workflowId}/triggers create trigger (type: cron|webhook, config)
 DELETE /api/triggers/{id}
-POST   /api/webhooks/{triggerId}            fire a webhook trigger → { executionId }
+PUT    /api/connections/{id}                merge-update secrets (value=overwrite, null=delete)
+POST   /api/webhooks/{triggerId}?secret=…   fire a webhook trigger → { executionId } (per-trigger secret, shown once at creation)
 GET    /api/executions · /api/executions/{id}
 GET    /api/actions                         action catalog with JSON config/result schemas
 ```

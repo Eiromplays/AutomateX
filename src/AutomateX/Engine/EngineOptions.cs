@@ -25,4 +25,8 @@ public sealed class EngineOptions
     // When set, terminal executions older than this are deleted by the sweeper.
     // Null (default) keeps history forever.
     public TimeSpan? ExecutionRetention { get; set; }
+
+    // The operator-declared public origin (e.g. https://automatex.example.com) used to
+    // build absolute webhook URLs. Unset = relative URLs, UI prefixes its own origin.
+    public string? PublicBaseUrl { get; set; }
 }

@@ -90,6 +90,17 @@ public sealed class ApiKeyMiddlewareTests
     }
 
     [Fact]
+    public async Task Webhook_paths_are_not_gated_by_the_api_key()
+    {
+        // Rule change (v1.3): webhooks authenticate with per-trigger secrets instead —
+        // third-party senders can't set the X-Api-Key header and must never hold the global key.
+        var (status, nextCalled) = await RunAsync("secret", "/api/webhooks/some-trigger-id");
+
+        Assert.True(nextCalled);
+        Assert.Equal(StatusCodes.Status200OK, status);
+    }
+
+    [Fact]
     public async Task Wrong_key_is_401()
     {
         var (status, nextCalled) = await RunAsync("secret", "/api/workflows", headerKey: "nope");
