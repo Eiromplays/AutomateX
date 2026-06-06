@@ -22,6 +22,14 @@ public sealed class TemplateResolverTests
             ExecutionId,
             WorkflowId);
 
+    private static TemplateContext ContextWithConnections(params (string Name, string SecretsJson)[] connections) =>
+        Context() with
+        {
+            Connections = connections.ToDictionary(
+                x => x.Name,
+                x => JsonSerializer.Deserialize<JsonElement>(x.SecretsJson)),
+        };
+
     // Mirrors the engine: valid JSON outputs navigate; anything else is a string value.
     private static JsonElement ParseLikeTheEngine(string output)
     {
@@ -134,6 +142,51 @@ public sealed class TemplateResolverTests
             TemplateResolver.Resolve("""{"x":"{{nope.thing}}"}""", Context()));
 
         Assert.Contains("unknown root", ex.Message);
+    }
+
+    [Fact]
+    public void Connection_fields_resolve()
+    {
+        var result = Resolve(
+            """{"auth":"Bearer {{connections.github.token}}"}""",
+            ContextWithConnections(("github", """{"token":"s3cret"}""")));
+
+        Assert.Equal("Bearer s3cret", result.GetProperty("auth").GetString());
+    }
+
+    [Fact]
+    public void Unknown_connection_throws_without_echoing_values()
+    {
+        var ex = Assert.Throws<TemplateResolutionException>(() =>
+            TemplateResolver.Resolve(
+                """{"x":"{{connections.missing.token}}"}""",
+                ContextWithConnections(("github", """{"token":"s3cret"}"""))));
+
+        Assert.Contains("missing", ex.Message);
+        Assert.DoesNotContain("s3cret", ex.Message);
+    }
+
+    [Fact]
+    public void Connection_values_are_collected_for_masking()
+    {
+        var sink = new HashSet<string>();
+        var context = ContextWithConnections(("github", """{"token":"s3cret"}""")) with { SecretSink = sink };
+
+        TemplateResolver.Resolve(
+            """{"auth":"Bearer {{connections.github.token}}","id":"{{execution.id}}"}""",
+            context);
+
+        // Only connection-resolved values are secrets — execution metadata is not.
+        Assert.Equal(["s3cret"], sink);
+    }
+
+    [Fact]
+    public void Missing_connection_field_throws()
+    {
+        Assert.Throws<TemplateResolutionException>(() =>
+            TemplateResolver.Resolve(
+                """{"x":"{{connections.github.nope}}"}""",
+                ContextWithConnections(("github", """{"token":"s3cret"}"""))));
     }
 
     [Fact]

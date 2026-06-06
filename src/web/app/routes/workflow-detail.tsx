@@ -13,6 +13,7 @@ export default function WorkflowDetail() {
   const queryClient = useQueryClient();
   const [triggerType, setTriggerType] = useState("cron");
   const [cron, setCron] = useState("*/5 * * * *");
+  const [payload, setPayload] = useState("");
 
   const { data: workflow, isLoading } = useQuery({
     queryKey: ["workflow", id],
@@ -20,7 +21,7 @@ export default function WorkflowDetail() {
   });
 
   const execute = useMutation({
-    mutationFn: () => api.workflows.execute(id),
+    mutationFn: () => api.workflows.execute(id, payload.trim() || undefined),
     onSuccess: ({ executionId }) => navigate(`/executions/${executionId}`),
   });
 
@@ -55,6 +56,17 @@ export default function WorkflowDetail() {
         >
           {execute.isPending ? "Starting…" : "Run now"}
         </button>
+      </div>
+
+      <div>
+        <textarea
+          className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 font-mono text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+          rows={2}
+          placeholder='Optional JSON payload for Run now — available in steps as {{trigger.payload}}'
+          value={payload}
+          onChange={(e) => setPayload(e.target.value)}
+        />
+        {execute.error && <p className="mt-1 text-sm text-red-400">{String(execute.error)}</p>}
       </div>
 
       <section>

@@ -21,4 +21,8 @@ public sealed class EngineOptions
 
     // Relative paths resolve against AppContext.BaseDirectory.
     public string PluginsPath { get; set; } = "plugins";
+
+    // When set, terminal executions older than this are deleted by the sweeper.
+    // Null (default) keeps history forever.
+    public TimeSpan? ExecutionRetention { get; set; }
 }

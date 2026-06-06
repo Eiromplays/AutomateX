@@ -10,7 +10,9 @@ public sealed record TemplateContext(
     JsonElement? TriggerPayload,
     IReadOnlyDictionary<int, JsonElement> StepOutputs,
     Guid ExecutionId,
-    Guid WorkflowId);
+    Guid WorkflowId,
+    IReadOnlyDictionary<string, JsonElement>? Connections = null,
+    ISet<string>? SecretSink = null);
 
 // Resolves {{path}} tokens in step configs before execution. Roots:
 //   trigger.payload[.x.y]   steps.<order>.output[.x.y]   execution.id   workflow.id
@@ -97,7 +99,7 @@ public static partial class TemplateResolver
     private static JsonElement ResolvePath(string path, TemplateContext context)
     {
         var segments = path.Split('.');
-        var (current, consumed) = ResolveRoot(segments, path, context);
+        var (current, consumed, isSecret) = ResolveRoot(segments, path, context);
 
         foreach (var segment in segments.Skip(consumed))
         {
@@ -111,17 +113,22 @@ public static partial class TemplateResolver
             };
         }
 
+        if (isSecret)
+        {
+            context.SecretSink?.Add(Stringify(current));
+        }
+
         return current;
     }
 
-    private static (JsonElement Root, int ConsumedSegments) ResolveRoot(
+    private static (JsonElement Root, int ConsumedSegments, bool IsSecret) ResolveRoot(
         string[] segments, string path, TemplateContext context)
     {
         switch (segments[0])
         {
             case "trigger" when segments.Length >= 2 && segments[1] == "payload":
                 return context.TriggerPayload is { } payload
-                    ? (payload, 2)
+                    ? (payload, 2, false)
                     : throw new TemplateResolutionException(
                         $"Path '{path}' could not be resolved: this execution has no trigger payload.");
 
@@ -129,20 +136,27 @@ public static partial class TemplateResolver
                 && int.TryParse(segments[1], out var order)
                 && segments[2] == "output":
                 return context.StepOutputs.TryGetValue(order, out var output)
-                    ? (output, 3)
+                    ? (output, 3, false)
                     : throw new TemplateResolutionException(
                         $"Path '{path}' could not be resolved: no completed step with order {order}.");
 
             case "execution" when segments.Length == 2 && segments[1] == "id":
-                return (JsonSerializer.SerializeToElement(context.ExecutionId.ToString()), 2);
+                return (JsonSerializer.SerializeToElement(context.ExecutionId.ToString()), 2, false);
 
             case "workflow" when segments.Length == 2 && segments[1] == "id":
-                return (JsonSerializer.SerializeToElement(context.WorkflowId.ToString()), 2);
+                return (JsonSerializer.SerializeToElement(context.WorkflowId.ToString()), 2, false);
+
+            case "connections" when segments.Length >= 3:
+                return context.Connections is not null
+                    && context.Connections.TryGetValue(segments[1], out var secrets)
+                    ? (secrets, 2, true)
+                    : throw new TemplateResolutionException(
+                        $"Path '{path}' could not be resolved: unknown connection '{segments[1]}'.");
 
             default:
                 throw new TemplateResolutionException(
                     $"Path '{path}' could not be resolved: unknown root '{segments[0]}'. " +
-                    "Supported: trigger.payload, steps.<order>.output, execution.id, workflow.id.");
+                    "Supported: trigger.payload, steps.<order>.output, connections.<name>.<field>, execution.id, workflow.id.");
         }
     }
 }

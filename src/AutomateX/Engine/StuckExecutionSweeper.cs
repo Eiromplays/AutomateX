@@ -29,6 +29,15 @@ public sealed class StuckExecutionSweeper(
                 {
                     logger.LogWarning("Marked {Count} stuck execution(s) older than {Cutoff} as failed", swept, cutoff);
                 }
+
+                if (engineOptions.Value.ExecutionRetention is { } retention)
+                {
+                    var deleted = await SweepRetentionAsync(dbContext, DateTimeOffset.UtcNow - retention, stoppingToken);
+                    if (deleted > 0)
+                    {
+                        logger.LogInformation("Deleted {Count} execution(s) past the {Retention} retention window", deleted, retention);
+                    }
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -56,4 +65,13 @@ public sealed class StuckExecutionSweeper(
                 .SetProperty(e => e.Status, ExecutionStatus.Failed)
                 .SetProperty(e => e.CompletedAt, DateTimeOffset.UtcNow), cancellationToken);
     }
+
+    // Retention: terminal executions (and their steps, via cascade) older than the cutoff.
+    public static async Task<int> SweepRetentionAsync(
+        AutomateXDbContext dbContext,
+        DateTimeOffset olderThan,
+        CancellationToken cancellationToken = default) =>
+        await dbContext.Executions
+            .Where(e => e.Status != ExecutionStatus.Running && e.StartedAt < olderThan)
+            .ExecuteDeleteAsync(cancellationToken);
 }

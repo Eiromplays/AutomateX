@@ -1,3 +1,4 @@
+using AutomateX.Modules.Connections;
 using AutomateX.Modules.Executions;
 using AutomateX.Modules.Triggers;
 using AutomateX.Modules.Workflows;
@@ -14,6 +15,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
 
     public DbSet<Trigger> Triggers => Set<Trigger>();
+
+    public DbSet<Connection> Connections => Set<Connection>();
 
     public DbSet<Execution> Executions => Set<Execution>();
 

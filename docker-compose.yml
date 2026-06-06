@@ -25,6 +25,8 @@ services:
       ConnectionStrings__automatex: Host=postgres;Database=automatex;Username=automatex;Password=automatex
       # Uncomment to require an API key on /api and /hubs:
       # Auth__ApiKey: change-me
+      # Required for connections (encrypted secrets) — generate: openssl rand -base64 32
+      # Encryption__Key: <base64-32-bytes>  (losing it makes stored secrets unrecoverable)
     volumes:
       - ./plugins:/app/plugins
     depends_on:

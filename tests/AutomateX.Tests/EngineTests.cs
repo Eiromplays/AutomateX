@@ -1,7 +1,10 @@
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Engine.Security;
+using AutomateX.Modules.Connections;
 using AutomateX.Modules.Executions;
 using AutomateX.Modules.Workflows;
+using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Wolverine;
@@ -77,8 +80,9 @@ public sealed class EngineTests(EngineFixture fixture) : IClassFixture<EngineFix
 
         Assert.Equal(ExecutionStatus.Succeeded, execution.Status);
         var secondConfig = fixture.ProbeAction.ReceivedConfigs.ToArray()[1];
+        // Probe outputs "ok:<call>:<config>", so step 0's full output starts with "ok:1:".
         Assert.Contains("""
-            "prev":"ok:1"
+            "prev":"ok:1:
             """.Trim(), secondConfig);
         Assert.Contains("""
             "name":"eirik"
@@ -102,6 +106,92 @@ public sealed class EngineTests(EngineFixture fixture) : IClassFixture<EngineFix
         Assert.Equal(0, step.Attempts);
         Assert.Equal(0, fixture.ProbeAction.Calls);
         Assert.Contains("could not be resolved", step.Error);
+    }
+
+    [Fact]
+    public async Task Connection_secrets_flow_into_configs()
+    {
+        fixture.ProbeAction.Reset();
+        var connectionName = $"testconn-{Guid.CreateVersion7():N}";
+
+        await using (var scope = fixture.Host.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+            var cipher = scope.ServiceProvider.GetRequiredService<SecretCipher>();
+            dbContext.Connections.Add(Connection.Create(
+                connectionName,
+                "test",
+                cipher.Encrypt("""{"token":"s3cret-token"}""")));
+            await dbContext.SaveChangesAsync();
+        }
+
+        var workflowId = await TestData.SeedWorkflowAsync(fixture.Host, [
+            "{\"auth\":\"Bearer {{connections." + connectionName + ".token}}\"}",
+        ]);
+
+        var executionId = await TestData.ExecuteAsync(fixture.Host, workflowId);
+        var execution = await TestData.WaitForTerminalAsync(fixture.Host, executionId, TerminalTimeout);
+
+        Assert.Equal(ExecutionStatus.Succeeded, execution.Status);
+        Assert.Contains("Bearer s3cret-token", Assert.Single(fixture.ProbeAction.ReceivedConfigs));
+    }
+
+    [Fact]
+    public async Task Connection_secrets_are_masked_in_outputs_and_events()
+    {
+        fixture.ProbeAction.Reset();
+        fixture.EventListener.Reset();
+        var connectionName = $"maskconn-{Guid.CreateVersion7():N}";
+
+        await using (var scope = fixture.Host.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+            var cipher = scope.ServiceProvider.GetRequiredService<SecretCipher>();
+            dbContext.Connections.Add(Connection.Create(
+                connectionName, null, cipher.Encrypt("""{"token":"sup3r-s3cret"}""")));
+            await dbContext.SaveChangesAsync();
+        }
+
+        var workflowId = await TestData.SeedWorkflowAsync(fixture.Host, [
+            "{\"auth\":\"Bearer {{connections." + connectionName + ".token}}\"}",
+        ]);
+
+        var executionId = await TestData.ExecuteAsync(fixture.Host, workflowId);
+        var execution = await TestData.WaitForTerminalAsync(fixture.Host, executionId, TerminalTimeout);
+
+        // The action itself received the real value...
+        Assert.Contains("sup3r-s3cret", Assert.Single(fixture.ProbeAction.ReceivedConfigs));
+
+        // ...but everything persisted or published is masked.
+        var step = Assert.Single(execution.Steps);
+        Assert.Equal(ExecutionStatus.Succeeded, step.Status);
+        Assert.DoesNotContain("sup3r-s3cret", step.Output);
+        Assert.Contains("***", step.Output);
+
+        var stepCompleted = fixture.EventListener.Events
+            .OfType<StepCompleted>()
+            .Single(x => x.ExecutionId == executionId);
+        Assert.DoesNotContain("sup3r-s3cret", stepCompleted.Output);
+    }
+
+    [Fact]
+    public async Task Retention_sweep_deletes_completed_but_keeps_running()
+    {
+        await using var scope = fixture.Host.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+
+        var completed = Execution.Start(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), "test");
+        completed.Complete();
+        var running = Execution.Start(Guid.CreateVersion7(), Guid.CreateVersion7(), Guid.CreateVersion7(), "test");
+        dbContext.Executions.AddRange(completed, running);
+        await dbContext.SaveChangesAsync();
+
+        // Cutoff in the future = every non-running execution is "old".
+        await StuckExecutionSweeper.SweepRetentionAsync(dbContext, DateTimeOffset.UtcNow.AddMinutes(1));
+
+        dbContext.ChangeTracker.Clear();
+        Assert.Null(await dbContext.Executions.FindAsync(completed.Id));
+        Assert.NotNull(await dbContext.Executions.FindAsync(running.Id));
     }
 
     [Fact]

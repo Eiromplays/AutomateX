@@ -6,4 +6,5 @@ export default [
   route("workflows/:id", "routes/workflow-detail.tsx"),
   route("executions", "routes/executions.tsx"),
   route("executions/:id", "routes/execution-detail.tsx"),
+  route("connections", "routes/connections.tsx"),
 ] satisfies RouteConfig;

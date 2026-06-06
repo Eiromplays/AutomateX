@@ -2,6 +2,7 @@ using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Actions;
 using AutomateX.Engine.Events;
+using AutomateX.Engine.Security;
 using AutomateX.Engine.Templating;
 using AutomateX.Modules.Executions;
 using AutomateX.Plugin.Sdk;
@@ -20,6 +21,7 @@ public static class ExecuteStepHandler
         AutomateXDbContext dbContext,
         ActionRegistry actions,
         EngineEventBus eventBus,
+        SecretCipher cipher,
         IOptions<EngineOptions> engineOptions,
         ILogger logger,
         CancellationToken cancellationToken)
@@ -69,12 +71,15 @@ public static class ExecuteStepHandler
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        var secretSink = new HashSet<string>();
         string resolvedConfig;
         try
         {
-            resolvedConfig = TemplateResolver.Resolve(step.ConfigJson, BuildTemplateContext(execution));
+            var templateContext = await BuildTemplateContextAsync(execution, step.ConfigJson, dbContext, cipher, cancellationToken)
+                with { SecretSink = secretSink };
+            resolvedConfig = TemplateResolver.Resolve(step.ConfigJson, templateContext);
         }
-        catch (TemplateResolutionException ex)
+        catch (Exception ex) when (ex is TemplateResolutionException or SecretCipherException)
         {
             // Deterministic config error — the action never runs and retries can't help.
             stepExecution.Fail(ex.Message);
@@ -98,18 +103,21 @@ public static class ExecuteStepHandler
         }
         catch (Exception ex)
         {
-            stepExecution.RecordFailure(ex.Message);
+            // Connection secrets are masked in everything persisted or published.
+            var error = SecretMasker.MaskSecrets(ex.Message, secretSink) ?? ex.Message;
+
+            stepExecution.RecordFailure(error);
             var willRetry = stepExecution.Attempts < options.MaxStepAttempts;
 
             if (!willRetry)
             {
-                stepExecution.Fail(ex.Message);
+                stepExecution.Fail(error);
                 execution.Fail();
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await eventBus.PublishAsync(
-                new StepFailed(execution.Id, message.StepOrder, step.ActionType, ex.Message, stepExecution.Attempts, willRetry),
+                new StepFailed(execution.Id, message.StepOrder, step.ActionType, error, stepExecution.Attempts, willRetry),
                 cancellationToken);
 
             if (!willRetry)
@@ -127,11 +135,13 @@ public static class ExecuteStepHandler
                 : TimeSpan.FromSeconds(5);
             logger.LogWarning(
                 "Step {StepOrder} of execution {ExecutionId} failed (attempt {Attempts}/{MaxAttempts}), retrying in {Delay}: {Error}",
-                message.StepOrder, execution.Id, stepExecution.Attempts, options.MaxStepAttempts, delay, ex.Message);
+                message.StepOrder, execution.Id, stepExecution.Attempts, options.MaxStepAttempts, delay, error);
 
             return new ExecuteStep(message.ExecutionId, message.StepOrder).DelayedFor(delay);
         }
 
+        // Connection secrets are masked in everything persisted or published.
+        output = SecretMasker.MaskSecrets(output, secretSink);
         stepExecution.Complete(output);
 
         var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, message.StepOrder, cancellationToken);
@@ -172,7 +182,12 @@ public static class ExecuteStepHandler
         return new ExecuteStep(execution.Id, nextOrder.Value);
     }
 
-    private static TemplateContext BuildTemplateContext(Execution execution)
+    private static async Task<TemplateContext> BuildTemplateContextAsync(
+        Execution execution,
+        string configJson,
+        AutomateXDbContext dbContext,
+        SecretCipher cipher,
+        CancellationToken cancellationToken)
     {
         Dictionary<int, JsonElement> stepOutputs = [];
         foreach (var step in execution.Steps.Where(x => x.Status == ExecutionStatus.Succeeded))
@@ -180,11 +195,23 @@ public static class ExecuteStepHandler
             stepOutputs[step.StepOrder] = ParseOutput(step.Output);
         }
 
+        // Decrypt connections only when the config can possibly reference them.
+        Dictionary<string, JsonElement>? connections = null;
+        if (configJson.Contains("connections", StringComparison.Ordinal))
+        {
+            connections = [];
+            foreach (var connection in await dbContext.Connections.AsNoTracking().ToListAsync(cancellationToken))
+            {
+                connections[connection.Name] = JsonSerializer.Deserialize<JsonElement>(cipher.Decrypt(connection.EncryptedSecrets));
+            }
+        }
+
         return new TemplateContext(
             ParseOptionalJson(execution.TriggerPayload),
             stepOutputs,
             execution.Id,
-            execution.WorkflowId);
+            execution.WorkflowId,
+            connections);
     }
 
     private static JsonElement ParseOutput(string? output)

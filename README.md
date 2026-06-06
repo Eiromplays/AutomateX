@@ -2,7 +2,9 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: v1.1 — data flow.** Step configs are templates: `{{trigger.payload.x}}` carries webhook/manual JSON bodies into steps, `{{steps.0.output.y}}` pipes prior step outputs forward with JSON types preserved, and template errors fail the step instantly with a precise message (no retries — deterministic errors don't earn them). `ActionContext` now carries execution metadata. See **Data flow between steps** below.
+**Status: v1.2 — encrypted connections.** Secrets move out of step configs into named **connections**: AES-256-GCM-encrypted bundles (master key from `Encryption__Key`, never stored in the database) referenced via `{{connections.<name>.<field>}}` — decrypted only at execution time, never persisted resolved, never returned by the API (key names only). Plus opt-in execution retention (`Engine__ExecutionRetention`, e.g. `30.00:00:00`) so old outputs don't accumulate forever. Connection secrets are **masked** (`***`) in everything persisted or published — step outputs, error messages, live events — GitHub-Actions-style. Best-effort by definition: transformed secrets (base64'd, split, re-encoded by the action) can't be recognized, so still don't deliberately echo them. Losing the encryption key makes stored secrets unrecoverable.
+
+Previous (v1.1): Step configs are templates: `{{trigger.payload.x}}` carries webhook/manual JSON bodies into steps, `{{steps.0.output.y}}` pipes prior step outputs forward with JSON types preserved, and template errors fail the step instantly with a precise message (no retries — deterministic errors don't earn them). `ActionContext` now carries execution metadata. See **Data flow between steps** below.
 
 Previous (M4): Self-hostable with `docker compose up`: the API ships as an SDK-built container (`dotnet publish -t:PublishContainer`), the SPA as a Caddy image serving the static build and reverse-proxying `/api` + `/hubs`, Postgres alongside. Plugins load from a volume-mounted `plugins/` folder, migrations apply on startup (`Database__MigrateOnStartup=false` to opt out), and an optional API key (`Auth__ApiKey`) gates `/api` and `/hubs` — API clients send `X-Api-Key`; the UI signs in once via the ⚿ button and holds an HttpOnly SameSite=Strict session cookie (the key never sits in JS-readable storage or URLs, and the cookie authenticates the SignalR handshake).
 
@@ -70,10 +72,11 @@ GET    /api/actions                         action catalog with JSON config/resu
 Step configs are templates. `{{path}}` tokens resolve before each step runs:
 
 ```
-{{trigger.payload}}          the JSON body sent to the webhook / manual execute call
-{{trigger.payload.x.y}}      navigate it (object properties + array indices, camelCase)
-{{steps.0.output.body}}      a prior step's output (0-based order)
-{{execution.id}}             {{workflow.id}}
+{{trigger.payload}}            the JSON body sent to the webhook / manual execute call
+{{trigger.payload.x.y}}        navigate it (object properties + array indices, camelCase)
+{{steps.0.output.body}}        a prior step's output (0-based order)
+{{connections.github.token}}   a field from an encrypted connection (see Connections page)
+{{execution.id}}               {{workflow.id}}
 ```
 
 A token that is the entire string keeps its JSON type (`"{{steps.0.output.statusCode}}"` → `200`,

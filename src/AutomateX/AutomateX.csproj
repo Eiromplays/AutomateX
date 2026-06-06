@@ -3,6 +3,7 @@
   <PropertyGroup>
     <!-- `dotnet publish -t:PublishContainer` produces the automatex-api image. -->
     <ContainerRepository>automatex-api</ContainerRepository>
+    <UserSecretsId>83384a8e-e19c-49ff-97d1-7ebe0c2e556a</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

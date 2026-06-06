@@ -92,7 +92,25 @@ export type CreateWorkflowStep = {
   config: Record<string, unknown>;
 };
 
+export type ConnectionSummary = {
+  id: string;
+  name: string;
+  provider: string | null;
+  createdAt: string;
+  secretKeys: string[];
+  decryptable: boolean;
+};
+
 export const api = {
+  connections: {
+    list: () => request<ConnectionSummary[]>("/connections"),
+    create: (body: { name: string; provider: string | null; secrets: Record<string, string> }) =>
+      request<{ id: string; name: string }>("/connections", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    remove: (id: string) => request<void>(`/connections/${id}`, { method: "DELETE" }),
+  },
   auth: {
     login: (key: string) =>
       request<void>("/auth/session", { method: "POST", body: JSON.stringify({ key }) }),
@@ -109,8 +127,11 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    execute: (id: string) =>
-      request<{ executionId: string }>(`/workflows/${id}/execute`, { method: "POST" }),
+    execute: (id: string, payload?: string) =>
+      request<{ executionId: string }>(`/workflows/${id}/execute`, {
+        method: "POST",
+        ...(payload ? { body: payload } : {}),
+      }),
   },
   triggers: {
     create: (workflowId: string, body: { type: string; config: Record<string, unknown> }) =>

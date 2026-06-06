@@ -45,6 +45,9 @@ export default function Root() {
             <NavLink to="/executions" className={navLinkClass}>
               Executions
             </NavLink>
+            <NavLink to="/connections" className={navLinkClass}>
+              Connections
+            </NavLink>
             <button
               type="button"
               title="Sign in with API key"

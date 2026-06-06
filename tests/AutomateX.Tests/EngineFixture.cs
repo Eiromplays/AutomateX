@@ -1,9 +1,11 @@
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Engine.Actions;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Testcontainers.PostgreSql;
@@ -36,9 +38,10 @@ public sealed class TestActionExecutor : IActionExecutor
     {
         ReceivedConfigs.Enqueue(configJson);
         var call = Interlocked.Increment(ref _calls);
+        // Echoes the resolved config into the output so masking is observable in tests.
         return call <= FailuresBeforeSuccess
             ? throw new InvalidOperationException($"probe failure {call}")
-            : Task.FromResult<string?>($"ok:{call}");
+            : Task.FromResult<string?>($"ok:{call}:{configJson}");
     }
 }
 
@@ -115,6 +118,10 @@ public sealed class EngineFixture : IAsyncLifetime
         // Same composition as the app: Program.cs and tests share AddAutomateXEngine,
         // so config drift between them is impossible by construction.
         var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder();
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Encryption:Key"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
+        });
         builder.AddAutomateXEngine(connectionString, options =>
         {
             // Tight retry ladder so failure tests run in milliseconds, not minutes.

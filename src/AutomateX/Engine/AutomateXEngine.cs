@@ -2,6 +2,7 @@ using AutomateX.Database;
 using AutomateX.Engine.Actions;
 using AutomateX.Engine.Events;
 using AutomateX.Engine.Plugins;
+using AutomateX.Engine.Security;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
@@ -47,6 +48,8 @@ public static class AutomateXEngine
         });
 
         builder.Services.AddOptions<EngineOptions>().BindConfiguration(EngineOptions.SectionName);
+        builder.Services.AddOptions<EncryptionOptions>().BindConfiguration(EncryptionOptions.SectionName);
+        builder.Services.AddSingleton<SecretCipher>();
         if (configureEngine is not null)
         {
             builder.Services.PostConfigure(configureEngine);
