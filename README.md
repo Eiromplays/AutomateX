@@ -1,5 +1,7 @@
 # AutomateX
 
+[![CI](https://github.com/Eiromplays/AutomateX/actions/workflows/ci.yml/badge.svg)](https://github.com/Eiromplays/AutomateX/actions/workflows/ci.yml)
+
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
 **Status: v1.3 — connections & webhook polish.** Connections gain `PUT /api/connections/{id}` with merge semantics (filled = overwrite, removed = delete, untouched = keep — rotate one field without re-entering the rest; names immutable) and an edit form in the UI. Webhook triggers get **per-trigger secrets**: generated server-side, shown exactly once at creation (`/api/webhooks/{id}?secret=…` or `X-Webhook-Secret`), validated fixed-time — and `/api/webhooks` moves *outside* the global API-key gate, so third-party senders never hold the instance key. Webhook triggers created before v1.3 must be recreated to obtain a secret.
@@ -46,6 +48,8 @@ dotnet publish src/AutomateX -t:PublishContainer   # builds the automatex-api im
 docker compose up -d
 open http://localhost:8080                          # UI (8081 = direct API access)
 ```
+
+Version tags (`v*`) publish images to GHCR via Actions — swap the compose `image:`/`build:` entries for `ghcr.io/eiromplays/automatex-api:latest` and `ghcr.io/eiromplays/automatex-web:latest` to skip local builds entirely.
 
 - Plugins: drop `<Name>/<Name>.dll` into `./plugins` (volume-mounted) and restart the api — see `plugins/README.md`.
 - Auth: set `Auth__ApiKey` in compose to gate `/api` + `/hubs`; enter the key via the ⚿ button in the UI header.
