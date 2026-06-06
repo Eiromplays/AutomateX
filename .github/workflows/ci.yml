@@ -30,8 +30,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # Reads the pinned pnpm version from package.json's packageManager field.
+      # Reads the pinned pnpm version from the web app's packageManager field
+      # (actions run from the repo root — defaults.run.working-directory doesn't apply).
       - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: src/web/package.json
 
       - uses: actions/setup-node@v6
         with:
