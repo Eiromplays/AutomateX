@@ -14,6 +14,9 @@ public sealed class Execution
 
     public string TriggeredBy { get; private set; } = null!;
 
+    // Raw JSON delivered by the trigger (webhook/manual body); template root {{trigger.payload}}.
+    public string? TriggerPayload { get; private set; }
+
     public ExecutionStatus Status { get; private set; }
 
     public DateTimeOffset StartedAt { get; private set; }
@@ -22,12 +25,18 @@ public sealed class Execution
 
     public List<StepExecution> Steps { get; } = [];
 
-    public static Execution Start(Guid id, Guid workflowId, Guid workflowVersionId, string triggeredBy) => new()
+    public static Execution Start(
+        Guid id,
+        Guid workflowId,
+        Guid workflowVersionId,
+        string triggeredBy,
+        string? triggerPayload = null) => new()
     {
         Id = id,
         WorkflowId = workflowId,
         WorkflowVersionId = workflowVersionId,
         TriggeredBy = triggeredBy,
+        TriggerPayload = triggerPayload,
         Status = ExecutionStatus.Running,
         StartedAt = DateTimeOffset.UtcNow,
     };

@@ -1,5 +1,7 @@
+using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Web;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
@@ -26,8 +28,18 @@ public static class ExecuteWorkflow
                 return;
             }
 
+            string? payload = null;
+            try
+            {
+                payload = await RawJsonBody.ReadAsync(HttpContext, ct);
+            }
+            catch (JsonException)
+            {
+                ThrowError("Request body must be empty or valid JSON — it becomes {{trigger.payload}}.");
+            }
+
             var executionId = Guid.CreateVersion7();
-            await bus.PublishAsync(new RunWorkflow(executionId, id, "manual"));
+            await bus.PublishAsync(new RunWorkflow(executionId, id, "manual", payload));
 
             await Send.OkAsync(new Response(executionId), ct);
         }

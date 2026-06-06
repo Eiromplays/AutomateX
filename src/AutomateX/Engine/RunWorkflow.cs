@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AutomateX.Engine;
 
-public sealed record RunWorkflow(Guid ExecutionId, Guid WorkflowId, string TriggeredBy);
+public sealed record RunWorkflow(Guid ExecutionId, Guid WorkflowId, string TriggeredBy, string? Payload = null);
 
 public static class RunWorkflowHandler
 {
@@ -36,7 +36,7 @@ public static class RunWorkflowHandler
             return null;
         }
 
-        var execution = Execution.Start(message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy);
+        var execution = Execution.Start(message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload);
         dbContext.Executions.Add(execution);
 
         var firstStep = version.Steps.OrderBy(x => x.Order).FirstOrDefault();

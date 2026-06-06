@@ -64,6 +64,47 @@ public sealed class EngineTests(EngineFixture fixture) : IClassFixture<EngineFix
     }
 
     [Fact]
+    public async Task Data_flows_from_trigger_payload_and_prior_step_outputs()
+    {
+        fixture.ProbeAction.Reset();
+        var workflowId = await TestData.SeedWorkflowAsync(fixture.Host, [
+            "{}",
+            """{"prev":"{{steps.0.output}}","name":"{{trigger.payload.name}}"}""",
+        ]);
+
+        var executionId = await TestData.ExecuteAsync(fixture.Host, workflowId, """{"name":"eirik"}""");
+        var execution = await TestData.WaitForTerminalAsync(fixture.Host, executionId, TerminalTimeout);
+
+        Assert.Equal(ExecutionStatus.Succeeded, execution.Status);
+        var secondConfig = fixture.ProbeAction.ReceivedConfigs.ToArray()[1];
+        Assert.Contains("""
+            "prev":"ok:1"
+            """.Trim(), secondConfig);
+        Assert.Contains("""
+            "name":"eirik"
+            """.Trim(), secondConfig);
+    }
+
+    [Fact]
+    public async Task Template_errors_fail_immediately_without_invoking_the_action()
+    {
+        fixture.ProbeAction.Reset();
+        var workflowId = await TestData.SeedWorkflowAsync(fixture.Host, [
+            """{"x":"{{steps.9.output}}"}""",
+        ]);
+
+        var executionId = await TestData.ExecuteAsync(fixture.Host, workflowId);
+        var execution = await TestData.WaitForTerminalAsync(fixture.Host, executionId, TerminalTimeout);
+
+        Assert.Equal(ExecutionStatus.Failed, execution.Status);
+        var step = Assert.Single(execution.Steps);
+        Assert.Equal(ExecutionStatus.Failed, step.Status);
+        Assert.Equal(0, step.Attempts);
+        Assert.Equal(0, fixture.ProbeAction.Calls);
+        Assert.Contains("could not be resolved", step.Error);
+    }
+
+    [Fact]
     public async Task Sweeper_fails_stuck_executions()
     {
         await using var scope = fixture.Host.Services.CreateAsyncScope();

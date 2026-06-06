@@ -50,7 +50,8 @@ public sealed class ActionDiscoveryTests
         var actions = ActionDiscovery.FromAssembly(typeof(TestEchoAction).Assembly, "test", services).ToList();
         var executor = Assert.Single(actions, x => x.Descriptor.Type == "test.echo").Executor;
 
-        var output = await executor.ExecuteAsync("""{"message":"hi"}""");
+        var invocation = new ActionInvocation(Guid.CreateVersion7(), Guid.CreateVersion7(), 0);
+        var output = await executor.ExecuteAsync("""{"message":"hi"}""", invocation);
 
         Assert.NotNull(output);
         Assert.Contains("echo:hi", output);

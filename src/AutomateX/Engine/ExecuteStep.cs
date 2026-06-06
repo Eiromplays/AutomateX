@@ -1,6 +1,8 @@
+using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Actions;
 using AutomateX.Engine.Events;
+using AutomateX.Engine.Templating;
 using AutomateX.Modules.Executions;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
@@ -67,10 +69,32 @@ public static class ExecuteStepHandler
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        string resolvedConfig;
+        try
+        {
+            resolvedConfig = TemplateResolver.Resolve(step.ConfigJson, BuildTemplateContext(execution));
+        }
+        catch (TemplateResolutionException ex)
+        {
+            // Deterministic config error — the action never runs and retries can't help.
+            stepExecution.Fail(ex.Message);
+            execution.Fail();
+            await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogError(
+                "Execution {ExecutionId} failed at step {StepOrder}: {Error}",
+                execution.Id, message.StepOrder, ex.Message);
+            await eventBus.PublishAsync(
+                new StepFailed(execution.Id, message.StepOrder, step.ActionType, ex.Message, stepExecution.Attempts, WillRetry: false),
+                cancellationToken);
+            await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
+            return null;
+        }
+
         string? output;
         try
         {
-            output = await actions.Get(step.ActionType).ExecuteAsync(step.ConfigJson, cancellationToken);
+            var invocation = new ActionInvocation(execution.Id, execution.WorkflowId, message.StepOrder);
+            output = await actions.Get(step.ActionType).ExecuteAsync(resolvedConfig, invocation, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -146,6 +170,56 @@ public static class ExecuteStepHandler
         }
 
         return new ExecuteStep(execution.Id, nextOrder.Value);
+    }
+
+    private static TemplateContext BuildTemplateContext(Execution execution)
+    {
+        Dictionary<int, JsonElement> stepOutputs = [];
+        foreach (var step in execution.Steps.Where(x => x.Status == ExecutionStatus.Succeeded))
+        {
+            stepOutputs[step.StepOrder] = ParseOutput(step.Output);
+        }
+
+        return new TemplateContext(
+            ParseOptionalJson(execution.TriggerPayload),
+            stepOutputs,
+            execution.Id,
+            execution.WorkflowId);
+    }
+
+    private static JsonElement ParseOutput(string? output)
+    {
+        if (output is null)
+        {
+            return JsonSerializer.SerializeToElement<object?>(null);
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<JsonElement>(output);
+        }
+        catch (JsonException)
+        {
+            // Non-JSON outputs stay addressable as plain strings via steps.N.output.
+            return JsonSerializer.SerializeToElement(output);
+        }
+    }
+
+    private static JsonElement? ParseOptionalJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<JsonElement>(json);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static Task<int?> NextOrderAsync(

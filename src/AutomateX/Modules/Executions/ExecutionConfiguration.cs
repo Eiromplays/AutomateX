@@ -8,6 +8,7 @@ internal sealed class ExecutionConfiguration : IEntityTypeConfiguration<Executio
     public void Configure(EntityTypeBuilder<Execution> builder)
     {
         builder.Property(x => x.TriggeredBy).HasMaxLength(64);
+        builder.Property(x => x.TriggerPayload).HasColumnType("jsonb");
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
 
         builder.HasMany(x => x.Steps)

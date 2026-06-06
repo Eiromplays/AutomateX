@@ -81,7 +81,10 @@ export type ExecutionStep = {
   completedAt: string | null;
 };
 
-export type ExecutionDetail = ExecutionSummary & { steps: ExecutionStep[] };
+export type ExecutionDetail = ExecutionSummary & {
+  triggerPayload: string | null;
+  steps: ExecutionStep[];
+};
 
 export type CreateWorkflowStep = {
   actionType: string;

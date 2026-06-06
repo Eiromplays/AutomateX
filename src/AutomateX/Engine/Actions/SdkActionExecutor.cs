@@ -10,12 +10,15 @@ public sealed class SdkActionExecutor<TConfig, TResult>(
 {
     public string ActionType => actionType;
 
-    public async Task<string?> ExecuteAsync(string configJson, CancellationToken cancellationToken = default)
+    public async Task<string?> ExecuteAsync(
+        string configJson,
+        ActionInvocation invocation,
+        CancellationToken cancellationToken = default)
     {
         var config = JsonSerializer.Deserialize<TConfig>(configJson, JsonSerializerOptions.Web)
             ?? throw new InvalidOperationException($"Invalid config for action '{actionType}'.");
 
-        var result = await action.ExecuteAsync(config, contextFactory.Create(actionType), cancellationToken);
+        var result = await action.ExecuteAsync(config, contextFactory.Create(actionType, invocation), cancellationToken);
 
         return result is null ? null : JsonSerializer.Serialize(result, JsonSerializerOptions.Web);
     }

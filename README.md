@@ -2,7 +2,9 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: M4 — ship.** Self-hostable with `docker compose up`: the API ships as an SDK-built container (`dotnet publish -t:PublishContainer`), the SPA as a Caddy image serving the static build and reverse-proxying `/api` + `/hubs`, Postgres alongside. Plugins load from a volume-mounted `plugins/` folder, migrations apply on startup (`Database__MigrateOnStartup=false` to opt out), and an optional API key (`Auth__ApiKey`) gates `/api` and `/hubs` — API clients send `X-Api-Key`; the UI signs in once via the ⚿ button and holds an HttpOnly SameSite=Strict session cookie (the key never sits in JS-readable storage or URLs, and the cookie authenticates the SignalR handshake).
+**Status: v1.1 — data flow.** Step configs are templates: `{{trigger.payload.x}}` carries webhook/manual JSON bodies into steps, `{{steps.0.output.y}}` pipes prior step outputs forward with JSON types preserved, and template errors fail the step instantly with a precise message (no retries — deterministic errors don't earn them). `ActionContext` now carries execution metadata. See **Data flow between steps** below.
+
+Previous (M4): Self-hostable with `docker compose up`: the API ships as an SDK-built container (`dotnet publish -t:PublishContainer`), the SPA as a Caddy image serving the static build and reverse-proxying `/api` + `/hubs`, Postgres alongside. Plugins load from a volume-mounted `plugins/` folder, migrations apply on startup (`Database__MigrateOnStartup=false` to opt out), and an optional API key (`Auth__ApiKey`) gates `/api` and `/hubs` — API clients send `X-Api-Key`; the UI signs in once via the ⚿ button and holds an HttpOnly SameSite=Strict session cookie (the key never sits in JS-readable storage or URLs, and the cookie authenticates the SignalR handshake).
 
 Previous (M3): React Router v7 SPA in `src/web` (React 19, TanStack Query, Tailwind 4): workflow list + builder with config forms *generated from the action JSON schemas*, trigger management, and a live execution view — engine events flow through the same `IListenFor<T>` seam into a SignalR hub (`/hubs/executions`) that invalidates queries in real time. Aspire starts the Vite dev server alongside the API (`npm install` in `src/web` once, then `aspire run`).
 
@@ -61,6 +63,32 @@ DELETE /api/triggers/{id}
 POST   /api/webhooks/{triggerId}            fire a webhook trigger → { executionId }
 GET    /api/executions · /api/executions/{id}
 GET    /api/actions                         action catalog with JSON config/result schemas
+```
+
+## Data flow between steps
+
+Step configs are templates. `{{path}}` tokens resolve before each step runs:
+
+```
+{{trigger.payload}}          the JSON body sent to the webhook / manual execute call
+{{trigger.payload.x.y}}      navigate it (object properties + array indices, camelCase)
+{{steps.0.output.body}}      a prior step's output (0-based order)
+{{execution.id}}             {{workflow.id}}
+```
+
+A token that is the entire string keeps its JSON type (`"{{steps.0.output.statusCode}}"` → `200`,
+not `"200"`); tokens inside longer strings interpolate. Unresolvable paths fail the step
+immediately — no retries, the error tells you which segment broke.
+
+Example — webhook payload `{"repo":"automatex"}` flowing through two steps:
+
+```json
+[
+  { "actionType": "http.request",
+    "config": { "method": "GET", "url": "https://api.github.com/repos/eiromplays/{{trigger.payload.repo}}" } },
+  { "actionType": "sample.echo",
+    "config": { "message": "Stars: {{steps.0.output.body}}" } }
+]
 ```
 
 ## Writing a plugin

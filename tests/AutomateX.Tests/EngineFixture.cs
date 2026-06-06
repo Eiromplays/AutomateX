@@ -11,7 +11,8 @@ using Xunit;
 
 namespace AutomateX.Tests;
 
-// Controllable action for engine tests: fails the first FailuresBeforeSuccess calls, then succeeds.
+// Controllable action for engine tests: fails the first FailuresBeforeSuccess calls,
+// then succeeds. Records every (template-resolved) config it receives.
 public sealed class TestActionExecutor : IActionExecutor
 {
     private int _calls;
@@ -22,14 +23,18 @@ public sealed class TestActionExecutor : IActionExecutor
 
     public int FailuresBeforeSuccess { get; set; }
 
+    public ConcurrentQueue<string> ReceivedConfigs { get; } = new();
+
     public void Reset(int failuresBeforeSuccess = 0)
     {
         _calls = 0;
         FailuresBeforeSuccess = failuresBeforeSuccess;
+        ReceivedConfigs.Clear();
     }
 
-    public Task<string?> ExecuteAsync(string configJson, CancellationToken cancellationToken = default)
+    public Task<string?> ExecuteAsync(string configJson, ActionInvocation invocation, CancellationToken cancellationToken = default)
     {
+        ReceivedConfigs.Enqueue(configJson);
         var call = Interlocked.Increment(ref _calls);
         return call <= FailuresBeforeSuccess
             ? throw new InvalidOperationException($"probe failure {call}")

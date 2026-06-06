@@ -1,5 +1,7 @@
+using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Web;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
@@ -29,8 +31,18 @@ public static class FireWebhookTrigger
                 return;
             }
 
+            string? payload = null;
+            try
+            {
+                payload = await RawJsonBody.ReadAsync(HttpContext, ct);
+            }
+            catch (JsonException)
+            {
+                ThrowError("Webhook body must be empty or valid JSON — it becomes {{trigger.payload}}.");
+            }
+
             var executionId = Guid.CreateVersion7();
-            await bus.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"webhook:{trigger.Id}"));
+            await bus.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"webhook:{trigger.Id}", payload));
 
             trigger.MarkFired(nextRunAt: null);
             await dbContext.SaveChangesAsync(ct);
