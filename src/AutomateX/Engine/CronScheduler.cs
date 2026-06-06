@@ -3,19 +3,19 @@ using AutomateX.Database;
 using AutomateX.Modules.Triggers;
 using Cronos;
 using Microsoft.EntityFrameworkCore;
-using Wolverine;
+using Microsoft.Extensions.Options;
+using Wolverine.EntityFrameworkCore;
 
 namespace AutomateX.Engine;
 
 public sealed class CronScheduler(
     IServiceProvider serviceProvider,
+    IOptions<EngineOptions> engineOptions,
     ILogger<CronScheduler> logger) : BackgroundService
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(15);
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(PollInterval);
+        using var timer = new PeriodicTimer(engineOptions.Value.CronPollInterval);
 
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -33,39 +33,35 @@ public sealed class CronScheduler(
     private async Task FireDueTriggersAsync(CancellationToken cancellationToken)
     {
         await using var scope = serviceProvider.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
-        var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+        var outbox = scope.ServiceProvider.GetRequiredService<IDbContextOutbox<AutomateXDbContext>>();
+        var dbContext = outbox.DbContext;
 
-        // The Npgsql retrying strategy forbids ad-hoc transactions, so the whole
-        // claim-fire-reschedule unit runs as one retriable block.
-        var strategy = dbContext.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
+        // Single-statement lease claim: due triggers are pushed 5 minutes out atomically, so a
+        // concurrent node (or a crash before the real reschedule below) can't double-fire — worst
+        // case a fire is delayed by the lease, never duplicated.
+        var due = await dbContext.Triggers
+            .FromSqlRaw("""
+                UPDATE "Triggers"
+                SET "NextRunAt" = now() + interval '5 minutes'
+                WHERE "Type" = 'cron' AND "Enabled" AND "NextRunAt" <= now()
+                RETURNING *
+                """)
+            .ToListAsync(cancellationToken);
+
+        if (due.Count == 0)
         {
-            dbContext.ChangeTracker.Clear();
+            return;
+        }
 
-            // SKIP LOCKED makes claiming safe across multiple nodes; the row locks hold until commit.
-            await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        foreach (var trigger in due)
+        {
+            var executionId = Guid.CreateVersion7();
+            await outbox.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"cron:{trigger.Id}"));
+            trigger.MarkFired(ComputeNextRunAt(trigger));
+        }
 
-            var due = await dbContext.Triggers
-                .FromSqlRaw("""
-                    SELECT * FROM "Triggers"
-                    WHERE "Type" = 'cron' AND "Enabled" AND "NextRunAt" <= now()
-                    ORDER BY "NextRunAt"
-                    LIMIT 20
-                    FOR UPDATE SKIP LOCKED
-                    """)
-                .ToListAsync(cancellationToken);
-
-            foreach (var trigger in due)
-            {
-                var executionId = Guid.CreateVersion7();
-                await bus.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"cron:{trigger.Id}"));
-                trigger.MarkFired(ComputeNextRunAt(trigger));
-            }
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-        });
+        // Outbox: the real NextRunAt values and the outgoing RunWorkflow envelopes commit atomically.
+        await outbox.SaveChangesAndFlushMessagesAsync();
     }
 
     private DateTimeOffset? ComputeNextRunAt(Trigger trigger)

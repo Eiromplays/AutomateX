@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/AutomateX.AppHost/AutomateX.AppHost.csproj"
+  }
+}

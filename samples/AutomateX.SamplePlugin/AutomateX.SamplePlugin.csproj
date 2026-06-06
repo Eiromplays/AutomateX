@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Generates deps.json so AssemblyDependencyResolver can resolve plugin-private dependencies. -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The SDK assembly is provided by the host at runtime — never ship a private copy. -->
+    <ProjectReference Include="..\..\src\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

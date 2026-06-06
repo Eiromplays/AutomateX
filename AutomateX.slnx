@@ -7,7 +7,14 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/AutomateX.AppHost/AutomateX.AppHost.csproj" />
+    <Project Path="src/AutomateX.Plugin.Sdk/AutomateX.Plugin.Sdk.csproj" />
     <Project Path="src/AutomateX.ServiceDefaults/AutomateX.ServiceDefaults.csproj" />
     <Project Path="src/AutomateX/AutomateX.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/AutomateX.SamplePlugin/AutomateX.SamplePlugin.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AutomateX.Tests/AutomateX.Tests.csproj" />
   </Folder>
 </Solution>

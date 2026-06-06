@@ -8,12 +8,14 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="WolverineFx.EntityFrameworkCore" />
     <PackageReference Include="WolverineFx.Postgresql" />
     <!-- Dev-time Roslyn codegen; switch to TypeLoadMode.Static + `dotnet run - codegen write` for the prod image (M4). -->
     <PackageReference Include="WolverineFx.RuntimeCompilation" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj" />
     <ProjectReference Include="..\AutomateX.ServiceDefaults\AutomateX.ServiceDefaults.csproj" />
   </ItemGroup>
 

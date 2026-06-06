@@ -1,9 +1,11 @@
 using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Engine.Actions;
+using AutomateX.Engine.Plugins;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
+using Wolverine.EntityFrameworkCore;
 using Wolverine.Postgresql;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,30 +15,37 @@ builder.AddServiceDefaults();
 var connectionString = builder.Configuration.GetConnectionString("automatex")
     ?? throw new InvalidOperationException("Connection string 'automatex' not found.");
 
-// Explicit registration (not Aspire's opaque factory) so Wolverine's codegen can inject the context.
-// Options must be singleton — Wolverine resolves singletons up front but refuses scoped lambda factories.
+// Wolverine-integrated registration: codegen-friendly lifetimes + envelope (outbox) tables mapped
+// into the EF model, so entity saves and outgoing messages commit atomically.
 // Enrich layers Aspire's telemetry, health checks and retry strategy on top.
-builder.Services.AddDbContext<AutomateXDbContext>(
+builder.Services.AddDbContextWithWolverineIntegration<AutomateXDbContext>(
     options => options.UseNpgsql(connectionString),
-    optionsLifetime: ServiceLifetime.Singleton);
-builder.EnrichNpgsqlDbContext<AutomateXDbContext>();
+    "wolverine");
+// No EF-level retry: it forbids the explicit transactions Wolverine's transactional middleware
+// uses, and resilience lives at the message level anyway (durable queue + step retry ladder).
+builder.EnrichNpgsqlDbContext<AutomateXDbContext>(settings => settings.DisableRetry = true);
 
 builder.Host.UseWolverine(opts =>
 {
     opts.PersistMessagesWithPostgresql(connectionString, "wolverine");
     opts.Policies.UseDurableLocalQueues();
+    opts.UseEntityFrameworkCoreTransactions();
+    opts.Policies.AutoApplyTransactions();
 });
 
 builder.Services.AddFastEndpoints();
-builder.Services.AddHttpClient(HttpRequestAction.ClientName, client =>
+builder.Services.AddHttpClient(ActionContextFactory.HttpClientName, client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
 });
-builder.Services.AddSingleton<HttpRequestAction>();
-builder.Services.AddSingleton<IActionExecutor, HttpRequestExecutor>();
+builder.Services.AddSingleton<ActionContextFactory>();
+builder.Services.AddSingleton<IActionSource, BuiltInActionSource>();
+builder.Services.AddSingleton<IActionSource, PluginActionSource>();
 builder.Services.AddSingleton<ActionRegistry>();
+builder.Services.Configure<EngineOptions>(builder.Configuration.GetSection(EngineOptions.SectionName));
 builder.Services.AddHostedService<CronScheduler>();
+builder.Services.AddHostedService<StuckExecutionSweeper>();
 
 var app = builder.Build();
 

@@ -2,6 +2,7 @@ using AutomateX.Database;
 using AutomateX.Engine.Actions;
 using AutomateX.Modules.Executions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wolverine;
 
 namespace AutomateX.Engine;
@@ -10,22 +11,15 @@ public sealed record ExecuteStep(Guid ExecutionId, int StepOrder);
 
 public static class ExecuteStepHandler
 {
-    private const int MaxAttempts = 4;
-
-    private static readonly TimeSpan[] RetryDelays =
-    [
-        TimeSpan.FromSeconds(5),
-        TimeSpan.FromSeconds(30),
-        TimeSpan.FromMinutes(2),
-    ];
-
     public static async Task<object?> HandleAsync(
         ExecuteStep message,
         AutomateXDbContext dbContext,
         ActionRegistry actions,
+        IOptions<EngineOptions> engineOptions,
         ILogger logger,
         CancellationToken cancellationToken)
     {
+        var options = engineOptions.Value;
         var execution = await dbContext.Executions
             .Include(x => x.Steps)
             .FirstOrDefaultAsync(x => x.Id == message.ExecutionId, cancellationToken);
@@ -76,7 +70,7 @@ public static class ExecuteStepHandler
         {
             stepExecution.RecordFailure(ex.Message);
 
-            if (stepExecution.Attempts >= MaxAttempts)
+            if (stepExecution.Attempts >= options.MaxStepAttempts)
             {
                 stepExecution.Fail(ex.Message);
                 execution.Fail();
@@ -89,10 +83,13 @@ public static class ExecuteStepHandler
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            var delay = RetryDelays[Math.Min(stepExecution.Attempts - 1, RetryDelays.Length - 1)];
+            var delays = options.StepRetryDelays;
+            var delay = delays.Length > 0
+                ? delays[Math.Min(stepExecution.Attempts - 1, delays.Length - 1)]
+                : TimeSpan.FromSeconds(5);
             logger.LogWarning(
                 "Step {StepOrder} of execution {ExecutionId} failed (attempt {Attempts}/{MaxAttempts}), retrying in {Delay}: {Error}",
-                message.StepOrder, execution.Id, stepExecution.Attempts, MaxAttempts, delay, ex.Message);
+                message.StepOrder, execution.Id, stepExecution.Attempts, options.MaxStepAttempts, delay, ex.Message);
 
             return new ExecuteStep(message.ExecutionId, message.StepOrder).DelayedFor(delay);
         }
