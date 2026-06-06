@@ -1,5 +1,7 @@
 using AutomateX.Database;
+using AutomateX.Engine.Events;
 using AutomateX.Modules.Executions;
+using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 
 namespace AutomateX.Engine;
@@ -11,6 +13,7 @@ public static class RunWorkflowHandler
     public static async Task<object?> HandleAsync(
         RunWorkflow message,
         AutomateXDbContext dbContext,
+        EngineEventBus eventBus,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -41,10 +44,13 @@ public static class RunWorkflowHandler
         {
             execution.Complete();
             await dbContext.SaveChangesAsync(cancellationToken);
+            await eventBus.PublishAsync(new ExecutionStarted(execution.Id, execution.WorkflowId, message.TriggeredBy), cancellationToken);
+            await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
             return null;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await eventBus.PublishAsync(new ExecutionStarted(execution.Id, execution.WorkflowId, message.TriggeredBy), cancellationToken);
         return new ExecuteStep(execution.Id, firstStep.Order);
     }
 }

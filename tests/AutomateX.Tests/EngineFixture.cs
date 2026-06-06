@@ -1,13 +1,12 @@
+using System.Collections.Concurrent;
 using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Engine.Actions;
+using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Testcontainers.PostgreSql;
-using Wolverine;
-using Wolverine.EntityFrameworkCore;
-using Wolverine.Postgresql;
 using Xunit;
 
 namespace AutomateX.Tests;
@@ -38,6 +37,60 @@ public sealed class TestActionExecutor : IActionExecutor
     }
 }
 
+// Records every engine event; optionally throws on ExecutionStarted (after recording)
+// to encode the rule that listener failures never affect engine flow.
+public sealed class RecordingEventListener :
+    IListenFor<ExecutionStarted>,
+    IListenFor<StepCompleted>,
+    IListenFor<StepFailed>,
+    IListenFor<ExecutionCompleted>,
+    IListenFor<ExecutionFailed>
+{
+    private readonly ConcurrentQueue<IEngineEvent> _events = new();
+
+    public bool ThrowOnExecutionStarted { get; private set; }
+
+    public IReadOnlyCollection<IEngineEvent> Events => _events;
+
+    public void Reset(bool throwOnExecutionStarted = false)
+    {
+        _events.Clear();
+        ThrowOnExecutionStarted = throwOnExecutionStarted;
+    }
+
+    public Task HandleAsync(ExecutionStarted engineEvent, CancellationToken cancellationToken = default)
+    {
+        _events.Enqueue(engineEvent);
+        return ThrowOnExecutionStarted
+            ? throw new InvalidOperationException("listener boom")
+            : Task.CompletedTask;
+    }
+
+    public Task HandleAsync(StepCompleted engineEvent, CancellationToken cancellationToken = default)
+    {
+        _events.Enqueue(engineEvent);
+        return Task.CompletedTask;
+    }
+
+    public Task HandleAsync(StepFailed engineEvent, CancellationToken cancellationToken = default)
+    {
+        _events.Enqueue(engineEvent);
+        return Task.CompletedTask;
+    }
+
+    public Task HandleAsync(ExecutionCompleted engineEvent, CancellationToken cancellationToken = default)
+    {
+        _events.Enqueue(engineEvent);
+        return Task.CompletedTask;
+    }
+
+    public Task HandleAsync(ExecutionFailed engineEvent, CancellationToken cancellationToken = default)
+    {
+        _events.Enqueue(engineEvent);
+        return Task.CompletedTask;
+    }
+}
+
 public sealed class EngineFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:17-alpine")
@@ -47,43 +100,26 @@ public sealed class EngineFixture : IAsyncLifetime
 
     public TestActionExecutor ProbeAction { get; } = new();
 
+    public RecordingEventListener EventListener { get; } = new();
+
     public async Task InitializeAsync()
     {
         await _postgres.StartAsync();
         var connectionString = _postgres.GetConnectionString();
 
-        Host = Microsoft.Extensions.Hosting.Host.CreateDefaultBuilder()
-            .UseWolverine(opts =>
-            {
-                // In a test host the "application assembly" is the test assembly —
-                // point handler discovery at the engine assembly explicitly.
-                opts.ApplicationAssembly = typeof(RunWorkflow).Assembly;
+        // Same composition as the app: Program.cs and tests share AddAutomateXEngine,
+        // so config drift between them is impossible by construction.
+        var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder();
+        builder.AddAutomateXEngine(connectionString, options =>
+        {
+            // Tight retry ladder so failure tests run in milliseconds, not minutes.
+            options.MaxStepAttempts = 3;
+            options.StepRetryDelays = [TimeSpan.FromMilliseconds(50)];
+        });
+        builder.Services.AddSingleton<IActionExecutor>(ProbeAction);
+        builder.Services.AddSingleton<IEngineEventListener>(EventListener);
 
-                // Single ephemeral node: skip leadership election so agents start immediately.
-                opts.Durability.Mode = DurabilityMode.Solo;
-
-                opts.PersistMessagesWithPostgresql(connectionString, "wolverine");
-                opts.Policies.UseDurableLocalQueues();
-                opts.UseEntityFrameworkCoreTransactions();
-                opts.Policies.AutoApplyTransactions();
-            })
-            .ConfigureServices(services =>
-            {
-                services.AddDbContextWithWolverineIntegration<AutomateXDbContext>(
-                    options => options.UseNpgsql(connectionString),
-                    "wolverine");
-
-                services.AddSingleton<IActionExecutor>(ProbeAction);
-                services.AddSingleton<ActionRegistry>();
-
-                // Tight retry ladder so failure tests run in milliseconds, not minutes.
-                services.Configure<EngineOptions>(options =>
-                {
-                    options.MaxStepAttempts = 3;
-                    options.StepRetryDelays = [TimeSpan.FromMilliseconds(50)];
-                });
-            })
-            .Build();
+        Host = builder.Build();
 
         await using (var scope = Host.Services.CreateAsyncScope())
         {

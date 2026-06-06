@@ -1,6 +1,8 @@
 using AutomateX.Database;
 using AutomateX.Engine.Actions;
+using AutomateX.Engine.Events;
 using AutomateX.Modules.Executions;
+using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wolverine;
@@ -15,11 +17,13 @@ public static class ExecuteStepHandler
         ExecuteStep message,
         AutomateXDbContext dbContext,
         ActionRegistry actions,
+        EngineEventBus eventBus,
         IOptions<EngineOptions> engineOptions,
         ILogger logger,
         CancellationToken cancellationToken)
     {
         var options = engineOptions.Value;
+
         var execution = await dbContext.Executions
             .Include(x => x.Steps)
             .FirstOrDefaultAsync(x => x.Id == message.ExecutionId, cancellationToken);
@@ -42,14 +46,16 @@ public static class ExecuteStepHandler
             logger.LogError(
                 "Step {StepOrder} not found for execution {ExecutionId}, marking failed",
                 message.StepOrder, message.ExecutionId);
+            await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
             return null;
         }
 
         var stepExecution = execution.Steps.FirstOrDefault(x => x.StepOrder == message.StepOrder);
         if (stepExecution is { Status: ExecutionStatus.Succeeded })
         {
-            // Redelivered after a crash between step completion and the cascade — just advance.
-            return await NextStepOrCompleteAsync(execution, message.StepOrder, dbContext, cancellationToken);
+            // Redelivered after a crash between step completion and the cascade —
+            // advance without re-executing or re-emitting the step's events.
+            return await AdvanceAsync(execution, message.StepOrder, dbContext, eventBus, cancellationToken);
         }
 
         if (stepExecution is null)
@@ -61,27 +67,35 @@ public static class ExecuteStepHandler
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
+        string? output;
         try
         {
-            var output = await actions.Get(step.ActionType).ExecuteAsync(step.ConfigJson, cancellationToken);
-            stepExecution.Complete(output);
+            output = await actions.Get(step.ActionType).ExecuteAsync(step.ConfigJson, cancellationToken);
         }
         catch (Exception ex)
         {
             stepExecution.RecordFailure(ex.Message);
+            var willRetry = stepExecution.Attempts < options.MaxStepAttempts;
 
-            if (stepExecution.Attempts >= options.MaxStepAttempts)
+            if (!willRetry)
             {
                 stepExecution.Fail(ex.Message);
                 execution.Fail();
-                await dbContext.SaveChangesAsync(cancellationToken);
-                logger.LogError(ex,
-                    "Execution {ExecutionId} failed at step {StepOrder} after {Attempts} attempts",
-                    execution.Id, message.StepOrder, stepExecution.Attempts);
-                return null;
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            await eventBus.PublishAsync(
+                new StepFailed(execution.Id, message.StepOrder, step.ActionType, ex.Message, stepExecution.Attempts, willRetry),
+                cancellationToken);
+
+            if (!willRetry)
+            {
+                logger.LogError(ex,
+                    "Execution {ExecutionId} failed at step {StepOrder} after {Attempts} attempts",
+                    execution.Id, message.StepOrder, stepExecution.Attempts);
+                await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
+                return null;
+            }
 
             var delays = options.StepRetryDelays;
             var delay = delays.Length > 0
@@ -94,29 +108,54 @@ public static class ExecuteStepHandler
             return new ExecuteStep(message.ExecutionId, message.StepOrder).DelayedFor(delay);
         }
 
-        return await NextStepOrCompleteAsync(execution, message.StepOrder, dbContext, cancellationToken);
+        stepExecution.Complete(output);
+
+        var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, message.StepOrder, cancellationToken);
+        if (nextOrder is null)
+        {
+            execution.Complete();
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await eventBus.PublishAsync(
+            new StepCompleted(execution.Id, message.StepOrder, step.ActionType, output), cancellationToken);
+
+        if (nextOrder is null)
+        {
+            await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
+            return null;
+        }
+
+        return new ExecuteStep(execution.Id, nextOrder.Value);
     }
 
-    private static async Task<object?> NextStepOrCompleteAsync(
+    private static async Task<object?> AdvanceAsync(
         Execution execution,
         int currentOrder,
         AutomateXDbContext dbContext,
+        EngineEventBus eventBus,
         CancellationToken cancellationToken)
     {
-        var nextOrder = await dbContext.WorkflowSteps
-            .Where(x => x.WorkflowVersionId == execution.WorkflowVersionId && x.Order > currentOrder)
-            .OrderBy(x => x.Order)
-            .Select(x => (int?)x.Order)
-            .FirstOrDefaultAsync(cancellationToken);
-
+        var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, currentOrder, cancellationToken);
         if (nextOrder is null)
         {
             execution.Complete();
             await dbContext.SaveChangesAsync(cancellationToken);
+            await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
             return null;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
         return new ExecuteStep(execution.Id, nextOrder.Value);
     }
+
+    private static Task<int?> NextOrderAsync(
+        AutomateXDbContext dbContext,
+        Guid workflowVersionId,
+        int currentOrder,
+        CancellationToken cancellationToken) =>
+        dbContext.WorkflowSteps
+            .Where(x => x.WorkflowVersionId == workflowVersionId && x.Order > currentOrder)
+            .OrderBy(x => x.Order)
+            .Select(x => (int?)x.Order)
+            .FirstOrDefaultAsync(cancellationToken);
 }

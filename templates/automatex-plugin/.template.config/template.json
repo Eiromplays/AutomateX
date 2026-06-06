@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "Eiromplays",
+  "classifications": ["AutomateX", "Plugin"],
+  "identity": "AutomateX.Plugin.Template",
+  "name": "AutomateX plugin",
+  "shortName": "automatex-plugin",
+  "sourceName": "AutomateX.PluginTemplate",
+  "preferNameDirectory": true,
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  }
+}

@@ -2,7 +2,9 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: M2 — plugin SDK.** Actions are now plugin-contributed: implement `IAction<TConfig, TResult>` against `AutomateX.Plugin.Sdk`, decorate with `[Action]`, drop the published assembly in the `plugins/` folder and the engine loads it in an isolated, collectible `AssemblyLoadContext` at startup. Config and result types are exported as JSON Schema via `GET /api/actions` (the future UI generates forms from these). The built-in `http.request` is itself an SDK action.
+**Status: M2.5 — platform polish.** Plugins can now *listen* to the engine, not just extend it: implement `IListenFor<TEvent>` for lifecycle events (`ExecutionStarted`, `StepCompleted`, `StepFailed`, `ExecutionCompleted`, `ExecutionFailed`). Events are best-effort and in-process — published after state is persisted, with per-listener fault isolation (a throwing listener is logged, never breaks an execution; encoded in tests). The whole engine composition lives in one shared `AddAutomateXEngine(...)` extension used by both `Program.cs` and the test fixture, so app/test config drift is impossible by construction. A `dotnet new automatex-plugin` template scaffolds new plugins.
+
+Previous (M2): actions are plugin-contributed — implement `IAction<TConfig, TResult>` against `AutomateX.Plugin.Sdk`, decorate with `[Action]`, drop the published assembly in `plugins/` and it loads in an isolated, collectible `AssemblyLoadContext`. Config/result types are exported as JSON Schema via `GET /api/actions`. The built-in `http.request` is itself an SDK action.
 
 Previous milestone (M1.5): Workflows live in Postgres as immutable versions; cron, webhook and manual triggers fire them; each step runs as its own durable Wolverine message with per-step retries + backoff (configurable via `Engine` options). Crash-resume comes from the durable inbox, the cron scheduler claims triggers with an atomic lease (no double-fires across nodes), trigger reschedules and outgoing messages commit atomically through the EF Core outbox, and a sweeper fails executions stuck past a threshold. Engine behavior is covered by integration tests against a real Postgres (Testcontainers).
 
@@ -57,6 +59,21 @@ public sealed class GreetAction : IAction<GreetConfig, GreetResult>
 }
 ```
 
+Plugins can also observe the engine via event listeners (constructor deps resolve from the host container):
+
+```csharp
+public sealed class MyListener(ILogger<MyListener> logger) : IListenFor<ExecutionFailed>
+{
+    public Task HandleAsync(ExecutionFailed e, CancellationToken ct = default)
+    {
+        logger.LogWarning("Workflow {WorkflowId} failed: execution {ExecutionId}", e.WorkflowId, e.ExecutionId);
+        return Task.CompletedTask;
+    }
+}
+```
+
+Scaffold a new plugin: `dotnet new install ./templates/automatex-plugin`, then `dotnet new automatex-plugin -n MyPlugin`.
+
 Project setup: reference `AutomateX.Plugin.Sdk` with `<Private>false</Private>` + `<ExcludeAssets>runtime</ExcludeAssets>`, set `<EnableDynamicLoading>true</EnableDynamicLoading>` (see `samples/AutomateX.SamplePlugin`). Deploy convention: `plugins/<PluginName>/<PluginName>.dll`, resolved relative to the app binary (override with `Engine:PluginsPath`).
 
 Try the sample (echo + delay actions):
@@ -72,8 +89,8 @@ Restart, check `GET /api/actions`, then use `sample.echo` / `sample.delay` as wo
 - Package versions are pinned in `Directory.Packages.props` (CPM). `aspire update` keeps the Aspire packages and the `Aspire.AppHost.Sdk` version aligned.
 - Wolverine runs with dev-time Roslyn codegen (`WolverineFx.RuntimeCompilation`). For the production image (M4), pre-generate with `dotnet run -- codegen write` and set `TypeLoadMode.Static` for faster cold starts.
 - Wolverine is deliberately an experiment (see plan §4). If it doesn't earn its keep by M1, the fallback is plain DI handlers + a hand-rolled `FOR UPDATE SKIP LOCKED` worker.
-- Remaining known seams: webhook payloads are ignored, actions have no idempotency keys, and `ActionContext` carries services but not yet execution metadata — all land with input/output mapping. Deferred from M2 to M2.5: plugin event listeners (`IListenFor<T>`), plugin-contributed trigger types, the `dotnet new automatex-plugin` template, and plugin unload/reload (the load contexts are already collectible).
+- Remaining known seams: webhook payloads are ignored, actions have no idempotency keys, and `ActionContext` carries services but not yet execution metadata — all land with input/output mapping. Still deferred: plugin-contributed trigger types and plugin unload/reload (the load contexts are already collectible). Engine events are best-effort in-process notifications — exact-type matching, may be lost/duplicated across crash windows; durable subscriptions would be a Wolverine message if ever needed.
 
 ## Milestones
 
-M0 walking skeleton ✓ → M1 durable engine ✓ → M1.5 hardening ✓ → M2 plugin SDK (this) → M3 UI → M4 ship. Details and definition-of-done in [the plan](docs/v2-plan.md).
+M0 walking skeleton ✓ → M1 durable engine ✓ → M1.5 hardening ✓ → M2 plugin SDK ✓ → M2.5 platform polish (this) → M3 UI → M4 ship. Details and definition-of-done in [the plan](docs/v2-plan.md).
