@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/solution-items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
+    <File Path="docs/v2-plan.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/AutomateX.AppHost/AutomateX.AppHost.csproj" />
+    <Project Path="src/AutomateX.ServiceDefaults/AutomateX.ServiceDefaults.csproj" />
+    <Project Path="src/AutomateX/AutomateX.csproj" />
+  </Folder>
+</Solution>

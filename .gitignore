@@ -1,0 +1,13 @@
+bin/
+obj/
+.vs/
+.idea/
+.fleet/
+*.user
+*.DotSettings.user
+.DS_Store
+appsettings.*.Local.json
+.aspire/
+node_modules/
+dist/
+TestResults/
