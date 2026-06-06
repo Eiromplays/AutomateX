@@ -1,0 +1,45 @@
+# Self-host AutomateX:
+#   1. dotnet publish src/AutomateX -t:PublishContainer   (builds automatex-api)
+#   2. docker compose up -d
+#   3. open http://localhost:8080
+# Drop plugins into ./plugins/<PluginName>/<PluginName>.dll and restart the api.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: automatex
+      POSTGRES_PASSWORD: automatex
+      POSTGRES_DB: automatex
+    volumes:
+      - automatex-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U automatex"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: automatex-api:latest
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__automatex: Host=postgres;Database=automatex;Username=automatex;Password=automatex
+      # Uncomment to require an API key on /api and /hubs:
+      # Auth__ApiKey: change-me
+    volumes:
+      - ./plugins:/app/plugins
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # Direct API access for backend-only setups; remove if the web proxy is enough.
+      - "8081:8080"
+
+  web:
+    build: ./src/web
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  automatex-postgres-data:

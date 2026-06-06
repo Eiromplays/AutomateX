@@ -16,19 +16,27 @@ builder.AddAutomateXEngine(connectionString);
 builder.Services.AddFastEndpoints();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IEngineEventListener, SignalRExecutionEventListener>();
+builder.Services.Configure<ApiKeyOptions>(builder.Configuration.GetSection(ApiKeyOptions.SectionName));
 
 var app = builder.Build();
 
+app.UseMiddleware<ApiKeyMiddleware>();
 app.MapDefaultEndpoints();
 app.UseFastEndpoints(config => config.Endpoints.RoutePrefix = "api");
 app.MapHub<ExecutionEventsHub>("/hubs/executions");
 
-if (app.Environment.IsDevelopment())
+await using (var scope = app.Services.CreateAsyncScope())
 {
-    await using var scope = app.Services.CreateAsyncScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
-    await dbContext.Database.MigrateAsync();
-    await DevDataSeeder.SeedAsync(dbContext);
+    if (app.Configuration.GetValue("Database:MigrateOnStartup", defaultValue: true))
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+
+    if (app.Environment.IsDevelopment())
+    {
+        await DevDataSeeder.SeedAsync(dbContext);
+    }
 }
 
 await app.RunAsync();

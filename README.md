@@ -2,7 +2,9 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: M3 — UI.** React Router v7 SPA in `src/web` (React 19, TanStack Query, Tailwind 4): workflow list + builder with config forms *generated from the action JSON schemas*, trigger management, and a live execution view — engine events flow through the same `IListenFor<T>` seam into a SignalR hub (`/hubs/executions`) that invalidates queries in real time. Aspire starts the Vite dev server alongside the API (`npm install` in `src/web` once, then `aspire run`).
+**Status: M4 — ship.** Self-hostable with `docker compose up`: the API ships as an SDK-built container (`dotnet publish -t:PublishContainer`), the SPA as a Caddy image serving the static build and reverse-proxying `/api` + `/hubs`, Postgres alongside. Plugins load from a volume-mounted `plugins/` folder, migrations apply on startup (`Database__MigrateOnStartup=false` to opt out), and an optional API key (`Auth__ApiKey`) gates `/api` and `/hubs` — API clients send `X-Api-Key`; the UI signs in once via the ⚿ button and holds an HttpOnly SameSite=Strict session cookie (the key never sits in JS-readable storage or URLs, and the cookie authenticates the SignalR handshake).
+
+Previous (M3): React Router v7 SPA in `src/web` (React 19, TanStack Query, Tailwind 4): workflow list + builder with config forms *generated from the action JSON schemas*, trigger management, and a live execution view — engine events flow through the same `IListenFor<T>` seam into a SignalR hub (`/hubs/executions`) that invalidates queries in real time. Aspire starts the Vite dev server alongside the API (`npm install` in `src/web` once, then `aspire run`).
 
 Previous (M2.5): Plugins can now *listen* to the engine, not just extend it: implement `IListenFor<TEvent>` for lifecycle events (`ExecutionStarted`, `StepCompleted`, `StepFailed`, `ExecutionCompleted`, `ExecutionFailed`). Events are best-effort and in-process — published after state is persisted, with per-listener fault isolation (a throwing listener is logged, never breaks an execution; encoded in tests). The whole engine composition lives in one shared `AddAutomateXEngine(...)` extension used by both `Program.cs` and the test fixture, so app/test config drift is impossible by construction. A `dotnet new automatex-plugin` template scaffolds new plugins.
 
@@ -30,6 +32,18 @@ dotnet test  # engine integration tests (needs Docker — Testcontainers spins u
 ```
 
 The dashboard shows both resources: `api` (backend) and `web` (the SPA — open this one).
+
+## Self-host
+
+```bash
+dotnet publish src/AutomateX -t:PublishContainer   # builds the automatex-api image
+docker compose up -d
+open http://localhost:8080                          # UI (8081 = direct API access)
+```
+
+- Plugins: drop `<Name>/<Name>.dll` into `./plugins` (volume-mounted) and restart the api — see `plugins/README.md`.
+- Auth: set `Auth__ApiKey` in compose to gate `/api` + `/hubs`; enter the key via the ⚿ button in the UI header.
+- Database: migrations apply on startup; the volume `automatex-postgres-data` holds state.
 
 The M1.5 migration is expected to include Wolverine's envelope (inbox/outbox) tables — they're now mapped into the EF model so envelope writes commit atomically with entity saves. Easiest dev path: wipe the `automatex-postgres-data` volume first so EF owns the schema from scratch.
 
@@ -93,8 +107,8 @@ Restart, check `GET /api/actions`, then use `sample.echo` / `sample.delay` as wo
 - Package versions are pinned in `Directory.Packages.props` (CPM). `aspire update` keeps the Aspire packages and the `Aspire.AppHost.Sdk` version aligned.
 - Wolverine runs with dev-time Roslyn codegen (`WolverineFx.RuntimeCompilation`). For the production image (M4), pre-generate with `dotnet run -- codegen write` and set `TypeLoadMode.Static` for faster cold starts.
 - Wolverine is deliberately an experiment (see plan §4). If it doesn't earn its keep by M1, the fallback is plain DI handlers + a hand-rolled `FOR UPDATE SKIP LOCKED` worker.
-- Remaining known seams: webhook payloads are ignored, actions have no idempotency keys, and `ActionContext` carries services but not yet execution metadata — all land with input/output mapping. Still deferred: plugin-contributed trigger types and plugin unload/reload (the load contexts are already collectible). Engine events are best-effort in-process notifications — exact-type matching, may be lost/duplicated across crash windows; durable subscriptions would be a Wolverine message if ever needed.
+- **v1 limitations, known and deliberate:** auth is an optional shared API key — fine on a trusted network, not for internet exposure; OIDC (Entra ID) is the next pass and the plan's original intent. Webhook payloads are ignored, actions have no idempotency keys, `ActionContext` carries services but not execution metadata (all land with input/output mapping). Plugin-contributed triggers and unload/reload still deferred. Engine events are best-effort in-process notifications.
 
 ## Milestones
 
-M0 walking skeleton ✓ → M1 durable engine ✓ → M1.5 hardening ✓ → M2 plugin SDK ✓ → M2.5 platform polish ✓ → M3 UI (this) → M4 ship. Details and definition-of-done in [the plan](docs/v2-plan.md).
+M0 walking skeleton ✓ → M1 durable engine ✓ → M1.5 hardening ✓ → M2 plugin SDK ✓ → M2.5 platform polish ✓ → M3 UI ✓ → M4 ship (this). Details and definition-of-done in [the plan](docs/v2-plan.md).

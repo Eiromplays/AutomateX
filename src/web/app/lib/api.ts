@@ -1,10 +1,15 @@
 const API = "/api";
 
+// Auth is an HttpOnly session cookie set by POST /auth/session — the key never
+// touches JS-readable storage and rides the SignalR handshake automatically.
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
+  if (response.status === 401) {
+    throw new Error("401: API key required — sign in via the ⚿ button in the header.");
+  }
   if (!response.ok) {
     throw new Error(`${response.status}: ${await response.text()}`);
   }
@@ -85,6 +90,11 @@ export type CreateWorkflowStep = {
 };
 
 export const api = {
+  auth: {
+    login: (key: string) =>
+      request<void>("/auth/session", { method: "POST", body: JSON.stringify({ key }) }),
+    logout: () => request<void>("/auth/session", { method: "DELETE" }),
+  },
   actions: {
     list: () => request<ActionDescriptor[]>("/actions"),
   },

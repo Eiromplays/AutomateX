@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { api } from "./lib/api";
 import "./app.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -37,13 +38,34 @@ export default function Root() {
           <Link to="/" className="text-xl font-semibold tracking-tight">
             Automate<span className="text-emerald-400">X</span>
           </Link>
-          <nav className="flex gap-5 text-sm">
+          <nav className="flex items-center gap-5 text-sm">
             <NavLink to="/" end className={navLinkClass}>
               Workflows
             </NavLink>
             <NavLink to="/executions" className={navLinkClass}>
               Executions
             </NavLink>
+            <button
+              type="button"
+              title="Sign in with API key"
+              className="text-zinc-600 hover:text-zinc-100"
+              onClick={async () => {
+                const key = window.prompt("API key (leave blank to sign out):");
+                if (key === null) return;
+                try {
+                  if (key) {
+                    await api.auth.login(key);
+                  } else {
+                    await api.auth.logout();
+                  }
+                  window.location.reload();
+                } catch {
+                  window.alert("Invalid API key.");
+                }
+              }}
+            >
+              ⚿
+            </button>
           </nav>
         </header>
         <Outlet />

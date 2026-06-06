@@ -209,6 +209,8 @@ Each milestone is independently shippable and dogfoodable. **Definition of done 
 
 Post-v1 (only if still fun): DAG/branching, MCP trigger+action, out-of-process plugins, OAuth connection manager UI, more plugins, multi-node workers.
 
+**Auth decision (recorded at v1):** v1 ships an optional shared API key; the browser exchanges it for an HttpOnly cookie via `/api/auth/session` — deliberate scaffolding, deleted when Entra lands. For the Entra pass, the front-runner is **API-side OIDC** (`AddOpenIdConnect` + cookie scheme): the Caddy proxy makes browser↔API same-origin, so the API can own the OIDC flow with standard ASP.NET middleware — BFF-grade security (no tokens in the browser) without flipping the SPA to SSR or adding a Node BFF. Alternatives if that disappoints: MSAL.js PKCE in the SPA (static stays, tokens in browser) or SSR/Node BFF (only if SSR is wanted for other reasons). If API keys survive long-term alongside Entra, revisit where session minting lives.
+
 ---
 
 ## 12. How to not stall (lessons from v1)

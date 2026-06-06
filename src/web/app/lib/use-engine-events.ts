@@ -17,6 +17,7 @@ export function useEngineEvents(onEvent: (engineEvent: EngineEvent) => void) {
 
   useEffect(() => {
     const connection = new HubConnectionBuilder()
+      // The HttpOnly session cookie authenticates the handshake — nothing in the URL.
       .withUrl("/hubs/executions")
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)
