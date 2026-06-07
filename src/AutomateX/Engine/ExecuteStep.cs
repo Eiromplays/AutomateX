@@ -46,12 +46,13 @@ public static class ExecuteStepHandler
         if (step is null)
         {
             execution.Fail();
+            var chains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogError(
                 "Step {StepOrder} not found for execution {ExecutionId}, marking failed",
                 message.StepOrder, message.ExecutionId);
             await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
-            return null;
+            return Cascade(chains);
         }
 
         var stepExecution = execution.Steps.FirstOrDefault(x => x.StepOrder == message.StepOrder);
@@ -59,7 +60,7 @@ public static class ExecuteStepHandler
         {
             // Redelivered after a crash between step completion and the cascade —
             // advance without re-executing or re-emitting the step's events.
-            return await AdvanceAsync(execution, message.StepOrder, dbContext, eventBus, cancellationToken);
+            return await AdvanceAsync(execution, message.StepOrder, dbContext, eventBus, options, logger, cancellationToken);
         }
 
         if (stepExecution is null)
@@ -84,6 +85,7 @@ public static class ExecuteStepHandler
             // Deterministic config error — the action never runs and retries can't help.
             stepExecution.Fail(ex.Message);
             execution.Fail();
+            var chains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogError(
                 "Execution {ExecutionId} failed at step {StepOrder}: {Error}",
@@ -92,7 +94,7 @@ public static class ExecuteStepHandler
                 new StepFailed(execution.Id, message.StepOrder, step.ActionType, ex.Message, stepExecution.Attempts, WillRetry: false),
                 cancellationToken);
             await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
-            return null;
+            return Cascade(chains);
         }
 
         string? output;
@@ -109,10 +111,12 @@ public static class ExecuteStepHandler
             stepExecution.RecordFailure(error);
             var willRetry = stepExecution.Attempts < options.MaxStepAttempts;
 
+            List<RunWorkflow> failureChains = [];
             if (!willRetry)
             {
                 stepExecution.Fail(error);
                 execution.Fail();
+                failureChains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
             }
 
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -126,7 +130,7 @@ public static class ExecuteStepHandler
                     "Execution {ExecutionId} failed at step {StepOrder} after {Attempts} attempts",
                     execution.Id, message.StepOrder, stepExecution.Attempts);
                 await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
-                return null;
+                return Cascade(failureChains);
             }
 
             var delays = options.StepRetryDelays;
@@ -145,9 +149,11 @@ public static class ExecuteStepHandler
         stepExecution.Complete(output);
 
         var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, message.StepOrder, cancellationToken);
+        List<RunWorkflow> successChains = [];
         if (nextOrder is null)
         {
             execution.Complete();
+            successChains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -157,7 +163,7 @@ public static class ExecuteStepHandler
         if (nextOrder is null)
         {
             await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
-            return null;
+            return Cascade(successChains);
         }
 
         return new ExecuteStep(execution.Id, nextOrder.Value);
@@ -168,18 +174,34 @@ public static class ExecuteStepHandler
         int currentOrder,
         AutomateXDbContext dbContext,
         EngineEventBus eventBus,
+        EngineOptions options,
+        ILogger logger,
         CancellationToken cancellationToken)
     {
         var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, currentOrder, cancellationToken);
         if (nextOrder is null)
         {
             execution.Complete();
+            var chains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
-            return null;
+            return Cascade(chains);
         }
 
         return new ExecuteStep(execution.Id, nextOrder.Value);
+    }
+
+    // Chained RunWorkflow messages cascade through the same outbox as step messages.
+    private static object? Cascade(List<RunWorkflow> chains)
+    {
+        if (chains.Count == 0)
+        {
+            return null;
+        }
+
+        var outgoing = new OutgoingMessages();
+        outgoing.AddRange(chains);
+        return outgoing;
     }
 
     private static async Task<TemplateContext> BuildTemplateContextAsync(

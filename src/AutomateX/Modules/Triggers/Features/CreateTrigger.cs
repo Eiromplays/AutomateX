@@ -48,8 +48,11 @@ public static class CreateTrigger
                 case TriggerTypes.Webhook:
                     (configJson, webhookSecret) = WebhookSecret.AddTo(configJson);
                     break;
+                case TriggerTypes.Workflow:
+                    await ValidateChainConfigOrThrowAsync(configJson, ws, ct);
+                    break;
                 default:
-                    ThrowError($"Unknown trigger type '{req.Type}'. Supported: {TriggerTypes.Cron}, {TriggerTypes.Webhook}.");
+                    ThrowError($"Unknown trigger type '{req.Type}'. Supported: {TriggerTypes.Cron}, {TriggerTypes.Webhook}, {TriggerTypes.Workflow}.");
                     return;
             }
 
@@ -67,6 +70,35 @@ public static class CreateTrigger
                 webhookSecret is null
                     ? null
                     : WebhookSecret.BuildUrl(engineOptions.Value.PublicBaseUrl, trigger.Id, webhookSecret)), ct);
+        }
+
+        private async Task ValidateChainConfigOrThrowAsync(string configJson, Guid workspaceId, CancellationToken ct)
+        {
+            WorkflowChaining.ChainConfig? config = null;
+            try
+            {
+                config = JsonSerializer.Deserialize<WorkflowChaining.ChainConfig>(configJson, JsonSerializerOptions.Web);
+            }
+            catch (JsonException)
+            {
+            }
+
+            if (config is null || config.WorkflowId == Guid.Empty)
+            {
+                ThrowError("Workflow triggers require config { workflowId, on } with on = succeeded | failed | any.");
+                return;
+            }
+
+            if (config.On is not ("succeeded" or "failed" or "any"))
+            {
+                ThrowError("Workflow trigger 'on' must be succeeded, failed or any.");
+            }
+
+            // The watched workflow must exist in the caller's workspace - chains never cross workspaces.
+            if (!await dbContext.Workflows.AnyAsync(x => x.Id == config.WorkflowId && x.WorkspaceId == workspaceId, ct))
+            {
+                ThrowError("The watched workflow was not found in this workspace.");
+            }
         }
 
         private DateTimeOffset? ParseCronOrThrow(string configJson)

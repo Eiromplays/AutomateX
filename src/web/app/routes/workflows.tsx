@@ -35,6 +35,16 @@ export default function Workflows() {
                 {workflow.description && (
                   <div className="text-xs text-zinc-500">{workflow.description}</div>
                 )}
+                {workflow.runsAfter.length > 0 && (
+                  <div className="text-xs text-violet-400">
+                    ⛓ runs after {workflow.runsAfter.join(", ")}
+                  </div>
+                )}
+                {workflow.feeds.length > 0 && (
+                  <div className="text-xs text-violet-400">
+                    ⛓ feeds {workflow.feeds.join(", ")}
+                  </div>
+                )}
               </div>
               <span className="text-xs text-zinc-500">v{workflow.latestVersion}</span>
             </Link>

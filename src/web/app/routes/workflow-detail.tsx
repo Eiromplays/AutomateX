@@ -15,6 +15,8 @@ export default function WorkflowDetail() {
   const queryClient = useQueryClient();
   const [triggerType, setTriggerType] = useState("cron");
   const [cron, setCron] = useState("*/5 * * * *");
+  const [chainWorkflowId, setChainWorkflowId] = useState("");
+  const [chainOn, setChainOn] = useState("succeeded");
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
 
@@ -22,6 +24,12 @@ export default function WorkflowDetail() {
     queryKey: ["workflow", id],
     queryFn: () => api.workflows.get(id),
     retry: false,
+  });
+
+  const { data: allWorkflows } = useQuery({
+    queryKey: ["workflows"],
+    queryFn: api.workflows.list,
+    staleTime: 60_000,
   });
 
   const execute = useMutation({
@@ -33,7 +41,12 @@ export default function WorkflowDetail() {
     mutationFn: () =>
       api.triggers.create(id, {
         type: triggerType,
-        config: triggerType === "cron" ? { cron } : {},
+        config:
+          triggerType === "cron"
+            ? { cron }
+            : triggerType === "workflow"
+              ? { workflowId: chainWorkflowId, on: chainOn }
+              : {},
       }),
     onSuccess: (created) => {
       setNewWebhook(created.webhookUrl);
@@ -136,6 +149,29 @@ export default function WorkflowDetail() {
         {execute.error && <p className="mt-1 text-sm text-red-400">{String(execute.error)}</p>}
       </div>
 
+      {(workflow.runsAfter.length > 0 || workflow.feeds.length > 0) && (
+        <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
+          {workflow.runsAfter.map((link) => (
+            <p key={`after-${link.workflowId}-${link.on}`}>
+              ⛓ Runs after{" "}
+              <Link to={`/workflows/${link.workflowId}`} className="text-violet-400 hover:underline">
+                {link.name}
+              </Link>{" "}
+              <span className="text-xs text-zinc-500">({onLabel(link.on)})</span>
+            </p>
+          ))}
+          {workflow.feeds.map((link) => (
+            <p key={`feeds-${link.workflowId}-${link.on}`}>
+              ⛓ Feeds{" "}
+              <Link to={`/workflows/${link.workflowId}`} className="text-violet-400 hover:underline">
+                {link.name}
+              </Link>{" "}
+              <span className="text-xs text-zinc-500">({onLabel(link.on)})</span>
+            </p>
+          ))}
+        </div>
+      )}
+
       <section>
         <h2 className="mb-3 text-sm font-medium text-zinc-300">
           Steps <span className="text-zinc-500">(v{workflow.latestVersion.version})</span>
@@ -220,6 +256,9 @@ export default function WorkflowDetail() {
                 {trigger.type === "webhook" && (
                   <code className="text-xs text-zinc-500">POST /api/webhooks/{trigger.id}?secret=•••</code>
                 )}
+                {trigger.type === "workflow" && (
+                  <ChainSummary configJson={trigger.configJson} workflows={allWorkflows} />
+                )}
                 {trigger.nextRunAt && (
                   <span className="text-xs text-zinc-500">
                     next: {new Date(trigger.nextRunAt).toLocaleString()}
@@ -259,7 +298,30 @@ export default function WorkflowDetail() {
           >
             <option value="cron">cron</option>
             <option value="webhook">webhook</option>
+            <option value="workflow">workflow (chain)</option>
           </select>
+          {triggerType === "workflow" && (
+            <>
+              <span className="text-xs text-zinc-500">when</span>
+              <select
+                className={inputClass}
+                value={chainWorkflowId}
+                onChange={(e) => setChainWorkflowId(e.target.value)}
+              >
+                <option value="">choose workflow…</option>
+                {allWorkflows?.map((candidate) => (
+                  <option key={candidate.id} value={candidate.id}>
+                    {candidate.name}
+                  </option>
+                ))}
+              </select>
+              <select className={inputClass} value={chainOn} onChange={(e) => setChainOn(e.target.value)}>
+                <option value="succeeded">succeeds</option>
+                <option value="failed">fails</option>
+                <option value="any">finishes (any)</option>
+              </select>
+            </>
+          )}
           {triggerType === "cron" && (
             <input
               className={`${inputClass} font-mono`}
@@ -271,7 +333,7 @@ export default function WorkflowDetail() {
           <button
             type="button"
             onClick={() => addTrigger.mutate()}
-            disabled={addTrigger.isPending}
+            disabled={addTrigger.isPending || (triggerType === "workflow" && !chainWorkflowId)}
             className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900 disabled:opacity-50"
           >
             Add trigger
@@ -290,3 +352,31 @@ export default function WorkflowDetail() {
     </div>
   );
 }
+
+function ChainSummary({
+  configJson,
+  workflows,
+}: {
+  configJson: string;
+  workflows: { id: string; name: string }[] | undefined;
+}) {
+  try {
+    const config = JSON.parse(configJson) as { workflowId?: string; on?: string };
+    const name = workflows?.find((w) => w.id === config.workflowId)?.name ?? config.workflowId;
+    const on = config.on === "failed" ? "fails" : config.on === "any" ? "finishes" : "succeeds";
+    return (
+      <span className="text-xs text-zinc-500">
+        ⛓ when{" "}
+        <Link to={`/workflows/${config.workflowId}`} className="text-violet-400 hover:underline">
+          {name}
+        </Link>{" "}
+        {on}
+      </span>
+    );
+  } catch {
+    return null;
+  }
+}
+
+const onLabel = (on: string) =>
+  on === "failed" ? "on failure" : on === "any" ? "on any finish" : "on success";

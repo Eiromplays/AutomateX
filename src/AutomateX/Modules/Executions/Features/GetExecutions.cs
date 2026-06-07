@@ -1,4 +1,5 @@
 using AutomateX.Database;
+using AutomateX.Engine;
 using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -23,20 +24,37 @@ public static class GetExecutions
                 return;
             }
 
-            var executions = await dbContext.Executions
+            var rows = await dbContext.Executions
                 .AsNoTracking()
                 .Where(x => x.WorkspaceId == ws)
                 .OrderByDescending(x => x.StartedAt)
                 .Take(50)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.WorkflowId,
+                    WorkflowName = dbContext.Workflows.Where(w => w.Id == x.WorkflowId).Select(w => w.Name).FirstOrDefault() ?? "(deleted)",
+                    x.WorkflowVersionId,
+                    x.TriggeredBy,
+                    Status = x.Status.ToString(),
+                    x.StartedAt,
+                    x.CompletedAt,
+                    ChainPayload = x.TriggeredBy == WorkflowChaining.TriggerType ? x.TriggerPayload : null,
+                })
+                .ToListAsync(ct);
+
+            var executions = rows
                 .Select(x => new Response(
                     x.Id,
                     x.WorkflowId,
+                    x.WorkflowName,
                     x.WorkflowVersionId,
                     x.TriggeredBy,
-                    x.Status.ToString(),
+                    x.Status,
                     x.StartedAt,
-                    x.CompletedAt))
-                .ToListAsync(ct);
+                    x.CompletedAt,
+                    WorkflowChaining.GetSourceExecutionId(x.ChainPayload)))
+                .ToList();
 
             await Send.OkAsync(executions, ct);
         }
@@ -45,9 +63,11 @@ public static class GetExecutions
     public sealed record Response(
         Guid Id,
         Guid WorkflowId,
+        string WorkflowName,
         Guid WorkflowVersionId,
         string TriggeredBy,
         string Status,
         DateTimeOffset StartedAt,
-        DateTimeOffset? CompletedAt);
+        DateTimeOffset? CompletedAt,
+        Guid? ParentExecutionId);
 }

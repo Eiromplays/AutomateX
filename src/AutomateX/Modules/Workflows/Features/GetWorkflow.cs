@@ -1,4 +1,7 @@
+using System.Text.Json;
 using AutomateX.Database;
+using AutomateX.Engine;
+using AutomateX.Modules.Triggers;
 using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -61,12 +64,72 @@ public static class GetWorkflow
             var triggers = await dbContext.Triggers
                 .AsNoTracking()
                 .Where(x => x.WorkflowId == id)
-                .Select(x => new TriggerResponse(x.Id, x.Type, x.Enabled, x.NextRunAt, x.LastFiredAt))
+                .Select(x => new TriggerResponse(x.Id, x.Type, x.Enabled, x.NextRunAt, x.LastFiredAt, x.ConfigJson))
                 .ToListAsync(ct);
 
+            var (runsAfter, feeds) = await ChainLinksAsync(id, ws, ct);
+
             await Send.OkAsync(
-                new Response(workflow.Id, workflow.Name, workflow.Description, workflow.CreatedAt, workflow.LatestVersion, workflow.Versions, triggers),
+                new Response(
+                    workflow.Id, workflow.Name, workflow.Description, workflow.CreatedAt,
+                    workflow.LatestVersion, workflow.Versions, triggers, runsAfter, feeds),
                 ct);
+        }
+
+        // Both directions of the chain graph around this workflow:
+        // runsAfter = workflows whose completion triggers this one (own workflow-triggers);
+        // feeds = workflows holding a workflow-trigger that watches this one.
+        private async Task<(List<ChainLink> RunsAfter, List<ChainLink> Feeds)> ChainLinksAsync(
+            Guid id, Guid ws, CancellationToken ct)
+        {
+            var chainTriggers = await dbContext.Triggers
+                .AsNoTracking()
+                .Where(x => x.Enabled && x.Type == TriggerTypes.Workflow)
+                .Select(x => new { x.WorkflowId, x.ConfigJson })
+                .ToListAsync(ct);
+
+            List<(Guid WorkflowId, string On)> runsAfter = [];
+            List<(Guid WorkflowId, string On)> feeds = [];
+            foreach (var trigger in chainTriggers)
+            {
+                WorkflowChaining.ChainConfig? config;
+                try
+                {
+                    config = JsonSerializer.Deserialize<WorkflowChaining.ChainConfig>(trigger.ConfigJson, JsonSerializerOptions.Web);
+                }
+                catch (JsonException)
+                {
+                    continue;
+                }
+
+                if (config is null)
+                {
+                    continue;
+                }
+
+                if (trigger.WorkflowId == id)
+                {
+                    runsAfter.Add((config.WorkflowId, config.On));
+                }
+
+                if (config.WorkflowId == id)
+                {
+                    feeds.Add((trigger.WorkflowId, config.On));
+                }
+            }
+
+            var ids = runsAfter.Concat(feeds).Select(x => x.WorkflowId).Distinct().ToList();
+            var names = await dbContext.Workflows
+                .AsNoTracking()
+                .Where(x => ids.Contains(x.Id) && x.WorkspaceId == ws)
+                .ToDictionaryAsync(x => x.Id, x => x.Name, ct);
+
+            List<ChainLink> Resolve(List<(Guid WorkflowId, string On)> links) => links
+                .Where(x => names.ContainsKey(x.WorkflowId))
+                .Select(x => new ChainLink(x.WorkflowId, names[x.WorkflowId], x.On))
+                .ToList();
+
+            return (Resolve(runsAfter), Resolve(feeds));
         }
     }
 
@@ -77,7 +140,11 @@ public static class GetWorkflow
         DateTimeOffset CreatedAt,
         VersionResponse LatestVersion,
         List<VersionSummary> Versions,
-        List<TriggerResponse> Triggers);
+        List<TriggerResponse> Triggers,
+        List<ChainLink> RunsAfter,
+        List<ChainLink> Feeds);
+
+    public sealed record ChainLink(Guid WorkflowId, string Name, string On);
 
     public sealed record VersionResponse(Guid Id, int Version, DateTimeOffset CreatedAt, List<StepResponse> Steps);
 
@@ -85,5 +152,5 @@ public static class GetWorkflow
 
     public sealed record StepResponse(Guid Id, int Order, string? Name, string ActionType, string ConfigJson);
 
-    public sealed record TriggerResponse(Guid Id, string Type, bool Enabled, DateTimeOffset? NextRunAt, DateTimeOffset? LastFiredAt);
+    public sealed record TriggerResponse(Guid Id, string Type, bool Enabled, DateTimeOffset? NextRunAt, DateTimeOffset? LastFiredAt, string ConfigJson);
 }

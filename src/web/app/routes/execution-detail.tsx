@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router";
-import { api } from "../lib/api";
+import { api, type ExecutionDetail as ExecutionDetailData } from "../lib/api";
 import { SourceBadge } from "../components/action-source";
 import { StatusBadge } from "../components/status-badge";
 import { toast } from "../components/toast";
@@ -76,6 +76,8 @@ export default function ExecutionDetail() {
       </div>
       {remove.error && <p className="text-sm text-red-400">{String(remove.error)}</p>}
 
+      <ChainLineage execution={execution} />
+
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <dt className="text-xs text-zinc-500">Triggered by</dt>
@@ -130,6 +132,51 @@ export default function ExecutionDetail() {
           <li className="text-sm text-zinc-500">No steps recorded.</li>
         )}
       </ol>
+    </div>
+  );
+}
+
+// Upstream lineage: parsed from the trigger payload the chained execution carries.
+function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
+  const lineage = (() => {
+    if (execution.triggeredBy !== "workflow" || !execution.triggerPayload) return null;
+    try {
+      const payload = JSON.parse(execution.triggerPayload) as {
+        chainDepth?: number;
+        source?: { executionId?: string; status?: string };
+      };
+      return payload.source?.executionId
+        ? { ...payload.source, depth: payload.chainDepth ?? 1 }
+        : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  if (!lineage && execution.chained.length === 0) return null;
+
+  return (
+    <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
+      {lineage && (
+        <p>
+          ⛓ Chained from execution{" "}
+          <Link to={`/executions/${lineage.executionId}`} className="text-violet-400 hover:underline">
+            {lineage.executionId?.slice(0, 13)}…
+          </Link>{" "}
+          <span className="text-xs text-zinc-500">
+            (source {lineage.status} · depth {lineage.depth})
+          </span>
+        </p>
+      )}
+      {execution.chained.map((child) => (
+        <p key={child.executionId}>
+          ⛓ Chained into execution{" "}
+          <Link to={`/executions/${child.executionId}`} className="text-violet-400 hover:underline">
+            {child.executionId.slice(0, 13)}…
+          </Link>{" "}
+          <span className="text-xs text-zinc-500">({child.status})</span>
+        </p>
+      ))}
     </div>
   );
 }

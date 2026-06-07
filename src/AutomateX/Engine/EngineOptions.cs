@@ -19,6 +19,10 @@ public sealed class EngineOptions
 
     public TimeSpan StuckExecutionThreshold { get; set; } = TimeSpan.FromMinutes(30);
 
+    // Maximum workflow-chaining depth: a chained execution may itself chain until
+    // its depth exceeds this — then the firing is skipped (logged, not failed).
+    public int MaxChainDepth { get; set; } = 5;
+
     // Relative paths resolve against AppContext.BaseDirectory.
     public string PluginsPath { get; set; } = "plugins";
 

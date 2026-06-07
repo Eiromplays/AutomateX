@@ -1,4 +1,7 @@
+using System.Text.Json;
 using AutomateX.Database;
+using AutomateX.Engine;
+using AutomateX.Modules.Triggers;
 using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -27,17 +30,68 @@ public static class GetWorkflows
                 .AsNoTracking()
                 .Where(x => x.WorkspaceId == ws)
                 .OrderBy(x => x.Name)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.Name,
+                    x.Description,
+                    x.CreatedAt,
+                    LatestVersion = x.Versions.Max(v => v.Version),
+                })
+                .ToListAsync(ct);
+
+            // Chain relationships: trigger on B watching A means B runs after A / A feeds B.
+            var chainTriggers = await dbContext.Triggers
+                .AsNoTracking()
+                .Where(x => x.Enabled && x.Type == TriggerTypes.Workflow)
+                .Select(x => new { x.WorkflowId, x.ConfigJson })
+                .ToListAsync(ct);
+
+            var names = workflows.ToDictionary(x => x.Id, x => x.Name);
+            Dictionary<Guid, List<string>> runsAfter = [];
+            Dictionary<Guid, List<string>> feeds = [];
+            foreach (var trigger in chainTriggers)
+            {
+                WorkflowChaining.ChainConfig? config;
+                try
+                {
+                    config = JsonSerializer.Deserialize<WorkflowChaining.ChainConfig>(trigger.ConfigJson, JsonSerializerOptions.Web);
+                }
+                catch (JsonException)
+                {
+                    continue;
+                }
+
+                if (config is null
+                    || !names.TryGetValue(trigger.WorkflowId, out var targetName)
+                    || !names.TryGetValue(config.WorkflowId, out var watchedName))
+                {
+                    continue;
+                }
+
+                (runsAfter.TryGetValue(trigger.WorkflowId, out var after) ? after : runsAfter[trigger.WorkflowId] = []).Add(watchedName);
+                (feeds.TryGetValue(config.WorkflowId, out var into) ? into : feeds[config.WorkflowId] = []).Add(targetName);
+            }
+
+            await Send.OkAsync(workflows
                 .Select(x => new Response(
                     x.Id,
                     x.Name,
                     x.Description,
                     x.CreatedAt,
-                    x.Versions.Max(v => v.Version)))
-                .ToListAsync(ct);
-
-            await Send.OkAsync(workflows, ct);
+                    x.LatestVersion,
+                    runsAfter.TryGetValue(x.Id, out var ra) ? ra : [],
+                    feeds.TryGetValue(x.Id, out var fi) ? fi : []))
+                .ToList(), ct);
         }
     }
 
-    public sealed record Response(Guid Id, string Name, string? Description, DateTimeOffset CreatedAt, int LatestVersion);
+    public sealed record Response(
+        Guid Id,
+        string Name,
+        string? Description,
+        DateTimeOffset CreatedAt,
+        int LatestVersion,
+        List<string> RunsAfter,
+        List<string> Feeds);
 }

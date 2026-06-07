@@ -4,6 +4,7 @@ public static class TriggerTypes
 {
     public const string Cron = "cron";
     public const string Webhook = "webhook";
+    public const string Workflow = "workflow";
 }
 
 public sealed record CronTriggerConfig(string Cron);

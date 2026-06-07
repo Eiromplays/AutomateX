@@ -1,4 +1,5 @@
 using AutomateX.Database;
+using AutomateX.Engine;
 using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -59,7 +60,22 @@ public static class GetExecution
                 return;
             }
 
-            await Send.OkAsync(execution, ct);
+            // Downstream lineage: executions this one chained into. Workflow-triggered
+            // executions carry source.executionId in their payload; hobby-scale scan.
+            var candidates = await dbContext.Executions
+                .AsNoTracking()
+                .Where(x => x.WorkspaceId == ws && x.TriggeredBy == WorkflowChaining.TriggerType)
+                .OrderByDescending(x => x.StartedAt)
+                .Take(200)
+                .Select(x => new { x.Id, x.WorkflowId, Status = x.Status.ToString(), x.TriggerPayload })
+                .ToListAsync(ct);
+
+            var chained = candidates
+                .Where(x => WorkflowChaining.GetSourceExecutionId(x.TriggerPayload) == id)
+                .Select(x => new ChainedResponse(x.Id, x.WorkflowId, x.Status))
+                .ToList();
+
+            await Send.OkAsync(execution with { Chained = chained }, ct);
         }
     }
 
@@ -72,7 +88,12 @@ public static class GetExecution
         string Status,
         DateTimeOffset StartedAt,
         DateTimeOffset? CompletedAt,
-        List<StepResponse> Steps);
+        List<StepResponse> Steps)
+    {
+        public List<ChainedResponse> Chained { get; init; } = [];
+    }
+
+    public sealed record ChainedResponse(Guid ExecutionId, Guid WorkflowId, string Status);
 
     public sealed record StepResponse(
         Guid Id,

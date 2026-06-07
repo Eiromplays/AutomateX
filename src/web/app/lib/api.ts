@@ -53,6 +53,8 @@ export type WorkflowSummary = {
   description: string | null;
   createdAt: string;
   latestVersion: number;
+  runsAfter: string[];
+  feeds: string[];
 };
 
 export type WorkflowStep = {
@@ -69,6 +71,7 @@ export type WorkflowTrigger = {
   enabled: boolean;
   nextRunAt: string | null;
   lastFiredAt: string | null;
+  configJson: string;
 };
 
 export type WorkflowVersionSummary = {
@@ -76,6 +79,12 @@ export type WorkflowVersionSummary = {
   version: number;
   createdAt: string;
   stepCount: number;
+};
+
+export type ChainLink = {
+  workflowId: string;
+  name: string;
+  on: string;
 };
 
 export type WorkflowDetail = {
@@ -86,6 +95,8 @@ export type WorkflowDetail = {
   latestVersion: { id: string; version: number; createdAt: string; steps: WorkflowStep[] };
   versions: WorkflowVersionSummary[];
   triggers: WorkflowTrigger[];
+  runsAfter: ChainLink[];
+  feeds: ChainLink[];
 };
 
 export type ActionDescriptor = {
@@ -100,11 +111,19 @@ export type ActionDescriptor = {
 export type ExecutionSummary = {
   id: string;
   workflowId: string;
+  workflowName: string;
   workflowVersionId: string;
   triggeredBy: string;
   status: string;
   startedAt: string;
   completedAt: string | null;
+  parentExecutionId: string | null;
+};
+
+export type ChainedExecution = {
+  executionId: string;
+  workflowId: string;
+  status: string;
 };
 
 export type ExecutionStep = {
@@ -120,9 +139,10 @@ export type ExecutionStep = {
   completedAt: string | null;
 };
 
-export type ExecutionDetail = ExecutionSummary & {
+export type ExecutionDetail = Omit<ExecutionSummary, "workflowName"> & {
   triggerPayload: string | null;
   steps: ExecutionStep[];
+  chained: ChainedExecution[];
 };
 
 export type CreateWorkflowStep = {
