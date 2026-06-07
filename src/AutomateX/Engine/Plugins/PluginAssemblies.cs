@@ -1,50 +1,126 @@
 using System.Reflection;
+using System.Runtime.Loader;
 using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Plugins;
 
-public sealed record PluginAssembly(string Name, Assembly Assembly);
+public sealed record PluginAssembly(string Name, Assembly Assembly, AssemblyLoadContext LoadContext);
 
-// Loads each plugin folder exactly once into its own collectible ALC; all discovery
-// (actions, event listeners) shares these instances. Convention:
-// plugins/<PluginName>/<PluginName>.dll, published with EnableDynamicLoading.
+public sealed class PluginSnapshot(
+    IReadOnlyList<PluginAssembly> global,
+    IReadOnlyDictionary<Guid, IReadOnlyList<PluginAssembly>> workspaces)
+{
+    public IReadOnlyList<PluginAssembly> Global { get; } = global;
+
+    public IReadOnlyDictionary<Guid, IReadOnlyList<PluginAssembly>> Workspaces { get; } = workspaces;
+}
+
+// Loads plugin folders into collectible ALCs. Convention: plugins/<Name>/<Name>.dll
+// (global) and plugins/.workspaces/<workspaceId>/<Name>/<Name>.dll (workspace-scoped);
+// dot-prefixed directories are reserved and skipped by the global scan.
+// Reload swaps the snapshot and unloads old contexts — in-flight executions keep
+// references into the old ALC and drain safely before it collects.
 public sealed class PluginAssemblies(
     IOptions<EngineOptions> engineOptions,
     ILogger<PluginAssemblies> logger)
 {
-    private readonly Lock _lock = new();
-    private IReadOnlyList<PluginAssembly>? _all;
+    public const string WorkspacesDirName = ".workspaces";
 
-    public IReadOnlyList<PluginAssembly> All
+    private readonly Lock _lock = new();
+    private PluginSnapshot? _current;
+
+    public PluginSnapshot Current
     {
         get
         {
             lock (_lock)
             {
-                return _all ??= Load();
+                return _current ??= Load();
             }
         }
     }
 
-    private List<PluginAssembly> Load()
+    public string GlobalRoot => ResolveRoot();
+
+    public string WorkspaceRoot(Guid workspaceId) =>
+        Path.Combine(ResolveRoot(), WorkspacesDirName, workspaceId.ToString());
+
+    public void Reload()
     {
-        var pluginsPath = engineOptions.Value.PluginsPath;
-        if (!Path.IsPathRooted(pluginsPath))
+        lock (_lock)
         {
-            pluginsPath = Path.Combine(AppContext.BaseDirectory, pluginsPath);
+            var old = _current;
+            _current = Load();
+
+            if (old is null)
+            {
+                return;
+            }
+
+            foreach (var plugin in old.Global.Concat(old.Workspaces.Values.SelectMany(x => x)))
+            {
+                try
+                {
+                    plugin.LoadContext.Unload();
+                    // Best-effort shadow cleanup — may fail while the image is still
+                    // mapped; leftovers live under the OS temp dir and get reaped there.
+                    Directory.Delete(Path.GetDirectoryName(plugin.Assembly.Location)!, recursive: true);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to unload plugin context {Plugin}", plugin.Name);
+                }
+            }
+        }
+    }
+
+    private PluginSnapshot Load()
+    {
+        var root = ResolveRoot();
+        var global = LoadDirectory(root);
+
+        Dictionary<Guid, IReadOnlyList<PluginAssembly>> workspaces = [];
+        var workspacesRoot = Path.Combine(root, WorkspacesDirName);
+        if (Directory.Exists(workspacesRoot))
+        {
+            foreach (var directory in Directory.EnumerateDirectories(workspacesRoot))
+            {
+                if (!Guid.TryParse(Path.GetFileName(directory), out var workspaceId))
+                {
+                    continue;
+                }
+
+                var plugins = LoadDirectory(directory);
+                if (plugins.Count > 0)
+                {
+                    workspaces[workspaceId] = plugins;
+                }
+            }
         }
 
+        return new PluginSnapshot(global, workspaces);
+    }
+
+    private List<PluginAssembly> LoadDirectory(string path)
+    {
         List<PluginAssembly> result = [];
 
-        if (!Directory.Exists(pluginsPath))
+        if (!Directory.Exists(path))
         {
-            logger.LogInformation("No plugins directory at {Path}, skipping plugin load", pluginsPath);
             return result;
         }
 
-        foreach (var directory in Directory.EnumerateDirectories(pluginsPath))
+        foreach (var directory in Directory.EnumerateDirectories(path))
         {
             var name = Path.GetFileName(directory);
+            if (name.StartsWith('.'))
+            {
+                continue; // reserved (e.g. .workspaces)
+            }
+
             var assemblyPath = Path.Combine(directory, $"{name}.dll");
             if (!File.Exists(assemblyPath))
             {
@@ -54,8 +130,16 @@ public sealed class PluginAssemblies(
 
             try
             {
-                var loadContext = new PluginLoadContext(assemblyPath);
-                result.Add(new PluginAssembly(name, loadContext.LoadFromAssemblyPath(assemblyPath)));
+                // Shadow copy: the runtime caches PE images by absolute path, so loading
+                // a replaced DLL from its original path can serve stale bytes (and locks
+                // the file on Windows). A unique path per load sidesteps both.
+                var shadowDir = Path.Combine(
+                    Path.GetTempPath(), "automatex-plugins", $"{Guid.CreateVersion7():N}-{name}");
+                CopyDirectory(directory, shadowDir);
+
+                var shadowAssemblyPath = Path.Combine(shadowDir, $"{name}.dll");
+                var loadContext = new PluginLoadContext(shadowAssemblyPath);
+                result.Add(new PluginAssembly(name, loadContext.LoadFromAssemblyPath(shadowAssemblyPath), loadContext));
                 logger.LogInformation("Loaded plugin assembly {Plugin}", name);
             }
             catch (Exception ex)
@@ -65,5 +149,24 @@ public sealed class PluginAssemblies(
         }
 
         return result;
+    }
+
+    private string ResolveRoot()
+    {
+        var pluginsPath = engineOptions.Value.PluginsPath;
+        return Path.IsPathRooted(pluginsPath)
+            ? pluginsPath
+            : Path.Combine(AppContext.BaseDirectory, pluginsPath);
+    }
+
+    private static void CopyDirectory(string source, string destination)
+    {
+        Directory.CreateDirectory(destination);
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var target = Path.Combine(destination, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            File.Copy(file, target);
+        }
     }
 }

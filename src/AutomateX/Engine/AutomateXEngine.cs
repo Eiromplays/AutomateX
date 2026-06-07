@@ -59,9 +59,9 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<ActionContextFactory>();
         builder.Services.AddSingleton<PluginAssemblies>();
         builder.Services.AddSingleton<IActionSource, BuiltInActionSource>();
-        builder.Services.AddSingleton<IActionSource, PluginActionSource>();
         builder.Services.AddSingleton<ActionRegistry>();
         builder.Services.AddSingleton<EngineEventBus>();
+        builder.Services.AddSingleton<PluginReloader>();
 
         builder.Services.AddHostedService<CronScheduler>();
         builder.Services.AddHostedService<StuckExecutionSweeper>();

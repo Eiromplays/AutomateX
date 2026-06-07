@@ -30,7 +30,7 @@ public static class UpdateWorkflow
                 ThrowError("Name is required.");
             }
 
-            foreach (var step in req.Steps.Where(step => !actions.Contains(step.ActionType)))
+            foreach (var step in req.Steps.Where(step => !actions.Contains(step.ActionType, ws)))
             {
                 ThrowError($"Unknown action type '{step.ActionType}'.");
             }

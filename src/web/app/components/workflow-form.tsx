@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type CreateWorkflowStep } from "../lib/api";
 import { SchemaForm, type JsonSchema } from "./schema-form";
-import { groupBySource, sourceLabel } from "./action-source";
+import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 
 type DraftStep = CreateWorkflowStep & { key: number };
 
@@ -101,7 +101,14 @@ export function WorkflowForm({
                 onChange={(e) => updateStep(step.key, { actionType: e.target.value, config: {} })}
               >
                 {groupBySource(actions ?? []).map(([source, items]) => (
-                  <optgroup key={source} label={sourceLabel(source)}>
+                  <optgroup
+                    key={source}
+                    label={
+                      sourceKind(source) === "workspace"
+                        ? `${sourceLabel(source)} — workspace override`
+                        : sourceLabel(source)
+                    }
+                  >
                     {items.map((action) => (
                       <option key={action.type} value={action.type}>
                         {action.displayName} ({action.type})

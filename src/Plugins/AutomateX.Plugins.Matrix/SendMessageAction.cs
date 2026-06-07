@@ -10,14 +10,16 @@ public sealed record MatrixSendConfig(
     string AccessToken,
     string RoomId,
     string Message,
-    string? Html = null);
+    string? Html = null,
+    string MsgType = "m.text");
 
 public sealed record MatrixSendResult(string EventId, string RoomId);
 
 [Action("matrix.send", "Matrix: Send Message",
     Description = "Sends a message to a Matrix room (use {{connections.<name>.accessToken}} for the token). "
         + "Transaction ids are deterministic per execution step, so engine retries are deduplicated by the "
-        + "homeserver — a notification can never double-send.")]
+        + "homeserver — a notification can never double-send."
+        + "updated - this is a test")]
 public sealed class SendMessageAction : IAction<MatrixSendConfig, MatrixSendResult>
 {
     public async Task<MatrixSendResult> ExecuteAsync(
@@ -33,7 +35,7 @@ public sealed class SendMessageAction : IAction<MatrixSendConfig, MatrixSendResu
 
         var content = new Dictionary<string, string>
         {
-            ["msgtype"] = "m.text",
+            ["msgtype"] = config.MsgType,
             ["body"] = config.Message,
         };
         if (config.Html is { Length: > 0 })
@@ -80,6 +82,11 @@ public sealed class SendMessageAction : IAction<MatrixSendConfig, MatrixSendResu
         if (string.IsNullOrWhiteSpace(config.Message))
         {
             throw new ArgumentException("matrix.send requires 'message'.");
+        }
+
+        if (config.MsgType is not ("m.text" or "m.notice"))
+        {
+            throw new ArgumentException("matrix.send supports msgType 'm.text' or 'm.notice'.");
         }
     }
 }

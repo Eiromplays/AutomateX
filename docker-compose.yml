@@ -33,6 +33,9 @@ services:
       # Encryption__Key: <base64-32-bytes>  (losing it makes stored secrets unrecoverable)
       # Public origin used in generated webhook URLs (defaults to relative paths):
       # Engine__PublicBaseUrl: https://automatex.example.com
+      # Opt-in: manage plugins (upload/delete zips) through the API + UI.
+      # An uploaded plugin runs in-process with full host trust — leave off unless you trust every user:
+      # Engine__AllowPluginUpload: "true"
     volumes:
       - ./plugins:/app/plugins
     depends_on:

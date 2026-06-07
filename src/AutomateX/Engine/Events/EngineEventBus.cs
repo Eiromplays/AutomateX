@@ -8,12 +8,18 @@ namespace AutomateX.Engine.Events;
 // In-process, best-effort event dispatch: published after state is persisted, exact
 // event-type matching, and per-listener fault isolation — a throwing listener is
 // logged and skipped, never allowed to affect engine flow.
+// Listeners come from DI and GLOBAL plugins only: engine events are instance-wide,
+// so a workspace plugin listener would observe other workspaces' activity.
+// Workspace plugins contribute actions, never listeners.
 public sealed class EngineEventBus
 {
     private sealed record Subscription(object Listener, MethodInfo Handle, string Name);
 
-    private readonly FrozenDictionary<Type, Subscription[]> _subscriptions;
+    private readonly IReadOnlyList<IEngineEventListener> _hostListeners;
+    private readonly PluginAssemblies _plugins;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EngineEventBus> _logger;
+    private volatile FrozenDictionary<Type, Subscription[]> _subscriptions;
 
     public EngineEventBus(
         IEnumerable<IEngineEventListener> listeners,
@@ -21,25 +27,34 @@ public sealed class EngineEventBus
         IServiceProvider serviceProvider,
         ILogger<EngineEventBus> logger)
     {
+        _hostListeners = [.. listeners];
+        _plugins = pluginAssemblies;
+        _serviceProvider = serviceProvider;
         _logger = logger;
+        _subscriptions = Build();
+    }
 
-        List<object> all = [.. listeners];
-        foreach (var plugin in pluginAssemblies.All)
+    public void Rebuild() => _subscriptions = Build();
+
+    private FrozenDictionary<Type, Subscription[]> Build()
+    {
+        List<object> all = [.. _hostListeners];
+        foreach (var plugin in _plugins.Current.Global)
         {
             try
             {
                 all.AddRange(plugin.Assembly.GetTypes()
                     .Where(type => type is { IsClass: true, IsAbstract: false }
                         && typeof(IEngineEventListener).IsAssignableFrom(type))
-                    .Select(type => ActivatorUtilities.CreateInstance(serviceProvider, type)));
+                    .Select(type => ActivatorUtilities.CreateInstance(_serviceProvider, type)));
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to discover event listeners in plugin {Plugin}", plugin.Name);
+                _logger.LogError(ex, "Failed to discover event listeners in plugin {Plugin}", plugin.Name);
             }
         }
 
-        _subscriptions = all
+        return all
             .SelectMany(listener => listener.GetType().GetInterfaces()
                 .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IListenFor<>))
                 .Select(i => (

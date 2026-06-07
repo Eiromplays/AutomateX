@@ -80,6 +80,30 @@ public sealed class MatrixSendActionTests
     }
 
     [Fact]
+    public async Task Notice_msgtype_is_sent_when_configured()
+    {
+        var handler = new FakeHandler(_ => Ok());
+        var config = Config() with { MsgType = "m.notice" };
+
+        await new SendMessageAction().ExecuteAsync(config, Context(handler));
+
+        var (_, body) = Assert.Single(handler.Calls);
+        Assert.Contains("\"msgtype\":\"m.notice\"", body);
+    }
+
+    [Fact]
+    public async Task Unsupported_msgtype_is_rejected_before_sending()
+    {
+        var handler = new FakeHandler(_ => Ok());
+        var config = Config() with { MsgType = "m.image" };
+
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => new SendMessageAction().ExecuteAsync(config, Context(handler)));
+
+        Assert.Empty(handler.Calls);
+    }
+
+    [Fact]
     public async Task Html_message_adds_formatted_body()
     {
         var handler = new FakeHandler(_ => Ok());

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { api, getWorkspaceId, setWorkspaceId } from "./lib/api";
+import { Toasts } from "./components/toast";
 import "./app.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -255,6 +256,7 @@ function Shell() {
       </header>
       {!gated && <NewWorkspaceBanner />}
       {gated ? <SignInGate /> : <Outlet />}
+      <Toasts />
     </div>
   );
 }

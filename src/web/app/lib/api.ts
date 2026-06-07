@@ -135,6 +135,28 @@ export type AuthMe = {
 
 export type WorkspaceSummary = { id: string; name: string; role: string; isNew: boolean };
 
+export type PluginInfo = {
+  name: string;
+  version: string;
+  fingerprint: string;
+  modifiedAt: string | null;
+};
+
+export type PluginsOverview = {
+  uploadEnabled: boolean;
+  global: PluginInfo[];
+  workspace: PluginInfo[];
+};
+
+export type PluginUploadResult = {
+  name: string;
+  scope: string;
+  globalPlugins: number;
+  workspacePlugins: number;
+  previousFingerprint: string | null;
+  fingerprint: string | null;
+};
+
 export type WorkspaceMember = {
   id: string;
   email: string;
@@ -185,6 +207,30 @@ export const api = {
   },
   actions: {
     list: () => request<ActionDescriptor[]>("/actions"),
+  },
+  plugins: {
+    list: () => request<PluginsOverview>("/plugins"),
+    reload: () =>
+      request<{ globalPlugins: number; workspacePlugins: number }>("/actions/reload", {
+        method: "POST",
+      }),
+    // Multipart upload — no JSON content type, but the workspace header still rides along.
+    upload: async (scope: "global" | "workspace", file: File): Promise<PluginUploadResult> => {
+      const form = new FormData();
+      form.append("file", file);
+      const workspace = getWorkspaceId();
+      const response = await fetch(`${API}/plugins/${scope}`, {
+        method: "POST",
+        body: form,
+        headers: workspace ? { "X-Workspace-Id": workspace } : {},
+      });
+      if (!response.ok) {
+        throw new Error(`${response.status}: ${await response.text()}`);
+      }
+      return (await response.json()) as PluginUploadResult;
+    },
+    remove: (scope: "global" | "workspace", name: string) =>
+      request<void>(`/plugins/${scope}/${encodeURIComponent(name)}`, { method: "DELETE" }),
   },
   workflows: {
     list: () => request<WorkflowSummary[]>("/workflows"),

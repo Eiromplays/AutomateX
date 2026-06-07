@@ -99,7 +99,7 @@ public static class ExecuteStepHandler
         try
         {
             var invocation = new ActionInvocation(execution.Id, execution.WorkflowId, message.StepOrder);
-            output = await actions.Get(step.ActionType).ExecuteAsync(resolvedConfig, invocation, cancellationToken);
+            output = await actions.Get(step.ActionType, execution.WorkspaceId).ExecuteAsync(resolvedConfig, invocation, cancellationToken);
         }
         catch (Exception ex)
         {

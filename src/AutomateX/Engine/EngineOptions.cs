@@ -22,6 +22,10 @@ public sealed class EngineOptions
     // Relative paths resolve against AppContext.BaseDirectory.
     public string PluginsPath { get; set; } = "plugins";
 
+    // Plugin upload over the API is remote code execution by design — disabled
+    // unless the operator explicitly opts in.
+    public bool AllowPluginUpload { get; set; }
+
     // When set, terminal executions older than this are deleted by the sweeper.
     // Null (default) keeps history forever.
     public TimeSpan? ExecutionRetention { get; set; }
