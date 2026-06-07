@@ -62,7 +62,17 @@ export default function Executions() {
           className="flex flex-1 items-center justify-between px-4 py-3 text-sm"
         >
           <div className="flex items-center gap-3">
-            {depth > 0 && <span className="text-violet-400/70">↳</span>}
+            {depth > 0 && (
+              <span
+                className={
+                  execution.triggeredBy.startsWith("retry:")
+                    ? "text-emerald-400/70"
+                    : "text-violet-400/70"
+                }
+              >
+                {execution.triggeredBy.startsWith("retry:") ? "↻" : "↳"}
+              </span>
+            )}
             <StatusBadge status={execution.status} />
             <span className="font-medium text-zinc-200">{execution.workflowName}</span>
             {execution.triggeredBy === "workflow" ? (
@@ -72,6 +82,15 @@ export default function Executions() {
                   title="Started by another workflow (parent outside this page)"
                 >
                   ⛓ chained
+                </span>
+              )
+            ) : execution.triggeredBy.startsWith("retry:") ? (
+              depth === 0 && (
+                <span
+                  className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400"
+                  title="Retry (original outside this page)"
+                >
+                  ↻ retry
                 </span>
               )
             ) : (

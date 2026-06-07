@@ -290,6 +290,14 @@ export const api = {
         `/workflows/${id}/versions/${version}/restore`,
         { method: "POST" },
       ),
+    // Portable document — secrets excluded by construction (cron triggers only,
+    // connections as name references). Import needs same-named connections.
+    export: (id: string) => request<Record<string, unknown>>(`/workflows/${id}/export`),
+    import: (document: unknown) =>
+      request<{ id: string; versionId: string; version: number }>("/workflows/import", {
+        method: "POST",
+        body: JSON.stringify(document),
+      }),
     execute: (id: string, payload?: string) =>
       request<{ executionId: string }>(`/workflows/${id}/execute`, {
         method: "POST",
@@ -317,5 +325,8 @@ export const api = {
     list: () => request<ExecutionSummary[]>("/executions"),
     get: (id: string) => request<ExecutionDetail>(`/executions/${id}`),
     remove: (id: string) => request<void>(`/executions/${id}`, { method: "DELETE" }),
+    // Replay with the byte-identical original payload, on the latest version.
+    retry: (id: string) =>
+      request<{ executionId: string }>(`/executions/${id}/retry`, { method: "POST" }),
   },
 };

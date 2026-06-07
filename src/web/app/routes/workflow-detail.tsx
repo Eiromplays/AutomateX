@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
 import { DriftWarning, SourceBadge } from "../components/action-source";
+import { CodeBlock } from "../components/code-block";
 import { toast } from "../components/toast";
 
 const inputClass =
@@ -120,6 +121,25 @@ export default function WorkflowDetail() {
           >
             Delete
           </button>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                const doc = await api.workflows.export(id);
+                const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
+                const anchor = document.createElement("a");
+                anchor.href = URL.createObjectURL(blob);
+                anchor.download = `${workflow.name}.workflow.json`;
+                anchor.click();
+                URL.revokeObjectURL(anchor.href);
+              } catch (exportError) {
+                toast.error(`Export failed — ${String(exportError)}`);
+              }
+            }}
+            className="text-sm text-zinc-500 hover:text-zinc-200"
+          >
+            Export
+          </button>
           <Link
             to={`/workflows/${id}/edit`}
             className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
@@ -187,9 +207,7 @@ export default function WorkflowDetail() {
                 </span>
                 <SourceBadge actionType={step.actionType} />
               </div>
-              <pre className="mt-2 overflow-x-auto rounded bg-zinc-900 p-2 text-xs text-zinc-400">
-                {JSON.stringify(JSON.parse(step.configJson), null, 2)}
-              </pre>
+              <CodeBlock text={JSON.stringify(JSON.parse(step.configJson), null, 2)} />
               <DriftWarning actionType={step.actionType} configJson={step.configJson} />
             </li>
           ))}

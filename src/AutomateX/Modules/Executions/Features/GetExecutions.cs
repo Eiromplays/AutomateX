@@ -53,7 +53,8 @@ public static class GetExecutions
                     x.Status,
                     x.StartedAt,
                     x.CompletedAt,
-                    WorkflowChaining.GetSourceExecutionId(x.ChainPayload)))
+                    WorkflowChaining.GetSourceExecutionId(x.ChainPayload)
+                        ?? ExecutionRetry.GetOriginalExecutionId(x.TriggeredBy)))
                 .ToList();
 
             await Send.OkAsync(executions, ct);

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { api, type ExecutionDetail as ExecutionDetailData } from "../lib/api";
 import { SourceBadge } from "../components/action-source";
 import { StatusBadge } from "../components/status-badge";
+import { CodeBlock } from "../components/code-block";
 import { toast } from "../components/toast";
 import { useEngineEvents } from "../lib/use-engine-events";
 
@@ -10,6 +11,15 @@ export default function ExecutionDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const retry = useMutation({
+    mutationFn: () => api.executions.retry(id),
+    onSuccess: ({ executionId }) => {
+      toast.success("Retried with the original payload.");
+      navigate(`/executions/${executionId}`);
+    },
+    onError: (retryError) => toast.error(`Retry failed — ${String(retryError)}`),
+  });
 
   const remove = useMutation({
     mutationFn: () => api.executions.remove(id),
@@ -55,6 +65,17 @@ export default function ExecutionDetail() {
           <span className="text-xs font-normal text-emerald-400">● live</span>
         </div>
         <div className="flex items-center gap-4">
+          {(execution.status === "Succeeded" || execution.status === "Failed") && (
+            <button
+              type="button"
+              onClick={() => retry.mutate()}
+              disabled={retry.isPending}
+              title="Re-run on the latest version with the original trigger payload"
+              className="text-sm text-zinc-400 hover:text-emerald-400 disabled:opacity-50"
+            >
+              {retry.isPending ? "Retrying…" : execution.status === "Failed" ? "↻ Retry" : "↻ Run again"}
+            </button>
+          )}
           {(execution.status === "Succeeded" || execution.status === "Failed") && (
             <button
               type="button"
@@ -116,16 +137,8 @@ export default function ExecutionDetail() {
                 {step.failedAttempts > 0 && ` (${step.failedAttempts} failed)`}
               </span>
             </div>
-            {step.output && (
-              <pre className="mt-3 overflow-x-auto rounded bg-zinc-900 p-2 text-xs text-zinc-400">
-                {step.output}
-              </pre>
-            )}
-            {step.error && (
-              <pre className="mt-3 overflow-x-auto rounded bg-red-950/40 p-2 text-xs text-red-400">
-                {step.error}
-              </pre>
-            )}
+            {step.output && <CodeBlock text={step.output} />}
+            {step.error && <CodeBlock text={step.error} tone="error" />}
           </li>
         ))}
         {execution.steps.length === 0 && (
@@ -138,6 +151,10 @@ export default function ExecutionDetail() {
 
 // Upstream lineage: parsed from the trigger payload the chained execution carries.
 function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
+  const retryOf = execution.triggeredBy.startsWith("retry:")
+    ? execution.triggeredBy.slice(6)
+    : null;
+
   const lineage = (() => {
     if (execution.triggeredBy !== "workflow" || !execution.triggerPayload) return null;
     try {
@@ -153,10 +170,19 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
     }
   })();
 
-  if (!lineage && execution.chained.length === 0) return null;
+  if (!lineage && !retryOf && execution.chained.length === 0) return null;
 
   return (
     <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
+      {retryOf && (
+        <p>
+          ↻ Retry of execution{" "}
+          <Link to={`/executions/${retryOf}`} className="text-violet-400 hover:underline">
+            {retryOf.slice(0, 13)}…
+          </Link>{" "}
+          <span className="text-xs text-zinc-500">(same payload, latest version)</span>
+        </p>
+      )}
       {lineage && (
         <p>
           ⛓ Chained from execution{" "}

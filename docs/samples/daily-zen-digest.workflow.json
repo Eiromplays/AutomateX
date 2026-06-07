@@ -1,0 +1,44 @@
+{
+  "automatex": 1,
+  "name": "daily-zen-digest",
+  "description": "Every morning at 08:00: fetch GitHub's zen proverb and the repo status, pause for drama, post a digest to Matrix. Requires: a connection named 'matrix' with accessToken, the Matrix + Sample plugins, and your room id in the last step.",
+  "steps": [
+    {
+      "actionType": "http.request",
+      "name": "Fetch zen",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/zen",
+        "headers": { "User-Agent": "AutomateX" }
+      }
+    },
+    {
+      "actionType": "http.request",
+      "name": "Check repo",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/repos/Eiromplays/AutomateX",
+        "headers": { "User-Agent": "AutomateX" }
+      }
+    },
+    {
+      "actionType": "sample.delay",
+      "name": "Dramatic pause",
+      "config": { "milliseconds": 500 }
+    },
+    {
+      "actionType": "matrix.send",
+      "name": "Post digest",
+      "config": {
+        "homeserverUrl": "https://matrix-client.matrix.org",
+        "accessToken": "{{connections.matrix.accessToken}}",
+        "roomId": "!REPLACE-ME:matrix.org",
+        "msgType": "m.notice",
+        "message": "Morning digest — zen: “{{steps.0.output.body}}” · repo check: HTTP {{steps.1.output.statusCode}}"
+      }
+    }
+  ],
+  "triggers": [
+    { "type": "cron", "config": { "cron": "0 8 * * *" } }
+  ]
+}
