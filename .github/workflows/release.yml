@@ -34,8 +34,8 @@ jobs:
           dotnet publish src/AutomateX
           -t:PublishContainer
           -p:ContainerRegistry=ghcr.io
-          -p:ContainerRepository=${OWNER}/automatex-api
-          -p:ContainerImageTags='"${VERSION};latest"'
+          -p:ContainerRepository="${OWNER}/automatex-api"
+          -p:ContainerImageTags="\"${VERSION};latest\""
 
       - name: Build and push web image
         run: |
