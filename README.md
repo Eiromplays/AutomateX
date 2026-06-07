@@ -161,7 +161,10 @@ First-party plugins ship in-repo under `src/Plugins` — `ssh.command` (remote c
 ```bash
 dotnet publish src/Plugins/AutomateX.Plugins.Ssh    -o src/AutomateX/bin/Debug/net10.0/plugins/AutomateX.Plugins.Ssh
 dotnet publish src/Plugins/AutomateX.Plugins.Matrix -o src/AutomateX/bin/Debug/net10.0/plugins/AutomateX.Plugins.Matrix
+dotnet publish src/Plugins/AutomateX.Plugins.Llm    -o src/AutomateX/bin/Debug/net10.0/plugins/AutomateX.Plugins.Llm
 ```
+
+`llm.prompt` (in `AutomateX.Plugins.Llm`) talks to any OpenAI-compatible chat-completions endpoint — OpenAI, OpenRouter, Ollama, LM Studio — via `baseUrl`; `apiKey` is optional so local models work out of the box, and the completion lands in `{{steps.<n>.output.text}}` for the next step.
 
 Restart, check `GET /api/actions`, then use `sample.echo` / `sample.delay` as workflow step types. `sample.delay` is also the crash/resume test tool — give it 30000ms, kill the app mid-step, restart, watch the durable inbox finish the job.
 

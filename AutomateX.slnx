@@ -12,6 +12,7 @@
     <Project Path="src/AutomateX/AutomateX.csproj" />
   </Folder>
   <Folder Name="/plugins/">
+    <Project Path="src/Plugins/AutomateX.Plugins.Llm/AutomateX.Plugins.Llm.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Matrix/AutomateX.Plugins.Matrix.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Ssh/AutomateX.Plugins.Ssh.csproj" />
   </Folder>
