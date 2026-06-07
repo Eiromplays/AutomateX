@@ -8,6 +8,8 @@ var db = postgres.AddDatabase("automatex");
 var api = builder.AddProject<Projects.AutomateX>("api")
     .WithReference(db)
     .WaitFor(db)
+    // Dev convenience: `dotnet publish … -o …/plugins/<Name>` hot-reloads automatically.
+    .WithEnvironment("Engine__WatchPlugins", "true")
     .WithExternalHttpEndpoints();
 
 builder.AddViteApp("web", "../web")

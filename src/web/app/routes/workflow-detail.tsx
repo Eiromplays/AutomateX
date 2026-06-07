@@ -2,8 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
-import { DriftWarning, SourceBadge } from "../components/action-source";
+import { DriftWarning, SourceBadge, sourceLabel } from "../components/action-source";
 import { CodeBlock } from "../components/code-block";
+import { SchemaForm, type JsonSchema } from "../components/schema-form";
 import { toast } from "../components/toast";
 
 const inputClass =
@@ -18,6 +19,7 @@ export default function WorkflowDetail() {
   const [cron, setCron] = useState("*/5 * * * *");
   const [chainWorkflowId, setChainWorkflowId] = useState("");
   const [chainOn, setChainOn] = useState("succeeded");
+  const [pluginTriggerConfig, setPluginTriggerConfig] = useState<Record<string, unknown>>({});
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
 
@@ -33,6 +35,15 @@ export default function WorkflowDetail() {
     staleTime: 60_000,
   });
 
+  const { data: triggerTypes } = useQuery({
+    queryKey: ["trigger-types"],
+    queryFn: api.triggers.types,
+    staleTime: 60_000,
+  });
+
+  const pluginTriggerTypes = (triggerTypes ?? []).filter((t) => t.source !== "builtin");
+  const selectedPluginType = pluginTriggerTypes.find((t) => t.type === triggerType);
+
   const execute = useMutation({
     mutationFn: () => api.workflows.execute(id, payload.trim() || undefined),
     onSuccess: ({ executionId }) => navigate(`/executions/${executionId}`),
@@ -47,7 +58,9 @@ export default function WorkflowDetail() {
             ? { cron }
             : triggerType === "workflow"
               ? { workflowId: chainWorkflowId, on: chainOn }
-              : {},
+              : triggerType === "webhook"
+                ? {}
+                : pluginTriggerConfig,
       }),
     onSuccess: (created) => {
       setNewWebhook(created.webhookUrl);
@@ -312,11 +325,30 @@ export default function WorkflowDetail() {
           <select
             className={inputClass}
             value={triggerType}
-            onChange={(e) => setTriggerType(e.target.value)}
+            onChange={(e) => {
+              setTriggerType(e.target.value);
+              setPluginTriggerConfig({});
+            }}
           >
-            <option value="cron">cron</option>
-            <option value="webhook">webhook</option>
-            <option value="workflow">workflow (chain)</option>
+            <optgroup label="Built-in">
+              <option value="cron">cron</option>
+              <option value="webhook">webhook</option>
+              <option value="workflow">workflow (chain)</option>
+            </optgroup>
+            {Object.entries(
+              pluginTriggerTypes.reduce<Record<string, typeof pluginTriggerTypes>>((acc, t) => {
+                (acc[t.source] ??= []).push(t);
+                return acc;
+              }, {}),
+            ).map(([source, items]) => (
+              <optgroup key={source} label={sourceLabel(source)}>
+                {items.map((t) => (
+                  <option key={t.type} value={t.type}>
+                    {t.displayName} ({t.type})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
           {triggerType === "workflow" && (
             <>
@@ -357,6 +389,19 @@ export default function WorkflowDetail() {
             Add trigger
           </button>
         </div>
+        {selectedPluginType && (
+          <div className="mt-3 max-w-md rounded-lg border border-zinc-800 p-3">
+            <SchemaForm
+              schema={
+                selectedPluginType.configSchema
+                  ? (JSON.parse(selectedPluginType.configSchema) as JsonSchema)
+                  : null
+              }
+              value={pluginTriggerConfig}
+              onChange={setPluginTriggerConfig}
+            />
+          </div>
+        )}
         {addTrigger.error && <p className="mt-2 text-sm text-red-400">{String(addTrigger.error)}</p>}
         {newWebhook && (
           <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">

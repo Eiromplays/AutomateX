@@ -10,6 +10,7 @@ public sealed record ReloadResult(int GlobalPlugins, int WorkspacePlugins);
 public sealed class PluginReloader(
     PluginAssemblies assemblies,
     ActionRegistry registry,
+    Triggers.TriggerRegistry triggerRegistry,
     EngineEventBus eventBus,
     ILogger<PluginReloader> logger)
 {
@@ -21,6 +22,7 @@ public sealed class PluginReloader(
         {
             assemblies.Reload();
             registry.Rebuild();
+            triggerRegistry.Rebuild();
             eventBus.Rebuild();
 
             var snapshot = assemblies.Current;

@@ -60,10 +60,13 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<PluginAssemblies>();
         builder.Services.AddSingleton<IActionSource, BuiltInActionSource>();
         builder.Services.AddSingleton<ActionRegistry>();
+        builder.Services.AddSingleton<Triggers.TriggerRegistry>();
         builder.Services.AddSingleton<EngineEventBus>();
         builder.Services.AddSingleton<PluginReloader>();
 
         builder.Services.AddHostedService<CronScheduler>();
+        builder.Services.AddHostedService<Triggers.PluginTriggerHost>();
+        builder.Services.AddHostedService<PluginWatcher>();
         builder.Services.AddHostedService<StuckExecutionSweeper>();
 
         return builder;

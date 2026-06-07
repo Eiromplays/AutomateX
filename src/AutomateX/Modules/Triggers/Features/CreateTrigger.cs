@@ -11,7 +11,11 @@ namespace AutomateX.Modules.Triggers.Features;
 
 public static class CreateTrigger
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions, WorkspaceAccess access) : Endpoint<Request, Response>
+    public sealed class Endpoint(
+        AutomateXDbContext dbContext,
+        IOptions<EngineOptions> engineOptions,
+        AutomateX.Engine.Triggers.TriggerRegistry triggerRegistry,
+        WorkspaceAccess access) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -52,8 +56,15 @@ public static class CreateTrigger
                     await ValidateChainConfigOrThrowAsync(configJson, ws, ct);
                     break;
                 default:
-                    ThrowError($"Unknown trigger type '{req.Type}'. Supported: {TriggerTypes.Cron}, {TriggerTypes.Webhook}, {TriggerTypes.Workflow}.");
-                    return;
+                    if (!triggerRegistry.Contains(req.Type))
+                    {
+                        ThrowError($"Unknown trigger type '{req.Type}'. Supported: {TriggerTypes.Cron}, "
+                            + $"{TriggerTypes.Webhook}, {TriggerTypes.Workflow}"
+                            + (triggerRegistry.Types.Count > 0 ? $", {string.Join(", ", triggerRegistry.Types)}." : "."));
+                        return;
+                    }
+
+                    break; // plugin trigger: config is the listener's business; the host validates at start
             }
 
             var trigger = Trigger.Create(req.WorkflowId, req.Type, configJson, nextRunAt);

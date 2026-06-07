@@ -18,8 +18,7 @@ public sealed record MatrixSendResult(string EventId, string RoomId);
 [Action("matrix.send", "Matrix: Send Message",
     Description = "Sends a message to a Matrix room (use {{connections.<name>.accessToken}} for the token). "
         + "Transaction ids are deterministic per execution step, so engine retries are deduplicated by the "
-        + "homeserver — a notification can never double-send."
-        + "updated - this is a test")]
+        + "homeserver — a notification can never double-send.")]
 public sealed class SendMessageAction : IAction<MatrixSendConfig, MatrixSendResult>
 {
     public async Task<MatrixSendResult> ExecuteAsync(

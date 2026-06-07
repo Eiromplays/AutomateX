@@ -5,7 +5,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: read
+  contents: write # release assets (plugin zips + catalog.json)
   packages: write
 
 jobs:
@@ -44,6 +44,16 @@ jobs:
             -t "ghcr.io/${OWNER}/automatex-web:latest" \
             src/web
           docker push --all-tags "ghcr.io/${OWNER}/automatex-web"
+
+      - name: Package plugins + catalog
+        run: scripts/package-plugins.sh "$GITHUB_REF_NAME"
+
+      - name: Publish release with plugin assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --generate-notes 2>/dev/null || true
+          gh release upload "$GITHUB_REF_NAME" out/plugins/*.zip out/plugins/catalog.json --clobber
 
       # Self-deploy: fires the AutomateX webhook AFTER images exist in GHCR.
       # No-op until the AUTOMATEX_DEPLOY_WEBHOOK repo secret holds the full

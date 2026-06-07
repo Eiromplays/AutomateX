@@ -17,6 +17,15 @@ function configFields(raw: string | null): { name: string; required: boolean }[]
   }
 }
 
+// Same-day builds show just the time; older ones carry their date so the
+// timestamp never lies about which day "7:10 PM" was.
+function formatTimestamp(iso: string): string {
+  const date = new Date(iso);
+  return date.toDateString() === new Date().toDateString()
+    ? date.toLocaleTimeString()
+    : date.toLocaleString();
+}
+
 function PluginManager() {
   const queryClient = useQueryClient();
   const { data: plugins } = useQuery({ queryKey: ["plugins"], queryFn: api.plugins.list });
@@ -103,7 +112,7 @@ function PluginManager() {
                 title="Build fingerprint (changes every compilation) · DLL write time"
               >
                 {plugin.fingerprint}
-                {plugin.modifiedAt && ` · ${new Date(plugin.modifiedAt).toLocaleTimeString()}`}
+                {plugin.modifiedAt && ` · ${formatTimestamp(plugin.modifiedAt)}`}
               </span>
             </span>
             {plugins.uploadEnabled && (
@@ -146,7 +155,79 @@ function PluginManager() {
           here, or drop folders into <code>plugins/</code> and reload.
         </p>
       )}
+      <CatalogPanel />
     </section>
+  );
+}
+
+// First-party plugins, one click away: entries come from the release-asset
+// catalog and are sha256-verified server-side before they touch disk.
+function CatalogPanel() {
+  const queryClient = useQueryClient();
+  const { data: catalog, error } = useQuery({
+    queryKey: ["plugin-catalog"],
+    queryFn: api.plugins.catalog,
+    retry: false,
+    staleTime: 300_000,
+  });
+
+  const install = useMutation({
+    mutationFn: (name: string) => api.plugins.installFromCatalog(name),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      queryClient.invalidateQueries({ queryKey: ["actions"] });
+      queryClient.invalidateQueries({ queryKey: ["plugin-catalog"] });
+      queryClient.invalidateQueries({ queryKey: ["trigger-types"] });
+      toast.success(
+        result.previousFingerprint && result.previousFingerprint !== result.fingerprint
+          ? `${result.name} ${result.version} installed: ${result.previousFingerprint} → ${result.fingerprint}`
+          : `${result.name} ${result.version} installed (${result.fingerprint}).`,
+      );
+    },
+    onError: (installError) => toast.error(`Install failed — ${String(installError)}`),
+  });
+
+  if (error) {
+    return (
+      <p className="mt-3 text-xs text-zinc-600">Plugin catalog unreachable — {String(error)}</p>
+    );
+  }
+
+  if (!catalog || catalog.entries.length === 0) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-zinc-800 p-4">
+      <h3 className="mb-2 text-sm font-medium text-zinc-300">Catalog</h3>
+      <ul className="space-y-2">
+        {catalog.entries.map((entry) => (
+          <li key={entry.name} className="flex items-center justify-between gap-3 text-sm">
+            <span>
+              <span className="text-zinc-200">{entry.name}</span>{" "}
+              <span className="text-[10px] text-zinc-600">v{entry.version}</span>
+              {entry.description && (
+                <span className="block text-xs text-zinc-500">{entry.description}</span>
+              )}
+            </span>
+            {catalog.installEnabled ? (
+              <button
+                type="button"
+                onClick={() => install.mutate(entry.name)}
+                disabled={install.isPending}
+                className={
+                  entry.installed
+                    ? "rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900 disabled:opacity-50"
+                    : "rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                }
+              >
+                {install.isPending ? "Installing…" : entry.installed ? "Update" : "Install"}
+              </button>
+            ) : (
+              entry.installed && <span className="text-xs text-emerald-400">installed</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -171,9 +252,9 @@ export default function Actions() {
   return (
     <div className="max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Actions</h1>
+        <h1 className="text-lg font-semibold">Plugins</h1>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-zinc-500">{actions.length} available</span>
+          <span className="text-xs text-zinc-500">{actions.length} actions</span>
           <button
             type="button"
             onClick={() => reload.mutate()}
@@ -227,6 +308,56 @@ export default function Actions() {
           </section>
         ))}
       </div>
+
+      <TriggerTypesPanel />
     </div>
+  );
+}
+
+function TriggerTypesPanel() {
+  const { data: types } = useQuery({
+    queryKey: ["trigger-types"],
+    queryFn: api.triggers.types,
+    staleTime: 60_000,
+  });
+
+  if (!types) return null;
+
+  return (
+    <section className="mt-8">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-300">
+        Trigger types
+        <span className="text-xs font-normal text-zinc-500">— how workflows start</span>
+      </h2>
+      <div className="space-y-2">
+        {types.map((trigger) => (
+          <div key={trigger.type} className="rounded-lg border border-zinc-800 p-4">
+            <div className="mb-1 flex items-center gap-2">
+              <span className="text-sm font-medium">{trigger.displayName}</span>
+              <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">
+                {trigger.type}
+              </code>
+              <SourceChip source={trigger.source} />
+            </div>
+            {trigger.description && (
+              <p className="mb-2 text-xs text-zinc-500">{trigger.description}</p>
+            )}
+            {configFields(trigger.configSchema).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {configFields(trigger.configSchema).map((field) => (
+                  <span
+                    key={field.name}
+                    className="rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-[11px] text-zinc-400"
+                  >
+                    {field.name}
+                    {field.required && <span className="text-emerald-400"> *</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

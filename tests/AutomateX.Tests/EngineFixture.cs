@@ -128,9 +128,13 @@ public sealed class EngineFixture : IAsyncLifetime
             // Tight retry ladder so failure tests run in milliseconds, not minutes.
             options.MaxStepAttempts = 3;
             options.StepRetryDelays = [TimeSpan.FromMilliseconds(50)];
+            options.TriggerSyncInterval = TimeSpan.FromMilliseconds(500);
         });
         builder.Services.AddSingleton<IActionExecutor>(ProbeAction);
         builder.Services.AddSingleton<IEngineEventListener>(EventListener);
+        // Trigger listeners defined in this assembly (e.g. test.tick) become live trigger types.
+        builder.Services.AddSingleton<AutomateX.Engine.Triggers.ITriggerSource>(sp =>
+            new AssemblyTriggerSource(typeof(EngineFixture).Assembly, sp));
 
         Host = builder.Build();
 
@@ -150,4 +154,11 @@ public sealed class EngineFixture : IAsyncLifetime
         Host.Dispose();
         await _postgres.DisposeAsync();
     }
+}
+
+internal sealed class AssemblyTriggerSource(System.Reflection.Assembly assembly, IServiceProvider services)
+    : AutomateX.Engine.Triggers.ITriggerSource
+{
+    public IEnumerable<AutomateX.Engine.Triggers.RegisteredTrigger> GetTriggers() =>
+        AutomateX.Engine.Triggers.TriggerDiscovery.FromAssembly(assembly, "test", services);
 }

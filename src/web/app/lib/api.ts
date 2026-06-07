@@ -182,6 +182,26 @@ export type PluginsOverview = {
   workspace: PluginInfo[];
 };
 
+export type TriggerTypeInfo = {
+  type: string;
+  displayName: string;
+  description: string | null;
+  source: string;
+  configSchema: string | null;
+};
+
+export type CatalogEntry = {
+  name: string;
+  version: string;
+  description: string | null;
+  installed: boolean;
+};
+
+export type PluginCatalogInfo = {
+  installEnabled: boolean;
+  entries: CatalogEntry[];
+};
+
 export type PluginUploadResult = {
   name: string;
   scope: string;
@@ -264,6 +284,12 @@ export const api = {
       }
       return (await response.json()) as PluginUploadResult;
     },
+    catalog: () => request<PluginCatalogInfo>("/plugins/catalog"),
+    installFromCatalog: (name: string) =>
+      request<{ name: string; version: string; previousFingerprint: string | null; fingerprint: string | null }>(
+        "/plugins/catalog/install",
+        { method: "POST", body: JSON.stringify({ name }) },
+      ),
     remove: (scope: "global" | "workspace", name: string, force = false) =>
       request<void>(`/plugins/${scope}/${encodeURIComponent(name)}${force ? "?force=true" : ""}`, {
         method: "DELETE",
@@ -305,6 +331,7 @@ export const api = {
       }),
   },
   triggers: {
+    types: () => request<TriggerTypeInfo[]>("/trigger-types"),
     create: (workflowId: string, body: { type: string; config: Record<string, unknown> }) =>
       request<{
         id: string;
