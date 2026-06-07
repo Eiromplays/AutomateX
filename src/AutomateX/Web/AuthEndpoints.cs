@@ -8,7 +8,7 @@ namespace AutomateX.Web;
 // via the handshake's cookies instead of query strings.
 public static class CreateSession
 {
-    public sealed class Endpoint(IOptions<ApiKeyOptions> options) : Endpoint<Request>
+    public sealed class Endpoint(IOptions<AuthOptions> options) : Endpoint<Request>
     {
         public override void Configure()
         {
@@ -22,13 +22,13 @@ public static class CreateSession
 
             if (!string.IsNullOrEmpty(configuredKey))
             {
-                if (string.IsNullOrEmpty(req.Key) || !ApiKeyMiddleware.FixedTimeEquals(req.Key, configuredKey))
+                if (string.IsNullOrEmpty(req.Key) || !AuthGateMiddleware.FixedTimeEquals(req.Key, configuredKey))
                 {
                     await Send.UnauthorizedAsync(ct);
                     return;
                 }
 
-                HttpContext.Response.Cookies.Append(ApiKeyMiddleware.CookieName, req.Key, new CookieOptions
+                HttpContext.Response.Cookies.Append(AuthGateMiddleware.CookieName, req.Key, new CookieOptions
                 {
                     HttpOnly = true,
                     SameSite = SameSiteMode.Strict,
@@ -57,7 +57,7 @@ public static class DeleteSession
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            HttpContext.Response.Cookies.Delete(ApiKeyMiddleware.CookieName, new CookieOptions { Path = "/" });
+            HttpContext.Response.Cookies.Delete(AuthGateMiddleware.CookieName, new CookieOptions { Path = "/" });
             await Send.NoContentAsync(ct);
         }
     }

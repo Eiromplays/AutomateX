@@ -101,6 +101,13 @@ export type ConnectionSummary = {
   decryptable: boolean;
 };
 
+export type AuthMe = {
+  mode: "open" | "apikey" | "oidc";
+  authenticated: boolean;
+  name: string | null;
+  email: string | null;
+};
+
 export const api = {
   connections: {
     list: () => request<ConnectionSummary[]>("/connections"),
@@ -118,6 +125,7 @@ export const api = {
     remove: (id: string) => request<void>(`/connections/${id}`, { method: "DELETE" }),
   },
   auth: {
+    me: () => request<AuthMe>("/auth/me"),
     login: (key: string) =>
       request<void>("/auth/session", { method: "POST", body: JSON.stringify({ key }) }),
     logout: () => request<void>("/auth/session", { method: "DELETE" }),

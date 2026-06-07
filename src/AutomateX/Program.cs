@@ -13,14 +13,14 @@ var connectionString = builder.Configuration.GetConnectionString("automatex")
     ?? throw new InvalidOperationException("Connection string 'automatex' not found.");
 
 builder.AddAutomateXEngine(connectionString);
+builder.AddAutomateXAuth();
 builder.Services.AddFastEndpoints();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IEngineEventListener, SignalRExecutionEventListener>();
-builder.Services.Configure<ApiKeyOptions>(builder.Configuration.GetSection(ApiKeyOptions.SectionName));
 
 var app = builder.Build();
 
-app.UseMiddleware<ApiKeyMiddleware>();
+app.UseAutomateXAuth();
 app.MapDefaultEndpoints();
 app.UseFastEndpoints(config => config.Endpoints.RoutePrefix = "api");
 app.MapHub<ExecutionEventsHub>("/hubs/executions");

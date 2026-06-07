@@ -17,6 +17,12 @@ export default defineConfig({
     proxy: {
       "/api": { target: apiUrl, changeOrigin: true },
       "/hubs": { target: apiUrl, changeOrigin: true, ws: true },
+      // OIDC flow endpoints live on the API. changeOrigin stays OFF so the handler
+      // sees the browser's Host and builds redirect URIs on the web origin —
+      // the whole login loop then stays on this port.
+      "/auth": { target: apiUrl },
+      "/signin-oidc": { target: apiUrl },
+      "/signout-callback-oidc": { target: apiUrl },
     },
   },
 });

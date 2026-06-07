@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { api } from "./lib/api";
 import "./app.css";
 
@@ -28,51 +28,107 @@ export function Layout({ children }: { children: ReactNode }) {
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100";
 
+function ApiKeyButton() {
+  return (
+    <button
+      type="button"
+      title="Sign in with API key"
+      className="text-zinc-600 hover:text-zinc-100"
+      onClick={async () => {
+        const key = window.prompt("API key (leave blank to sign out):");
+        if (key === null) return;
+        try {
+          if (key) {
+            await api.auth.login(key);
+          } else {
+            await api.auth.logout();
+          }
+          window.location.reload();
+        } catch {
+          window.alert("Invalid API key.");
+        }
+      }}
+    >
+      ⚿
+    </button>
+  );
+}
+
+function SignInGate() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="rounded-lg border border-zinc-800 p-8 text-center">
+        <div className="mb-2 text-xl font-semibold tracking-tight">
+          Automate<span className="text-emerald-400">X</span>
+        </div>
+        <p className="mb-6 text-sm text-zinc-500">Sign in with your organization account to continue.</p>
+        <a
+          href={`/auth/login?returnUrl=${encodeURIComponent(window.location.pathname)}`}
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+        >
+          Sign in
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function Shell() {
+  const { data: me, isLoading } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: api.auth.me,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  if (isLoading) {
+    return null;
+  }
+
+  const gated = me?.mode === "oidc" && !me.authenticated;
+
+  return (
+    <div className="mx-auto max-w-5xl px-6 py-8">
+      <header className="mb-8 flex items-center justify-between border-b border-zinc-800 pb-4">
+        <Link to="/" className="text-xl font-semibold tracking-tight">
+          Automate<span className="text-emerald-400">X</span>
+        </Link>
+        <nav className="flex items-center gap-5 text-sm">
+          {!gated && (
+            <>
+              <NavLink to="/" end className={navLinkClass}>
+                Workflows
+              </NavLink>
+              <NavLink to="/executions" className={navLinkClass}>
+                Executions
+              </NavLink>
+              <NavLink to="/connections" className={navLinkClass}>
+                Connections
+              </NavLink>
+            </>
+          )}
+          {me?.mode === "apikey" && <ApiKeyButton />}
+          {me?.mode === "oidc" && me.authenticated && (
+            <span className="flex items-center gap-3 text-xs text-zinc-500">
+              {me.name ?? me.email}
+              <a href="/auth/logout" className="hover:text-zinc-100">
+                Sign out
+              </a>
+            </span>
+          )}
+        </nav>
+      </header>
+      {gated ? <SignInGate /> : <Outlet />}
+    </div>
+  );
+}
+
 export default function Root() {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="mx-auto max-w-5xl px-6 py-8">
-        <header className="mb-8 flex items-center justify-between border-b border-zinc-800 pb-4">
-          <Link to="/" className="text-xl font-semibold tracking-tight">
-            Automate<span className="text-emerald-400">X</span>
-          </Link>
-          <nav className="flex items-center gap-5 text-sm">
-            <NavLink to="/" end className={navLinkClass}>
-              Workflows
-            </NavLink>
-            <NavLink to="/executions" className={navLinkClass}>
-              Executions
-            </NavLink>
-            <NavLink to="/connections" className={navLinkClass}>
-              Connections
-            </NavLink>
-            <button
-              type="button"
-              title="Sign in with API key"
-              className="text-zinc-600 hover:text-zinc-100"
-              onClick={async () => {
-                const key = window.prompt("API key (leave blank to sign out):");
-                if (key === null) return;
-                try {
-                  if (key) {
-                    await api.auth.login(key);
-                  } else {
-                    await api.auth.logout();
-                  }
-                  window.location.reload();
-                } catch {
-                  window.alert("Invalid API key.");
-                }
-              }}
-            >
-              ⚿
-            </button>
-          </nav>
-        </header>
-        <Outlet />
-      </div>
+      <Shell />
     </QueryClientProvider>
   );
 }

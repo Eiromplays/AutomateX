@@ -8,6 +8,19 @@
 		reverse_proxy api:8080
 	}
 
+	# OIDC flow endpoints live on the API.
+	handle /auth/* {
+		reverse_proxy api:8080
+	}
+
+	handle /signin-oidc* {
+		reverse_proxy api:8080
+	}
+
+	handle /signout-callback-oidc* {
+		reverse_proxy api:8080
+	}
+
 	handle {
 		root * /srv
 		try_files {path} /index.html
