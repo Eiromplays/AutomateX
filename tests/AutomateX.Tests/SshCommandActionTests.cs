@@ -15,19 +15,8 @@ public sealed class SshServerFixture : IAsyncLifetime
 {
     public const string Password = "automatex-test-pw";
 
-    public const string AuthorizedPublicKey =
-        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHD9VGqva688+HKLvODNd0Y+9mhkwFGihcG9pggQPxzc automatex-tests";
-
-    public const string PrivateKey =
-        """
-        -----BEGIN OPENSSH PRIVATE KEY-----
-        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
-        QyNTUxOQAAACBw/VRqr2uvPPhyi7zgzXdGPvZoZMBRooXBvaYIED8c3AAAAJiLzeWci83l
-        nAAAAAtzc2gtZWQyNTUxOQAAACBw/VRqr2uvPPhyi7zgzXdGPvZoZMBRooXBvaYIED8c3A
-        AAAEB3SH4RK6Nc+TIEQJrQI4ADkFpA4pvFYwzhvGBgm1suWnD9VGqva688+HKLvODNd0Y+
-        9mhkwFGihcG9pggQPxzcAAAAD2F1dG9tYXRleC10ZXN0cwECAwQFBg==
-        -----END OPENSSH PRIVATE KEY-----
-        """;
+    // Generated inside the throwaway container at startup — no key material in the repo.
+    public string PrivateKey { get; private set; } = "";
 
     private readonly IContainer _container = new ContainerBuilder("testcontainers/sshd:1.3.0")
         .WithEnvironment("PASSWORD", Password)
@@ -46,8 +35,12 @@ public sealed class SshServerFixture : IAsyncLifetime
         await _container.StartAsync();
 
         await _container.ExecAsync(["sh", "-c",
-            $"mkdir -p /root/.ssh && echo '{AuthorizedPublicKey}' > /root/.ssh/authorized_keys"
+            "ssh-keygen -t ed25519 -f /tmp/test_key -N '' -q"
+            + " && mkdir -p /root/.ssh && cp /tmp/test_key.pub /root/.ssh/authorized_keys"
             + " && chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys"]);
+
+        var key = await _container.ExecAsync(["cat", "/tmp/test_key"]);
+        PrivateKey = key.Stdout;
 
         // "256 SHA256:<base64> root@host (ED25519)" — the same format users get from ssh-keygen -lf.
         var result = await _container.ExecAsync(["sh", "-c", "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"]);
@@ -89,7 +82,7 @@ public sealed class SshCommandActionTests(SshServerFixture server) : IClassFixtu
     [Fact]
     public async Task Private_key_auth_executes()
     {
-        var config = Config("echo key-auth-ok") with { Password = null, PrivateKey = SshServerFixture.PrivateKey };
+        var config = Config("echo key-auth-ok") with { Password = null, PrivateKey = server.PrivateKey };
 
         var result = await new SshCommandAction().ExecuteAsync(config, Context());
 
