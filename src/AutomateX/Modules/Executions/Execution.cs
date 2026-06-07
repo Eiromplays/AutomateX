@@ -1,3 +1,5 @@
+using AutomateX.Modules.Workspaces;
+
 namespace AutomateX.Modules.Executions;
 
 public sealed class Execution
@@ -7,6 +9,9 @@ public sealed class Execution
     }
 
     public Guid Id { get; private set; }
+
+    // Denormalized from the workflow at run start — cheap history filtering + scoping.
+    public Guid WorkspaceId { get; private set; }
 
     public Guid WorkflowId { get; private set; }
 
@@ -30,9 +35,11 @@ public sealed class Execution
         Guid workflowId,
         Guid workflowVersionId,
         string triggeredBy,
-        string? triggerPayload = null) => new()
+        string? triggerPayload = null,
+        Guid? workspaceId = null) => new()
     {
         Id = id,
+        WorkspaceId = workspaceId ?? Workspace.DefaultId,
         WorkflowId = workflowId,
         WorkflowVersionId = workflowVersionId,
         TriggeredBy = triggeredBy,

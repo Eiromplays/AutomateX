@@ -1,4 +1,5 @@
 using AutomateX.Database;
+using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +7,7 @@ namespace AutomateX.Modules.Workflows.Features;
 
 public static class GetWorkflow
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext) : EndpointWithoutRequest<Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : EndpointWithoutRequest<Response>
     {
         public override void Configure()
         {
@@ -16,11 +17,17 @@ public static class GetWorkflow
 
         public override async Task HandleAsync(CancellationToken ct)
         {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
             var id = Route<Guid>("id");
 
             var workflow = await dbContext.Workflows
                 .AsNoTracking()
-                .Where(x => x.Id == id)
+                .Where(x => x.Id == id && x.WorkspaceId == ws)
                 .Select(x => new
                 {
                     x.Id,

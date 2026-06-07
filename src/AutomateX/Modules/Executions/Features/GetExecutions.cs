@@ -1,4 +1,5 @@
 using AutomateX.Database;
+using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,7 +7,7 @@ namespace AutomateX.Modules.Executions.Features;
 
 public static class GetExecutions
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext) : EndpointWithoutRequest<List<Response>>
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : EndpointWithoutRequest<List<Response>>
     {
         public override void Configure()
         {
@@ -16,8 +17,15 @@ public static class GetExecutions
 
         public override async Task HandleAsync(CancellationToken ct)
         {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
             var executions = await dbContext.Executions
                 .AsNoTracking()
+                .Where(x => x.WorkspaceId == ws)
                 .OrderByDescending(x => x.StartedAt)
                 .Take(50)
                 .Select(x => new Response(

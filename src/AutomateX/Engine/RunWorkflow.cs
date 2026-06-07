@@ -23,6 +23,11 @@ public static class RunWorkflowHandler
             return null;
         }
 
+        var workspaceId = await dbContext.Workflows
+            .Where(x => x.Id == message.WorkflowId)
+            .Select(x => (Guid?)x.WorkspaceId)
+            .FirstOrDefaultAsync(cancellationToken);
+
         var version = await dbContext.WorkflowVersions
             .AsNoTracking()
             .Include(x => x.Steps)
@@ -30,13 +35,14 @@ public static class RunWorkflowHandler
             .OrderByDescending(x => x.Version)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (version is null)
+        if (workspaceId is null || version is null)
         {
-            logger.LogWarning("Workflow {WorkflowId} has no versions, skipping run", message.WorkflowId);
+            logger.LogWarning("Workflow {WorkflowId} is missing or has no versions, skipping run", message.WorkflowId);
             return null;
         }
 
-        var execution = Execution.Start(message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload);
+        var execution = Execution.Start(
+            message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload, workspaceId);
         dbContext.Executions.Add(execution);
 
         var firstStep = version.Steps.OrderBy(x => x.Order).FirstOrDefault();

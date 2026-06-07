@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Security;
+using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,7 +12,7 @@ namespace AutomateX.Modules.Connections.Features;
 // and recreate to rename.
 public static class UpdateConnection
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -21,7 +22,13 @@ public static class UpdateConnection
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
-            var connection = await dbContext.Connections.FirstOrDefaultAsync(x => x.Id == req.Id, ct);
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
+            var connection = await dbContext.Connections.FirstOrDefaultAsync(x => x.Id == req.Id && x.WorkspaceId == ws, ct);
             if (connection is null)
             {
                 await Send.NotFoundAsync(ct);

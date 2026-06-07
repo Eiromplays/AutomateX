@@ -1,5 +1,6 @@
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -10,7 +11,7 @@ namespace AutomateX.Modules.Triggers.Features;
 // stops working immediately; the new one is shown exactly once.
 public static class RotateWebhookSecret
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions) : EndpointWithoutRequest<Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions, WorkspaceAccess access) : EndpointWithoutRequest<Response>
     {
         public override void Configure()
         {
@@ -20,10 +21,17 @@ public static class RotateWebhookSecret
 
         public override async Task HandleAsync(CancellationToken ct)
         {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
             var id = Route<Guid>("id");
 
             var trigger = await dbContext.Triggers
-                .FirstOrDefaultAsync(x => x.Id == id && x.Type == TriggerTypes.Webhook, ct);
+                .FirstOrDefaultAsync(x => x.Id == id && x.Type == TriggerTypes.Webhook
+                    && dbContext.Workflows.Any(w => w.Id == x.WorkflowId && w.WorkspaceId == ws), ct);
 
             if (trigger is null)
             {

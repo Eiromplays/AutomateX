@@ -8,9 +8,10 @@ export default function ExecutionDetail() {
   const { id = "" } = useParams();
   const queryClient = useQueryClient();
 
-  const { data: execution, isLoading } = useQuery({
+  const { data: execution, isLoading, error } = useQuery({
     queryKey: ["execution", id],
     queryFn: () => api.executions.get(id),
+    retry: false,
   });
 
   useEngineEvents((engineEvent) => {
@@ -19,7 +20,18 @@ export default function ExecutionDetail() {
     }
   });
 
-  if (isLoading || !execution) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (error || !execution) {
+    return (
+      <p className="text-sm text-zinc-500">
+        Execution not found in this workspace —{" "}
+        <a href="/executions" className="text-emerald-400 hover:underline">
+          back to executions
+        </a>
+        .
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-6">

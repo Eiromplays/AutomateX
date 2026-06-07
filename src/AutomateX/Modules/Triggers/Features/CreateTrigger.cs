@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Modules.Workspaces;
 using Cronos;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace AutomateX.Modules.Triggers.Features;
 
 public static class CreateTrigger
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions, WorkspaceAccess access) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -20,7 +21,13 @@ public static class CreateTrigger
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
-            if (!await dbContext.Workflows.AnyAsync(x => x.Id == req.WorkflowId, ct))
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
+            if (!await dbContext.Workflows.AnyAsync(x => x.Id == req.WorkflowId && x.WorkspaceId == ws, ct))
             {
                 await Send.NotFoundAsync(ct);
                 return;

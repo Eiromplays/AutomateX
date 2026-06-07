@@ -33,6 +33,8 @@ await using (var scope = app.Services.CreateAsyncScope())
         await dbContext.Database.MigrateAsync();
     }
 
+    await WorkspaceBootstrap.EnsureDefaultAsync(dbContext);
+
     if (app.Environment.IsDevelopment())
     {
         await DevDataSeeder.SeedAsync(dbContext);

@@ -1,3 +1,5 @@
+using AutomateX.Modules.Workspaces;
+
 namespace AutomateX.Modules.Workflows;
 
 public sealed class Workflow
@@ -8,6 +10,8 @@ public sealed class Workflow
 
     public Guid Id { get; private set; }
 
+    public Guid WorkspaceId { get; private set; }
+
     public string Name { get; private set; } = null!;
 
     public string? Description { get; private set; }
@@ -16,9 +20,10 @@ public sealed class Workflow
 
     public List<WorkflowVersion> Versions { get; } = [];
 
-    public static Workflow Create(string name, string? description) => new()
+    public static Workflow Create(string name, string? description, Guid? workspaceId = null) => new()
     {
         Id = Guid.CreateVersion7(),
+        WorkspaceId = workspaceId ?? Workspace.DefaultId,
         Name = name,
         Description = description,
         CreatedAt = DateTimeOffset.UtcNow,

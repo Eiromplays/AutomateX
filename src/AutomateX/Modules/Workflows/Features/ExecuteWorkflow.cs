@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Modules.Workspaces;
 using AutomateX.Web;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ namespace AutomateX.Modules.Workflows.Features;
 
 public static class ExecuteWorkflow
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, IMessageBus bus) : EndpointWithoutRequest<Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, IMessageBus bus, WorkspaceAccess access) : EndpointWithoutRequest<Response>
     {
         public override void Configure()
         {
@@ -20,9 +21,15 @@ public static class ExecuteWorkflow
 
         public override async Task HandleAsync(CancellationToken ct)
         {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
             var id = Route<Guid>("id");
 
-            if (!await dbContext.Workflows.AnyAsync(x => x.Id == id, ct))
+            if (!await dbContext.Workflows.AnyAsync(x => x.Id == id && x.WorkspaceId == ws, ct))
             {
                 await Send.NotFoundAsync(ct);
                 return;

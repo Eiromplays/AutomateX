@@ -4,6 +4,7 @@ using AutomateX.Engine.Security;
 using AutomateX.Modules.Connections;
 using AutomateX.Modules.Executions;
 using AutomateX.Modules.Workflows;
+using AutomateX.Modules.Workspaces;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -172,6 +173,36 @@ public sealed class EngineTests(EngineFixture fixture) : IClassFixture<EngineFix
             .OfType<StepCompleted>()
             .Single(x => x.ExecutionId == executionId);
         Assert.DoesNotContain("sup3r-s3cret", stepCompleted.Output);
+    }
+
+    [Fact]
+    public async Task Connections_resolve_only_within_the_workflows_workspace()
+    {
+        fixture.ProbeAction.Reset();
+        var connectionName = $"isolated-{Guid.CreateVersion7():N}";
+
+        await using (var scope = fixture.Host.Services.CreateAsyncScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+            var cipher = scope.ServiceProvider.GetRequiredService<SecretCipher>();
+            var otherWorkspace = Workspace.Create($"other-{Guid.CreateVersion7():N}");
+            dbContext.Workspaces.Add(otherWorkspace);
+            dbContext.Connections.Add(Connection.Create(
+                connectionName, null, cipher.Encrypt("""{"token":"leak-me-not"}"""), otherWorkspace.Id));
+            await dbContext.SaveChangesAsync();
+        }
+
+        // Workflow lives in the Default workspace — the other workspace's connection is invisible.
+        var workflowId = await TestData.SeedWorkflowAsync(fixture.Host, [
+            "{\"auth\":\"{{connections." + connectionName + ".token}}\"}",
+        ]);
+
+        var executionId = await TestData.ExecuteAsync(fixture.Host, workflowId);
+        var execution = await TestData.WaitForTerminalAsync(fixture.Host, executionId, TerminalTimeout);
+
+        Assert.Equal(ExecutionStatus.Failed, execution.Status);
+        Assert.Equal(0, fixture.ProbeAction.Calls);
+        Assert.Contains("unknown connection", Assert.Single(execution.Steps).Error);
     }
 
     [Fact]

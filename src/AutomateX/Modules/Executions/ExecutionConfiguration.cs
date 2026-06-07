@@ -9,6 +9,12 @@ internal sealed class ExecutionConfiguration : IEntityTypeConfiguration<Executio
     {
         builder.Property(x => x.TriggeredBy).HasMaxLength(64);
         builder.Property(x => x.TriggerPayload).HasColumnType("jsonb");
+
+        builder.HasOne<Workspaces.Workspace>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(x => x.WorkspaceId);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
 
         builder.HasMany(x => x.Steps)

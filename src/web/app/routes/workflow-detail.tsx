@@ -16,9 +16,10 @@ export default function WorkflowDetail() {
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
 
-  const { data: workflow, isLoading } = useQuery({
+  const { data: workflow, isLoading, error } = useQuery({
     queryKey: ["workflow", id],
     queryFn: () => api.workflows.get(id),
+    retry: false,
   });
 
   const execute = useMutation({
@@ -48,7 +49,18 @@ export default function WorkflowDetail() {
     onSuccess: (rotated) => setNewWebhook(rotated.webhookUrl),
   });
 
-  if (isLoading || !workflow) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (error || !workflow) {
+    return (
+      <p className="text-sm text-zinc-500">
+        Workflow not found in this workspace —{" "}
+        <a href="/" className="text-emerald-400 hover:underline">
+          back to workflows
+        </a>
+        .
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-8">

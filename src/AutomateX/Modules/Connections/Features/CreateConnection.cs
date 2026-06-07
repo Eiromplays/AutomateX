@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using AutomateX.Database;
 using AutomateX.Engine.Security;
+using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,7 +13,7 @@ public static partial class CreateConnection
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$")]
     private static partial Regex NamePattern();
 
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -22,6 +23,12 @@ public static partial class CreateConnection
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
             if (!NamePattern().IsMatch(req.Name ?? ""))
             {
                 ThrowError("Connection name may contain letters, digits, '-' and '_' (max 64) — it is used in {{connections.<name>.<field>}} templates.");
@@ -32,9 +39,9 @@ public static partial class CreateConnection
                 ThrowError("At least one secret key/value is required.");
             }
 
-            if (await dbContext.Connections.AnyAsync(x => x.Name == req.Name, ct))
+            if (await dbContext.Connections.AnyAsync(x => x.Name == req.Name && x.WorkspaceId == ws, ct))
             {
-                ThrowError($"A connection named '{req.Name}' already exists.");
+                ThrowError($"A connection named '{req.Name}' already exists in this workspace.");
             }
 
             string encrypted;
@@ -48,7 +55,7 @@ public static partial class CreateConnection
                 return;
             }
 
-            var connection = Connection.Create(req.Name!, req.Provider, encrypted);
+            var connection = Connection.Create(req.Name!, req.Provider, encrypted, ws);
             dbContext.Connections.Add(connection);
             await dbContext.SaveChangesAsync(ct);
 

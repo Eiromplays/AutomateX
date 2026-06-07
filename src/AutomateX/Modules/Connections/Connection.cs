@@ -1,3 +1,5 @@
+using AutomateX.Modules.Workspaces;
+
 namespace AutomateX.Modules.Connections;
 
 // Named secret bundles referenced from step configs via {{connections.<name>.<field>}}.
@@ -11,6 +13,8 @@ public sealed class Connection
 
     public Guid Id { get; private set; }
 
+    public Guid WorkspaceId { get; private set; }
+
     public string Name { get; private set; } = null!;
 
     public string? Provider { get; private set; }
@@ -19,9 +23,10 @@ public sealed class Connection
 
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public static Connection Create(string name, string? provider, string encryptedSecrets) => new()
+    public static Connection Create(string name, string? provider, string encryptedSecrets, Guid? workspaceId = null) => new()
     {
         Id = Guid.CreateVersion7(),
+        WorkspaceId = workspaceId ?? Workspace.DefaultId,
         Name = name,
         Provider = provider,
         EncryptedSecrets = encryptedSecrets,

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Security;
+using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,7 @@ namespace AutomateX.Modules.Connections.Features;
 
 public static class GetConnections
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher) : EndpointWithoutRequest<List<Response>>
+    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access) : EndpointWithoutRequest<List<Response>>
     {
         public override void Configure()
         {
@@ -18,8 +19,15 @@ public static class GetConnections
 
         public override async Task HandleAsync(CancellationToken ct)
         {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
             var connections = await dbContext.Connections
                 .AsNoTracking()
+                .Where(x => x.WorkspaceId == ws)
                 .OrderBy(x => x.Name)
                 .ToListAsync(ct);
 

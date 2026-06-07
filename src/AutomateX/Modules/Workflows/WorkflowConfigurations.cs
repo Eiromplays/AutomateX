@@ -9,6 +9,12 @@ internal sealed class WorkflowConfiguration : IEntityTypeConfiguration<Workflow>
     {
         builder.Property(x => x.Name).HasMaxLength(128);
 
+        builder.HasOne<Workspaces.Workspace>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasIndex(x => x.WorkspaceId);
+
         builder.HasMany(x => x.Versions)
             .WithOne()
             .HasForeignKey(x => x.WorkflowId)

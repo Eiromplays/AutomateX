@@ -195,12 +195,17 @@ public static class ExecuteStepHandler
             stepOutputs[step.StepOrder] = ParseOutput(step.Output);
         }
 
-        // Decrypt connections only when the config can possibly reference them.
+        // Decrypt connections only when the config can possibly reference them —
+        // and only the workflow's own workspace's connections (isolation boundary).
         Dictionary<string, JsonElement>? connections = null;
         if (configJson.Contains("connections", StringComparison.Ordinal))
         {
             connections = [];
-            foreach (var connection in await dbContext.Connections.AsNoTracking().ToListAsync(cancellationToken))
+            var workspaceConnections = await dbContext.Connections
+                .AsNoTracking()
+                .Where(x => x.WorkspaceId == execution.WorkspaceId)
+                .ToListAsync(cancellationToken);
+            foreach (var connection in workspaceConnections)
             {
                 connections[connection.Name] = JsonSerializer.Deserialize<JsonElement>(cipher.Decrypt(connection.EncryptedSecrets));
             }

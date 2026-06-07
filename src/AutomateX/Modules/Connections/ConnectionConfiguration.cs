@@ -10,6 +10,12 @@ internal sealed class ConnectionConfiguration : IEntityTypeConfiguration<Connect
         builder.Property(x => x.Name).HasMaxLength(64);
         builder.Property(x => x.Provider).HasMaxLength(64);
 
-        builder.HasIndex(x => x.Name).IsUnique();
+        builder.HasOne<Workspaces.Workspace>()
+            .WithMany()
+            .HasForeignKey(x => x.WorkspaceId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Names are the template handle — unique per workspace, not globally.
+        builder.HasIndex(x => new { x.WorkspaceId, x.Name }).IsUnique();
     }
 }

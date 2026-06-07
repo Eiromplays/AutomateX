@@ -4,7 +4,9 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: v2.0 — OIDC sign-in (Entra ID).** Auth is now a tri-state: **open** (nothing configured, local default) → **API key** (`Auth__ApiKey`; `X-Api-Key` for scripts, ⚿ cookie exchange in the UI) → **OIDC** (`Auth__Authority` + `Auth__ClientId` + `Auth__ClientSecret`): the API owns the code flow via standard ASP.NET middleware (`/auth/login`, `/signin-oidc`), the browser holds only an HttpOnly auth cookie — no tokens in JS, no BFF needed thanks to the same-origin proxy. When OIDC is on, the UI gates behind a sign-in screen and the API key keeps working for machine clients. Entra setup: app registration (Web platform), redirect URI `https://<host>/signin-oidc` (+ `http://localhost:5180/signin-oidc` for dev), Authority `https://login.microsoftonline.com/<tenant-id>/v2.0`.
+**Status: v2.1 — Workspaces.** Workflows, connections and executions now live in **workspaces**: separate spaces with invitable members and viewer/editor/owner roles — authentication became authorization. Members are invited by email (access starts on first sign-in); a workspace with zero members is open to every signed-in user and is *claimed* by adding its first member; the last Owner can never be removed. Requests scope via the `X-Workspace-Id` header (absent = the Default workspace, so existing clients keep working); connection resolution is workspace-isolated in the engine itself; SignalR broadcasts carry only execution ids (details refetch through the authorized API). In open/API-key modes workspaces degrade gracefully to folders. The `Default` workspace adopts all pre-workspace data and cannot be deleted.
+
+Previous (v2.0): Auth is now a tri-state: **open** (nothing configured, local default) → **API key** (`Auth__ApiKey`; `X-Api-Key` for scripts, ⚿ cookie exchange in the UI) → **OIDC** (`Auth__Authority` + `Auth__ClientId` + `Auth__ClientSecret`): the API owns the code flow via standard ASP.NET middleware (`/auth/login`, `/signin-oidc`), the browser holds only an HttpOnly auth cookie — no tokens in JS, no BFF needed thanks to the same-origin proxy. When OIDC is on, the UI gates behind a sign-in screen and the API key keeps working for machine clients. Entra setup: app registration (Web platform), redirect URI `https://<host>/signin-oidc` (+ `http://localhost:5180/signin-oidc` for dev), Authority `https://login.microsoftonline.com/<tenant-id>/v2.0`.
 
 Previous (v1.3): Connections gain `PUT /api/connections/{id}` with merge semantics (filled = overwrite, removed = delete, untouched = keep — rotate one field without re-entering the rest; names immutable) and an edit form in the UI. Webhook triggers get **per-trigger secrets**: generated server-side, shown exactly once at creation (`/api/webhooks/{id}?secret=…` or `X-Webhook-Secret`), validated fixed-time — and `/api/webhooks` moves *outside* the global API-key gate, so third-party senders never hold the instance key. Webhook triggers created before v1.3 must be recreated to obtain a secret.
 
@@ -74,7 +76,11 @@ PUT    /api/connections/{id}                merge-update secrets (value=overwrit
 POST   /api/webhooks/{triggerId}?secret=…   fire a webhook trigger → { executionId } (per-trigger secret, shown once at creation)
 GET    /api/executions · /api/executions/{id}
 GET    /api/actions                         action catalog with JSON config/result schemas
+GET    /api/workspaces · POST /api/workspaces · DELETE /api/workspaces/{id}
+GET/POST /api/workspaces/{id}/members · DELETE /api/workspaces/{id}/members/{memberId}
 ```
+
+Data endpoints scope to the workspace in the `X-Workspace-Id` header (absent = Default).
 
 ## Data flow between steps
 

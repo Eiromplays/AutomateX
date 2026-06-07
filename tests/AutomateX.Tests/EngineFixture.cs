@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Engine.Actions;
+using AutomateX.Modules.Workspaces;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -137,6 +138,7 @@ public sealed class EngineFixture : IAsyncLifetime
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
             await dbContext.Database.EnsureCreatedAsync();
+            await WorkspaceBootstrap.EnsureDefaultAsync(dbContext);
         }
 
         await Host.StartAsync();

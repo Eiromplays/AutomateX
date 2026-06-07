@@ -27,6 +27,23 @@ public sealed class SignalRExecutionEventListener(IHubContext<ExecutionEventsHub
     public Task HandleAsync(ExecutionFailed engineEvent, CancellationToken cancellationToken = default) =>
         BroadcastAsync(nameof(ExecutionFailed), engineEvent, cancellationToken);
 
-    private Task BroadcastAsync(string type, object payload, CancellationToken cancellationToken) =>
-        hubContext.Clients.All.SendAsync("engineEvent", new { type, payload }, cancellationToken);
+    private Task BroadcastAsync(string type, object payload, CancellationToken cancellationToken)
+    {
+        // Privacy: broadcasts go to every connected client, so only the execution id
+        // ships — clients refetch details through the workspace-authorized API.
+        var executionId = payload switch
+        {
+            ExecutionStarted e => e.ExecutionId,
+            StepCompleted e => e.ExecutionId,
+            StepFailed e => e.ExecutionId,
+            ExecutionCompleted e => e.ExecutionId,
+            ExecutionFailed e => e.ExecutionId,
+            _ => Guid.Empty,
+        };
+
+        return hubContext.Clients.All.SendAsync(
+            "engineEvent",
+            new { type, payload = new { executionId } },
+            cancellationToken);
+    }
 }

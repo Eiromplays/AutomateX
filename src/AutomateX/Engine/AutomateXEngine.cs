@@ -55,6 +55,7 @@ public static class AutomateXEngine
             builder.Services.PostConfigure(configureEngine);
         }
 
+        builder.Services.AddScoped<Modules.Workspaces.WorkspaceAccess>();
         builder.Services.AddSingleton<ActionContextFactory>();
         builder.Services.AddSingleton<PluginAssemblies>();
         builder.Services.AddSingleton<IActionSource, BuiltInActionSource>();

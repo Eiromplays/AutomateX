@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Actions;
+using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,7 +9,7 @@ namespace AutomateX.Modules.Workflows.Features;
 
 public static class UpdateWorkflow
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, ActionRegistry actions) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, ActionRegistry actions, WorkspaceAccess access) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -18,6 +19,12 @@ public static class UpdateWorkflow
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(req.Name))
             {
                 ThrowError("Name is required.");
@@ -30,7 +37,7 @@ public static class UpdateWorkflow
 
             var workflow = await dbContext.Workflows
                 .Include(x => x.Versions)
-                .FirstOrDefaultAsync(x => x.Id == req.Id, ct);
+                .FirstOrDefaultAsync(x => x.Id == req.Id && x.WorkspaceId == ws, ct);
 
             if (workflow is null)
             {

@@ -1,10 +1,27 @@
 const API = "/api";
+const WORKSPACE_STORAGE = "automatex.workspace";
+
+export function getWorkspaceId(): string | null {
+  return localStorage.getItem(WORKSPACE_STORAGE);
+}
+
+export function setWorkspaceId(id: string | null): void {
+  if (id) {
+    localStorage.setItem(WORKSPACE_STORAGE, id);
+  } else {
+    localStorage.removeItem(WORKSPACE_STORAGE);
+  }
+}
 
 // Auth is an HttpOnly session cookie set by POST /auth/session — the key never
 // touches JS-readable storage and rides the SignalR handshake automatically.
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const workspace = getWorkspaceId();
   const response = await fetch(`${API}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(workspace ? { "X-Workspace-Id": workspace } : {}),
+    },
     ...init,
   });
   if (response.status === 401) {
@@ -108,7 +125,35 @@ export type AuthMe = {
   email: string | null;
 };
 
+export type WorkspaceSummary = { id: string; name: string; role: string; isNew: boolean };
+
+export type WorkspaceMember = {
+  id: string;
+  email: string;
+  role: string;
+  signedInBefore: boolean;
+};
+
 export const api = {
+  workspaces: {
+    list: () => request<WorkspaceSummary[]>("/workspaces"),
+    create: (name: string) =>
+      request<{ id: string; name: string }>("/workspaces", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+    remove: (id: string) => request<void>(`/workspaces/${id}`, { method: "DELETE" }),
+    members: {
+      list: (id: string) => request<WorkspaceMember[]>(`/workspaces/${id}/members`),
+      upsert: (id: string, email: string, role: string) =>
+        request<WorkspaceMember>(`/workspaces/${id}/members`, {
+          method: "POST",
+          body: JSON.stringify({ email, role }),
+        }),
+      remove: (id: string, memberId: string) =>
+        request<void>(`/workspaces/${id}/members/${memberId}`, { method: "DELETE" }),
+    },
+  },
   connections: {
     list: () => request<ConnectionSummary[]>("/connections"),
     create: (body: { name: string; provider: string | null; secrets: Record<string, string> }) =>
