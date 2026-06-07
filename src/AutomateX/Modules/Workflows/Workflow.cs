@@ -37,6 +37,24 @@ public sealed class Workflow
         return version;
     }
 
+    // Rollback = git revert, not git reset: a copy of the target's steps becomes the
+    // newest version, so history stays append-only and executions stay pinned.
+    public WorkflowVersion RestoreVersion(int version)
+    {
+        var target = Versions.FirstOrDefault(x => x.Version == version)
+            ?? throw new InvalidOperationException($"Version {version} does not exist.");
+
+        if (version == Versions.Max(x => x.Version))
+        {
+            throw new InvalidOperationException($"v{version} is already the latest version.");
+        }
+
+        return AddVersion(target.Steps
+            .OrderBy(x => x.Order)
+            .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson))
+            .ToList());
+    }
+
     public void Rename(string name, string? description)
     {
         Name = name;

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Testcontainers" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -16,6 +17,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AutomateX\AutomateX.csproj" />
+    <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Matrix\AutomateX.Plugins.Matrix.csproj" />
+    <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Ssh\AutomateX.Plugins.Ssh.csproj" />
   </ItemGroup>
 
 </Project>

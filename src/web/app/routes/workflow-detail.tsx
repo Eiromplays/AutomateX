@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
+import { SourceBadge } from "../components/action-source";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -49,6 +50,19 @@ export default function WorkflowDetail() {
     onSuccess: (rotated) => setNewWebhook(rotated.webhookUrl),
   });
 
+  const removeWorkflow = useMutation({
+    mutationFn: () => api.workflows.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      navigate("/");
+    },
+  });
+
+  const restoreVersion = useMutation({
+    mutationFn: (version: number) => api.workflows.restoreVersion(id, version),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workflow", id] }),
+  });
+
   if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
   if (error || !workflow) {
     return (
@@ -69,15 +83,36 @@ export default function WorkflowDetail() {
           <h1 className="text-lg font-semibold">{workflow.name}</h1>
           {workflow.description && <p className="text-sm text-zinc-500">{workflow.description}</p>}
         </div>
-        <button
-          type="button"
-          onClick={() => execute.mutate()}
-          disabled={execute.isPending}
-          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-        >
-          {execute.isPending ? "Starting…" : "Run now"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Delete "${workflow.name}" and its entire execution history?`)) {
+                removeWorkflow.mutate();
+              }
+            }}
+            disabled={removeWorkflow.isPending}
+            className="text-sm text-zinc-500 hover:text-red-400 disabled:opacity-50"
+          >
+            Delete
+          </button>
+          <Link
+            to={`/workflows/${id}/edit`}
+            className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+          >
+            Edit
+          </Link>
+          <button
+            type="button"
+            onClick={() => execute.mutate()}
+            disabled={execute.isPending}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {execute.isPending ? "Starting…" : "Run now"}
+          </button>
+        </div>
       </div>
+      {removeWorkflow.error && <p className="text-sm text-red-400">{String(removeWorkflow.error)}</p>}
 
       <div>
         <textarea
@@ -103,6 +138,7 @@ export default function WorkflowDetail() {
                 <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
                   {step.actionType}
                 </span>
+                <SourceBadge actionType={step.actionType} />
               </div>
               <pre className="mt-2 overflow-x-auto rounded bg-zinc-900 p-2 text-xs text-zinc-400">
                 {JSON.stringify(JSON.parse(step.configJson), null, 2)}
@@ -111,6 +147,52 @@ export default function WorkflowDetail() {
           ))}
         </ol>
       </section>
+
+      {workflow.versions.length > 1 && (
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-zinc-300">Versions</h2>
+          <ul className="space-y-1.5">
+            {workflow.versions.map((version) => (
+              <li
+                key={version.id}
+                className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-2 text-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="font-medium">v{version.version}</span>
+                  {version.version === workflow.latestVersion.version && (
+                    <span className="text-xs text-emerald-400">current</span>
+                  )}
+                  <span className="text-xs text-zinc-500">
+                    {version.stepCount} step{version.stepCount === 1 ? "" : "s"} ·{" "}
+                    {new Date(version.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                {version.version !== workflow.latestVersion.version && (
+                  <button
+                    type="button"
+                    disabled={restoreVersion.isPending}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `Restore v${version.version}? Its steps become v${workflow.latestVersion.version + 1} — nothing is rewritten.`,
+                        )
+                      ) {
+                        restoreVersion.mutate(version.version);
+                      }
+                    }}
+                    className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+                  >
+                    Restore
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {restoreVersion.error && (
+            <p className="mt-2 text-sm text-red-400">{String(restoreVersion.error)}</p>
+          )}
+        </section>
+      )}
 
       <section>
         <h2 className="mb-3 text-sm font-medium text-zinc-300">Triggers</h2>

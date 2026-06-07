@@ -57,12 +57,20 @@ export type WorkflowTrigger = {
   lastFiredAt: string | null;
 };
 
+export type WorkflowVersionSummary = {
+  id: string;
+  version: number;
+  createdAt: string;
+  stepCount: number;
+};
+
 export type WorkflowDetail = {
   id: string;
   name: string;
   description: string | null;
   createdAt: string;
   latestVersion: { id: string; version: number; createdAt: string; steps: WorkflowStep[] };
+  versions: WorkflowVersionSummary[];
   triggers: WorkflowTrigger[];
 };
 
@@ -186,6 +194,19 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    // Appends an immutable new version — past executions keep the version they ran.
+    update: (id: string, body: { name: string; description: string | null; steps: CreateWorkflowStep[] }) =>
+      request<{ id: string; versionId: string; version: number }>(`/workflows/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    remove: (id: string) => request<void>(`/workflows/${id}`, { method: "DELETE" }),
+    // Rollback = git revert, not git reset: appends a copy of the target version's steps.
+    restoreVersion: (id: string, version: number) =>
+      request<{ id: string; versionId: string; version: number }>(
+        `/workflows/${id}/versions/${version}/restore`,
+        { method: "POST" },
+      ),
     execute: (id: string, payload?: string) =>
       request<{ executionId: string }>(`/workflows/${id}/execute`, {
         method: "POST",
@@ -212,5 +233,6 @@ export const api = {
   executions: {
     list: () => request<ExecutionSummary[]>("/executions"),
     get: (id: string) => request<ExecutionDetail>(`/executions/${id}`),
+    remove: (id: string) => request<void>(`/executions/${id}`, { method: "DELETE" }),
   },
 };

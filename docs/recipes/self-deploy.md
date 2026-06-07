@@ -1,0 +1,126 @@
+# Recipe: self-deploying AutomateX
+
+The platform updates itself and announces it on Matrix — the v1 party trick, rebuilt on v2's
+encrypted connections, capability-URL webhooks and per-step durability.
+
+```
+git tag v2.x → GitHub Actions builds + pushes GHCR images
+                  └─ curl → AutomateX webhook trigger (capability URL + secret)
+                              └─ step 0  ssh.command  → detached `docker compose pull && up -d` on the host
+                              └─ step 1  matrix.send  → "🚀 AutomateX v2.x deploying…"
+                                            (execution completes — *then* the containers restart)
+```
+
+## 1. Publish the plugins
+
+Into the compose-mounted `./plugins` folder (or your `Engine__PluginsPath`):
+
+```bash
+dotnet publish src/Plugins/AutomateX.Plugins.Ssh    -c Release -o plugins/AutomateX.Plugins.Ssh
+dotnet publish src/Plugins/AutomateX.Plugins.Matrix -c Release -o plugins/AutomateX.Plugins.Matrix
+```
+
+Restart the api container and confirm `ssh.command` + `matrix.send` appear in `GET /api/actions`.
+
+## 2. Prepare the host: a key that can only deploy
+
+Generate a dedicated keypair (`ssh-keygen -t ed25519 -f automatex_deploy -N ""`) and bind it to a
+**forced command** in `~/.ssh/authorized_keys` on the deploy host — whatever command the workflow
+sends, sshd runs only the blessed script:
+
+```
+command="/opt/automatex/update.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA… automatex-deploy
+```
+
+`/opt/automatex/update.sh` (mode 0755) — **the detach is the whole trick**: the SSH session returns
+immediately, the step records success, the execution finishes, and only then does the restart kill
+the very process that ordered it. Without the detach, the deploy execution dies mid-flight and the
+StuckExecutionSweeper later flags your release as a casualty.
+
+```sh
+#!/bin/sh
+nohup sh -c 'sleep 5 && cd /opt/automatex && docker compose pull && docker compose up -d' \
+  >> /var/log/automatex-update.log 2>&1 &
+echo "update scheduled"
+```
+
+Grab the host key fingerprint for pinning: `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
+(the `SHA256:…` token).
+
+## 3. Connections (encrypted, write-only, masked)
+
+| Connection | Fields |
+| --- | --- |
+| `deploy` | `privateKey` = contents of `automatex_deploy` (the private key file) |
+| `matrix` | `accessToken` = a Matrix account/bot token (Element: Settings → Help & About → Access Token, or provision a dedicated bot user) |
+
+## 4. The workflow
+
+`POST /api/workflows`:
+
+```json
+{
+  "name": "self-deploy",
+  "description": "Pull new images, restart, announce on Matrix.",
+  "steps": [
+    {
+      "actionType": "ssh.command",
+      "name": "Update containers",
+      "config": {
+        "host": "your-server.example.com",
+        "username": "deploy",
+        "command": "deploy {{trigger.payload.version}}",
+        "privateKey": "{{connections.deploy.privateKey}}",
+        "hostFingerprint": "SHA256:<from step 2>"
+      }
+    },
+    {
+      "actionType": "matrix.send",
+      "name": "Announce",
+      "config": {
+        "homeserverUrl": "https://matrix.org",
+        "accessToken": "{{connections.matrix.accessToken}}",
+        "roomId": "!yourroom:matrix.org",
+        "message": "🚀 AutomateX {{trigger.payload.version}} deploying — triggered by {{trigger.payload.actor}} ({{steps.0.output.stdout}})"
+      }
+    }
+  ]
+}
+```
+
+Notes:
+
+- The forced command ignores the `command` we send (it's available to `update.sh` as
+  `$SSH_ORIGINAL_COMMAND` if you ever want the version there) — the key *cannot* run anything else.
+- `matrix.send` transaction ids are deterministic per execution step, so even if the step is
+  retried you get exactly one room message.
+- Add a webhook trigger to the workflow and save the one-time capability URL
+  (`/api/webhooks/{id}?secret=…`).
+
+## 5. Fire it from the release pipeline
+
+The right moment is *after images exist in GHCR*, so trigger from the end of `release.yml` rather
+than a GitHub `release` webhook (which fires before the build):
+
+```yaml
+  - name: Trigger self-deploy
+    run: |
+      curl -fsS -X POST "${{ secrets.AUTOMATEX_DEPLOY_WEBHOOK }}" \
+        -H 'Content-Type: application/json' \
+        -d "{\"version\":\"${GITHUB_REF_NAME}\",\"actor\":\"${GITHUB_ACTOR}\"}"
+```
+
+with repo secret `AUTOMATEX_DEPLOY_WEBHOOK` = the full capability URL from step 4.
+
+Alternative: a GitHub repo webhook (Settings → Webhooks → the capability URL, `workflow_run`
+events) — richer payloads (`{{trigger.payload.workflow_run.conclusion}}`), no workflow edit, but
+you'll want to ignore non-`completed` deliveries.
+
+## Security posture
+
+The deploy credential is encrypted at rest (AES-256-GCM), write-only through the API, masked
+(`***`) in every step output and event, scoped to one workspace — and even if exfiltrated, the
+forced command means it can only ever say "run the update script". Pin `hostFingerprint` so a
+DNS/MitM detour can't harvest it. Rotate the webhook secret (`POST /api/triggers/{id}/rotate-secret`)
+like any credential. What remains is the irreducible truth of CD: a thing that can redeploy you is
+part of your trusted computing base.

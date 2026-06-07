@@ -234,6 +234,9 @@ function Shell() {
               <NavLink to="/connections" className={navLinkClass}>
                 Connections
               </NavLink>
+              <NavLink to="/actions" className={navLinkClass}>
+                Actions
+              </NavLink>
               <NavLink to="/workspace" className={navLinkClass}>
                 Workspace
               </NavLink>

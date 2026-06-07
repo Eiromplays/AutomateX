@@ -1,12 +1,22 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
+import { SourceBadge } from "../components/action-source";
 import { StatusBadge } from "../components/status-badge";
 import { useEngineEvents } from "../lib/use-engine-events";
 
 export default function ExecutionDetail() {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const remove = useMutation({
+    mutationFn: () => api.executions.remove(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["executions"] });
+      navigate("/executions");
+    },
+  });
 
   const { data: execution, isLoading, error } = useQuery({
     queryKey: ["execution", id],
@@ -41,10 +51,27 @@ export default function ExecutionDetail() {
           <StatusBadge status={execution.status} />
           <span className="text-xs font-normal text-emerald-400">● live</span>
         </div>
-        <Link to={`/workflows/${execution.workflowId}`} className="text-sm text-zinc-400 hover:text-zinc-100">
-          View workflow →
-        </Link>
+        <div className="flex items-center gap-4">
+          {(execution.status === "Succeeded" || execution.status === "Failed") && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Delete this execution and its step history?")) {
+                  remove.mutate();
+                }
+              }}
+              disabled={remove.isPending}
+              className="text-sm text-zinc-500 hover:text-red-400 disabled:opacity-50"
+            >
+              Delete
+            </button>
+          )}
+          <Link to={`/workflows/${execution.workflowId}`} className="text-sm text-zinc-400 hover:text-zinc-100">
+            View workflow →
+          </Link>
+        </div>
       </div>
+      {remove.error && <p className="text-sm text-red-400">{String(remove.error)}</p>}
 
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
@@ -77,6 +104,7 @@ export default function ExecutionDetail() {
               <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
                 {step.actionType}
               </span>
+              <SourceBadge actionType={step.actionType} />
               <StatusBadge status={step.status} />
               <span className="text-xs text-zinc-500">
                 {step.attempts} attempt{step.attempts === 1 ? "" : "s"}

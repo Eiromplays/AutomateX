@@ -45,6 +45,10 @@ public static class GetWorkflow
                                 .Select(s => new StepResponse(s.Id, s.Order, s.Name, s.ActionType, s.ConfigJson))
                                 .ToList()))
                         .First(),
+                    Versions = x.Versions
+                        .OrderByDescending(v => v.Version)
+                        .Select(v => new VersionSummary(v.Id, v.Version, v.CreatedAt, v.Steps.Count))
+                        .ToList(),
                 })
                 .FirstOrDefaultAsync(ct);
 
@@ -61,7 +65,7 @@ public static class GetWorkflow
                 .ToListAsync(ct);
 
             await Send.OkAsync(
-                new Response(workflow.Id, workflow.Name, workflow.Description, workflow.CreatedAt, workflow.LatestVersion, triggers),
+                new Response(workflow.Id, workflow.Name, workflow.Description, workflow.CreatedAt, workflow.LatestVersion, workflow.Versions, triggers),
                 ct);
         }
     }
@@ -72,9 +76,12 @@ public static class GetWorkflow
         string? Description,
         DateTimeOffset CreatedAt,
         VersionResponse LatestVersion,
+        List<VersionSummary> Versions,
         List<TriggerResponse> Triggers);
 
     public sealed record VersionResponse(Guid Id, int Version, DateTimeOffset CreatedAt, List<StepResponse> Steps);
+
+    public sealed record VersionSummary(Guid Id, int Version, DateTimeOffset CreatedAt, int StepCount);
 
     public sealed record StepResponse(Guid Id, int Order, string? Name, string ActionType, string ConfigJson);
 

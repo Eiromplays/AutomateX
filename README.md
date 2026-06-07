@@ -4,7 +4,11 @@
 
 Self-hostable, .NET-native automation engine. This is the v2 rewrite — architecture and scope live in [docs/v2-plan.md](docs/v2-plan.md). v1 is archived at [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
-**Status: v2.1 — Workspaces.** Workflows, connections and executions now live in **workspaces**: separate spaces with invitable members and viewer/editor/owner roles — authentication became authorization. Members are invited by email (access starts on first sign-in); a workspace with zero members is open to every signed-in user and is *claimed* by adding its first member; the last Owner can never be removed. Requests scope via the `X-Workspace-Id` header (absent = the Default workspace, so existing clients keep working); connection resolution is workspace-isolated in the engine itself; SignalR broadcasts carry only execution ids (details refetch through the authorized API). In open/API-key modes workspaces degrade gracefully to folders. The `Default` workspace adopts all pre-workspace data and cannot be deleted.
+**Status: v2.3 — workflow lifecycle.** Workflows are now editable and deletable from the UI: editing **appends an immutable version** (`PUT /api/workflows/{id}` existed since M1 — the UI finally caught up), so past executions keep the exact version and outputs they ran with, while new runs pick up the latest — version pinning is encoded in engine tests. Deleting a workflow removes its versions, steps, triggers and execution history atomically; finished executions can be deleted individually (running ones refuse — their inbox messages would write to ghosts). Step lists everywhere show provenance badges (`core`/`plugin`, hover for the plugin name). Past versions are listed on the workflow page and can be **restored** — git-revert style: restoring vN appends a new version with vN's steps copied, never rewriting history (restoring the current version is rejected).
+
+Previous (v2.2): **the platform deploys itself.** Two first-party plugins under `src/Plugins`: **`ssh.command`** (SSH.NET; password or private-key auth fed from `{{connections.…}}`, optional SHA-256 host-key pinning, captures exit code/stdout/stderr, non-zero exit fails the step) and **`matrix.send`** (Matrix room messages with transaction ids deterministic per execution step, so engine retries can't double-send — the homeserver dedupes). Together they close the loop v1 was loved for: GitHub release → webhook trigger → detached `docker compose pull && up -d` over a forced-command SSH key → Matrix announcement, end-to-end in [docs/recipes/self-deploy.md](docs/recipes/self-deploy.md). SSH behavior is integration-tested against a throwaway `testcontainers/sshd` container, same posture as the engine's Postgres.
+
+Previous (v2.1): Workflows, connections and executions now live in **workspaces**: separate spaces with invitable members and viewer/editor/owner roles — authentication became authorization. Members are invited by email (access starts on first sign-in); a workspace with zero members is open to every signed-in user and is *claimed* by adding its first member; the last Owner can never be removed. Requests scope via the `X-Workspace-Id` header (absent = the Default workspace, so existing clients keep working); connection resolution is workspace-isolated in the engine itself; SignalR broadcasts carry only execution ids (details refetch through the authorized API). In open/API-key modes workspaces degrade gracefully to folders. The `Default` workspace adopts all pre-workspace data and cannot be deleted.
 
 Previous (v2.0): Auth is now a tri-state: **open** (nothing configured, local default) → **API key** (`Auth__ApiKey`; `X-Api-Key` for scripts, ⚿ cookie exchange in the UI) → **OIDC** (`Auth__Authority` + `Auth__ClientId` + `Auth__ClientSecret`): the API owns the code flow via standard ASP.NET middleware (`/auth/login`, `/signin-oidc`), the browser holds only an HttpOnly auth cookie — no tokens in JS, no BFF needed thanks to the same-origin proxy. When OIDC is on, the UI gates behind a sign-in screen and the API key keeps working for machine clients. Entra setup: app registration (Web platform), redirect URI `https://<host>/signin-oidc` (+ `http://localhost:5180/signin-oidc` for dev), Authority `https://login.microsoftonline.com/<tenant-id>/v2.0`.
 
@@ -144,6 +148,13 @@ Try the sample (echo + delay actions):
 
 ```bash
 dotnet publish samples/AutomateX.SamplePlugin -o src/AutomateX/bin/Debug/net10.0/plugins/AutomateX.SamplePlugin
+```
+
+First-party plugins ship in-repo under `src/Plugins` — `ssh.command` (remote commands with key/password auth and host-key pinning) and `matrix.send` (deduplicated Matrix notifications). Publish them the same way; together they power the [self-deploy recipe](docs/recipes/self-deploy.md):
+
+```bash
+dotnet publish src/Plugins/AutomateX.Plugins.Ssh    -o src/AutomateX/bin/Debug/net10.0/plugins/AutomateX.Plugins.Ssh
+dotnet publish src/Plugins/AutomateX.Plugins.Matrix -o src/AutomateX/bin/Debug/net10.0/plugins/AutomateX.Plugins.Matrix
 ```
 
 Restart, check `GET /api/actions`, then use `sample.echo` / `sample.delay` as workflow step types. `sample.delay` is also the crash/resume test tool — give it 30000ms, kill the app mid-step, restart, watch the durable inbox finish the job.
