@@ -2,7 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
-import { SourceBadge } from "../components/action-source";
+import { DriftWarning, SourceBadge } from "../components/action-source";
+import { toast } from "../components/toast";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -42,7 +43,11 @@ export default function WorkflowDetail() {
 
   const removeTrigger = useMutation({
     mutationFn: (triggerId: string) => api.triggers.remove(triggerId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workflow", id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["workflow", id] });
+      toast.success("Trigger deleted.");
+    },
+    onError: (error) => toast.error(`Trigger delete failed — ${String(error)}`),
   });
 
   const rotateSecret = useMutation({
@@ -54,13 +59,19 @@ export default function WorkflowDetail() {
     mutationFn: () => api.workflows.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast.success("Workflow and its execution history deleted.");
       navigate("/");
     },
+    onError: (error) => toast.error(`Delete failed — ${String(error)}`),
   });
 
   const restoreVersion = useMutation({
     mutationFn: (version: number) => api.workflows.restoreVersion(id, version),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["workflow", id] }),
+    onSuccess: (result, version) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow", id] });
+      toast.success(`Restored v${version} as v${result.version}.`);
+    },
+    onError: (error) => toast.error(`Restore failed — ${String(error)}`),
   });
 
   if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
@@ -143,6 +154,7 @@ export default function WorkflowDetail() {
               <pre className="mt-2 overflow-x-auto rounded bg-zinc-900 p-2 text-xs text-zinc-400">
                 {JSON.stringify(JSON.parse(step.configJson), null, 2)}
               </pre>
+              <DriftWarning actionType={step.actionType} configJson={step.configJson} />
             </li>
           ))}
         </ol>

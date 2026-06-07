@@ -43,6 +43,36 @@ export function SourceChip({ source }: { source: string }) {
   );
 }
 
+// Flags config keys the active action's schema doesn't define — plugin version
+// drift made visible (values are preserved but ignored at execution time).
+export function DriftWarning({ actionType, configJson }: { actionType: string; configJson: string }) {
+  const { data: actions } = useQuery({
+    queryKey: ["actions"],
+    queryFn: api.actions.list,
+    staleTime: 60_000,
+  });
+
+  const raw = actions?.find((a) => a.type === actionType)?.configSchema;
+  if (!raw) return null;
+
+  try {
+    const schema = JSON.parse(raw) as { properties?: Record<string, unknown> };
+    const known = schema.properties ?? {};
+    const unknown = Object.keys(JSON.parse(configJson) as Record<string, unknown>).filter(
+      (key) => !(key in known),
+    );
+    if (unknown.length === 0) return null;
+    return (
+      <p className="mt-2 text-xs text-amber-400">
+        ⚠ {unknown.join(", ")} — not used by the current <code>{actionType}</code> (plugin version
+        drift?)
+      </p>
+    );
+  } catch {
+    return null;
+  }
+}
+
 // Tiny provenance chip for step lists — hover for the full plugin name.
 export function SourceBadge({ actionType }: { actionType: string }) {
   const { data: actions } = useQuery({

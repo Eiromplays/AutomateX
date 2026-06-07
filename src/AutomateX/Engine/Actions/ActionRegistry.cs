@@ -38,6 +38,9 @@ public sealed class ActionRegistry
 
     public IReadOnlyList<ActionDescriptor> Descriptors(Guid workspaceId) => _snapshot.Descriptors(workspaceId);
 
+    public IReadOnlyList<string> ActionTypesFromSource(string source, Guid? workspaceId) =>
+        _snapshot.ActionTypesFromSource(source, workspaceId);
+
     private ActionSnapshot Build()
     {
         List<RegisteredAction> global = [];

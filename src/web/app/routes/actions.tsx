@@ -47,13 +47,25 @@ function PluginManager() {
   });
 
   const remove = useMutation({
-    mutationFn: ({ scope, name }: { scope: "global" | "workspace"; name: string }) =>
-      api.plugins.remove(scope, name),
+    mutationFn: ({ scope, name, force }: { scope: "global" | "workspace"; name: string; force?: boolean }) =>
+      api.plugins.remove(scope, name, force),
     onSuccess: (_, { name }) => {
       invalidate();
       toast.success(`${name} deleted.`);
     },
-    onError: (error) => toast.error(`Delete failed — ${String(error)}`),
+    onError: (error, variables) => {
+      // The in-use guard: surface the blocking workflows and offer the override.
+      const message = String(error);
+      if (message.includes("force=true")) {
+        if (window.confirm(`${message}\n\nDelete anyway?`)) {
+          remove.mutate({ ...variables, force: true });
+        } else {
+          remove.reset();
+        }
+        return;
+      }
+      toast.error(`Delete failed — ${message}`);
+    },
   });
 
   if (!plugins) return null;
@@ -133,9 +145,6 @@ function PluginManager() {
           Uploads disabled — set <code>Engine__AllowPluginUpload=true</code> to manage plugins from
           here, or drop folders into <code>plugins/</code> and reload.
         </p>
-      )}
-      {(upload.error ?? remove.error) && (
-        <p className="mt-2 text-sm text-red-400">{String(upload.error ?? remove.error)}</p>
       )}
     </section>
   );

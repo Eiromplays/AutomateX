@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { api } from "../lib/api";
+import { toast } from "../components/toast";
 import { WorkflowForm, type WorkflowFormValue } from "../components/workflow-form";
 
 export default function WorkflowNew() {
@@ -8,7 +9,10 @@ export default function WorkflowNew() {
 
   const create = useMutation({
     mutationFn: (value: WorkflowFormValue) => api.workflows.create(value),
-    onSuccess: (created) => navigate(`/workflows/${created.id}`),
+    onSuccess: (created) => {
+      toast.success("Workflow created.");
+      navigate(`/workflows/${created.id}`);
+    },
   });
 
   return (

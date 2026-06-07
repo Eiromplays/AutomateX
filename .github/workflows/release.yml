@@ -44,3 +44,18 @@ jobs:
             -t "ghcr.io/${OWNER}/automatex-web:latest" \
             src/web
           docker push --all-tags "ghcr.io/${OWNER}/automatex-web"
+
+      # Self-deploy: fires the AutomateX webhook AFTER images exist in GHCR.
+      # No-op until the AUTOMATEX_DEPLOY_WEBHOOK repo secret holds the full
+      # capability URL (.../api/webhooks/<id>?secret=...) - see docs/recipes/self-deploy.md.
+      - name: Trigger self-deploy
+        env:
+          DEPLOY_WEBHOOK: ${{ secrets.AUTOMATEX_DEPLOY_WEBHOOK }}
+        run: |
+          if [ -n "$DEPLOY_WEBHOOK" ]; then
+            curl -fsS -X POST "$DEPLOY_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "{\"version\":\"${GITHUB_REF_NAME}\",\"actor\":\"${GITHUB_ACTOR}\"}"
+          else
+            echo "AUTOMATEX_DEPLOY_WEBHOOK not set - skipping self-deploy trigger."
+          fi

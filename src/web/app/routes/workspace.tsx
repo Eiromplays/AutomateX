@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
+import { toast } from "../components/toast";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -26,10 +27,12 @@ export default function WorkspaceSettings() {
 
   const upsert = useMutation({
     mutationFn: () => api.workspaces.members.upsert(current!.id, email, role),
-    onSuccess: () => {
+    onSuccess: (member) => {
       setEmail("");
       queryClient.invalidateQueries({ queryKey: ["members", current?.id] });
+      toast.success(`${member.email} is now ${member.role}.`);
     },
+    onError: (error) => toast.error(`Member update failed — ${String(error)}`),
   });
 
   const remove = useMutation({
@@ -43,7 +46,9 @@ export default function WorkspaceSettings() {
         return;
       }
       queryClient.invalidateQueries({ queryKey: ["members", current?.id] });
+      toast.success("Member removed.");
     },
+    onError: (error) => toast.error(`Remove failed — ${String(error)}`),
   });
 
   const removeWorkspace = useMutation({

@@ -1,5 +1,8 @@
+using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Engine.Actions;
 using AutomateX.Engine.Plugins;
+using AutomateX.Modules.Workflows;
 using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.Extensions.Options;
@@ -202,6 +205,8 @@ public static class DeletePlugin
     public sealed class Endpoint(
         PluginAssemblies plugins,
         PluginReloader reloader,
+        ActionRegistry registry,
+        AutomateXDbContext dbContext,
         IOptions<EngineOptions> options,
         WorkspaceAccess access) : EndpointWithoutRequest
     {
@@ -230,16 +235,18 @@ public static class DeletePlugin
                 ThrowError(exception.Message);
             }
 
+            Guid workspaceId;
             string root;
             switch (scope)
             {
                 case "global":
-                    if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is null)
+                    if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } viewer)
                     {
                         await Send.ForbiddenAsync(ct);
                         return;
                     }
 
+                    workspaceId = viewer;
                     root = plugins.GlobalRoot;
                     break;
 
@@ -250,6 +257,7 @@ public static class DeletePlugin
                         return;
                     }
 
+                    workspaceId = ws;
                     root = plugins.WorkspaceRoot(ws);
                     break;
 
@@ -263,6 +271,24 @@ public static class DeletePlugin
             {
                 await Send.NotFoundAsync(ct);
                 return;
+            }
+
+            // Guard: refuse while any workflow's latest version uses the plugin's
+            // actions — unless ?force=true. Workspace deletes only scan their workspace.
+            if (!Query<bool>("force", isRequired: false))
+            {
+                var global = scope == "global";
+                var types = registry.ActionTypesFromSource(
+                    global ? $"plugin:{name}" : $"workspace:{name}",
+                    global ? null : workspaceId);
+                var blocking = await PluginUsage.FindBlockingWorkflowsAsync(
+                    dbContext, types, global ? null : workspaceId, ct);
+
+                if (blocking.Count > 0)
+                {
+                    ThrowError($"'{name}' is used by the latest version of: {string.Join(", ", blocking)}. "
+                        + "Those workflows will fail until the plugin returns. Pass force=true to delete anyway.");
+                }
             }
 
             Directory.Delete(directory, recursive: true);

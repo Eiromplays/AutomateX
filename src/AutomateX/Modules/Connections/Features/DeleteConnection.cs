@@ -25,15 +25,32 @@ public static class DeleteConnection
 
             var id = Route<Guid>("id");
 
-            var deleted = await dbContext.Connections
-                .Where(x => x.Id == id && x.WorkspaceId == ws)
-                .ExecuteDeleteAsync(ct);
+            var connection = await dbContext.Connections
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id && x.WorkspaceId == ws, ct);
 
-            if (deleted == 0)
+            if (connection is null)
             {
                 await Send.NotFoundAsync(ct);
                 return;
             }
+
+            // Guard: refuse while any workflow's latest version references
+            // {{connections.<name>...}} - unless ?force=true.
+            if (!Query<bool>("force", isRequired: false))
+            {
+                var blocking = await ConnectionUsage.FindBlockingWorkflowsAsync(dbContext, connection.Name, ws, ct);
+                if (blocking.Count > 0)
+                {
+                    ThrowError($"Connection '{connection.Name}' is used by the latest version of: "
+                        + $"{string.Join(", ", blocking)}. Those workflows will fail to resolve secrets. "
+                        + "Pass force=true to delete anyway.");
+                }
+            }
+
+            await dbContext.Connections
+                .Where(x => x.Id == id && x.WorkspaceId == ws)
+                .ExecuteDeleteAsync(ct);
 
             await Send.NoContentAsync(ct);
         }

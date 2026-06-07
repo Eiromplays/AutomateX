@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import { StatusBadge } from "../components/status-badge";
+import { toast } from "../components/toast";
 import { useEngineEvents } from "../lib/use-engine-events";
 
 export default function Executions() {
@@ -15,7 +16,11 @@ export default function Executions() {
 
   const remove = useMutation({
     mutationFn: (id: string) => api.executions.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["executions"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["executions"] });
+      toast.success("Execution deleted.");
+    },
+    onError: (error) => toast.error(`Delete failed — ${String(error)}`),
   });
 
   return (

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
+import { toast } from "../components/toast";
 import { WorkflowForm, type WorkflowFormValue } from "../components/workflow-form";
 
 export default function WorkflowEdit() {
@@ -16,9 +17,10 @@ export default function WorkflowEdit() {
 
   const update = useMutation({
     mutationFn: (value: WorkflowFormValue) => api.workflows.update(id, value),
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["workflow", id] });
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast.success(`Saved as v${result.version}.`);
       navigate(`/workflows/${id}`);
     },
   });

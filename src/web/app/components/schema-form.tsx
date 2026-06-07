@@ -50,6 +50,10 @@ export function SchemaForm({ schema, value, onChange }: SchemaFormProps) {
 
   const required = new Set(schema.required ?? []);
 
+  // Keys in the config that the active action's schema doesn't know — typically
+  // plugin-version drift. Preserved on save, but ignored at execution time.
+  const unknownKeys = Object.keys(value).filter((key) => !(key in (schema.properties ?? {})));
+
   const set = (key: string, fieldValue: unknown) => onChange({ ...value, [key]: fieldValue });
 
   return (
@@ -100,6 +104,12 @@ export function SchemaForm({ schema, value, onChange }: SchemaFormProps) {
           </label>
         );
       })}
+      {unknownKeys.length > 0 && (
+        <p className="text-xs text-amber-400">
+          ⚠ Not in the current action's schema: {unknownKeys.join(", ")} — kept in the config but
+          ignored at execution (plugin version drift?).
+        </p>
+      )}
     </div>
   );
 }

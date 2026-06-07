@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
 import { SourceBadge } from "../components/action-source";
 import { StatusBadge } from "../components/status-badge";
+import { toast } from "../components/toast";
 import { useEngineEvents } from "../lib/use-engine-events";
 
 export default function ExecutionDetail() {
@@ -14,8 +15,10 @@ export default function ExecutionDetail() {
     mutationFn: () => api.executions.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["executions"] });
+      toast.success("Execution deleted.");
       navigate("/executions");
     },
+    onError: (error) => toast.error(`Delete failed — ${String(error)}`),
   });
 
   const { data: execution, isLoading, error } = useQuery({

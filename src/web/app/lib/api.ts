@@ -13,6 +13,20 @@ export function setWorkspaceId(id: string | null): void {
   }
 }
 
+// FastEndpoints wraps validation failures in an errors envelope — unwrap to the
+// human sentences so toasts and confirms read cleanly.
+export function extractErrorMessage(body: string): string {
+  try {
+    const parsed = JSON.parse(body) as { errors?: Record<string, string[]>; message?: string };
+    const all = parsed.errors ? Object.values(parsed.errors).flat() : [];
+    if (all.length > 0) return all.join(" ");
+    if (parsed.message) return parsed.message;
+  } catch {
+    // not JSON — fall through to the raw body
+  }
+  return body;
+}
+
 // Auth is an HttpOnly session cookie set by POST /auth/session — the key never
 // touches JS-readable storage and rides the SignalR handshake automatically.
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -28,7 +42,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error("401: API key required — sign in via the ⚿ button in the header.");
   }
   if (!response.ok) {
-    throw new Error(`${response.status}: ${await response.text()}`);
+    throw new Error(extractErrorMessage(await response.text()));
   }
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
@@ -197,7 +211,8 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(body),
       }),
-    remove: (id: string) => request<void>(`/connections/${id}`, { method: "DELETE" }),
+    remove: (id: string, force = false) =>
+      request<void>(`/connections/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
   },
   auth: {
     me: () => request<AuthMe>("/auth/me"),
@@ -225,12 +240,14 @@ export const api = {
         headers: workspace ? { "X-Workspace-Id": workspace } : {},
       });
       if (!response.ok) {
-        throw new Error(`${response.status}: ${await response.text()}`);
+        throw new Error(extractErrorMessage(await response.text()));
       }
       return (await response.json()) as PluginUploadResult;
     },
-    remove: (scope: "global" | "workspace", name: string) =>
-      request<void>(`/plugins/${scope}/${encodeURIComponent(name)}`, { method: "DELETE" }),
+    remove: (scope: "global" | "workspace", name: string, force = false) =>
+      request<void>(`/plugins/${scope}/${encodeURIComponent(name)}${force ? "?force=true" : ""}`, {
+        method: "DELETE",
+      }),
   },
   workflows: {
     list: () => request<WorkflowSummary[]>("/workflows"),

@@ -60,6 +60,20 @@ public sealed class ActionSnapshot
             : throw new InvalidOperationException($"No action registered for type '{actionType}'.");
     }
 
+    // All action types contributed by one source (e.g. "plugin:Name" globally, or
+    // "workspace:Name" within the given workspace) — used by the delete guard.
+    public IReadOnlyList<string> ActionTypesFromSource(string source, Guid? workspaceId)
+    {
+        var pool = workspaceId is { } ws
+            ? _workspaces.TryGetValue(ws, out var scoped) ? scoped.Values : []
+            : _global.Values;
+
+        return pool
+            .Where(x => string.Equals(x.Descriptor.Source, source, StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Descriptor.Type)
+            .ToList();
+    }
+
     public IReadOnlyList<ActionDescriptor> Descriptors(Guid workspaceId)
     {
         var merged = _global.ToDictionary(x => x.Key, x => x.Value.Descriptor);

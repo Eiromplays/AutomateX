@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type ConnectionSummary } from "../lib/api";
+import { toast } from "../components/toast";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -64,15 +65,33 @@ export default function Connections() {
         secrets: Object.fromEntries(rows.filter((r) => r.name && r.value).map((r) => [r.name, r.value])),
       });
     },
-    onSuccess: () => {
+    onSuccess: (saved) => {
       resetForm(null);
       queryClient.invalidateQueries({ queryKey: ["connections"] });
+      toast.success(`Connection "${saved.name}" saved.`);
     },
+    onError: (error) => toast.error(`Save failed — ${String(error)}`),
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => api.connections.remove(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["connections"] }),
+    mutationFn: ({ id, force }: { id: string; force?: boolean }) => api.connections.remove(id, force),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      toast.success("Connection deleted.");
+    },
+    onError: (error, variables) => {
+      // The in-use guard: surface the blocking workflows and offer the override.
+      const message = String(error);
+      if (message.includes("force=true")) {
+        if (window.confirm(`${message}\n\nDelete anyway?`)) {
+          remove.mutate({ ...variables, force: true });
+        } else {
+          remove.reset();
+        }
+        return;
+      }
+      toast.error(`Delete failed — ${message}`);
+    },
   });
 
   const updateRow = (key: number, patch: Partial<SecretRow>) =>
@@ -114,7 +133,7 @@ export default function Connections() {
               </button>
               <button
                 type="button"
-                onClick={() => remove.mutate(connection.id)}
+                onClick={() => remove.mutate({ id: connection.id })}
                 className="text-xs text-zinc-500 hover:text-red-400"
               >
                 Delete
