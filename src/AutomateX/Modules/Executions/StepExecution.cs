@@ -38,6 +38,18 @@ public sealed class StepExecution
         StartedAt = DateTimeOffset.UtcNow,
     };
 
+    // A step that never ran — recorded so history shows why the chain stopped.
+    internal static StepExecution Skipped(Guid executionId, string actionType, int stepOrder) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        ExecutionId = executionId,
+        StepOrder = stepOrder,
+        ActionType = actionType,
+        Status = ExecutionStatus.Skipped,
+        StartedAt = DateTimeOffset.UtcNow,
+        CompletedAt = DateTimeOffset.UtcNow,
+    };
+
     public void RecordFailure(string error)
     {
         Attempts++;

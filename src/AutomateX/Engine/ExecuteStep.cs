@@ -148,6 +148,34 @@ public static class ExecuteStepHandler
         output = SecretMasker.MaskSecrets(output, secretSink);
         stepExecution.Complete(output);
 
+        // A closed gate halts the workflow cleanly: later steps are recorded as
+        // Skipped and the execution still Succeeds — stopping the chain is normal flow.
+        if (step.ActionType == Gate.ActionType && Gate.IsClosed(output))
+        {
+            var remaining = await dbContext.WorkflowSteps
+                .AsNoTracking()
+                .Where(x => x.WorkflowVersionId == execution.WorkflowVersionId && x.Order > message.StepOrder)
+                .OrderBy(x => x.Order)
+                .Select(x => new { x.Order, x.ActionType })
+                .ToListAsync(cancellationToken);
+
+            foreach (var skipped in remaining)
+            {
+                dbContext.StepExecutions.Add(execution.AddSkippedStep(skipped.ActionType, skipped.Order));
+            }
+
+            execution.Complete();
+            var gateChains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await eventBus.PublishAsync(
+                new StepCompleted(execution.Id, message.StepOrder, step.ActionType, output), cancellationToken);
+            await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
+            logger.LogInformation(
+                "Execution {ExecutionId} halted by a closed gate at step {StepOrder}; {Count} step(s) skipped",
+                execution.Id, message.StepOrder, remaining.Count);
+            return Cascade(gateChains);
+        }
+
         var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, message.StepOrder, cancellationToken);
         List<RunWorkflow> successChains = [];
         if (nextOrder is null)

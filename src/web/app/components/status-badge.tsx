@@ -3,6 +3,7 @@ const styles: Record<string, string> = {
   Failed: "bg-red-500/15 text-red-400",
   Running: "bg-amber-500/15 text-amber-400 animate-pulse",
   Pending: "bg-zinc-500/15 text-zinc-400",
+  Skipped: "bg-zinc-700/30 text-zinc-500",
 };
 
 export function StatusBadge({ status }: { status: string }) {

@@ -1,0 +1,56 @@
+{
+  "automatex": 1,
+  "name": "showcase-everything",
+  "description": "A guided tour of v2.6–v2.9 in one workflow: cron trigger, http.request v2 (headers + status + response headers), a gate (conditional halt), llm.prompt (local Ollama), the sample-plugin delay, and matrix.send — with templating across steps + a connection reference. PREREQS: Matrix/Llm/SamplePlugin plugins installed, a connection named 'matrix' (accessToken), Ollama running with qwen2.5:3b (or change baseUrl/model), and your room id in the last step. Hit 'Run now' to try it immediately; the cron trigger also runs it daily at 09:00.",
+  "steps": [
+    {
+      "actionType": "http.request",
+      "name": "Fetch GitHub zen",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/zen",
+        "headers": {
+          "User-Agent": "AutomateX",
+          "Accept": "application/json"
+        }
+      }
+    },
+    {
+      "actionType": "gate",
+      "name": "Only continue on HTTP 200",
+      "config": {
+        "value": "{{steps.0.output.statusCode}}",
+        "equals": "200"
+      }
+    },
+    {
+      "actionType": "llm.prompt",
+      "name": "AI riff (local)",
+      "config": {
+        "baseUrl": "http://localhost:11434",
+        "model": "qwen2.5:3b",
+        "system": "You are witty and terse. One short sentence, no preamble.",
+        "prompt": "Riff on this software proverb: {{steps.0.output.body}}"
+      }
+    },
+    {
+      "actionType": "sample.delay",
+      "name": "Dramatic pause",
+      "config": { "milliseconds": 500 }
+    },
+    {
+      "actionType": "matrix.send",
+      "name": "Post the digest",
+      "config": {
+        "homeserverUrl": "https://matrix-client.matrix.org",
+        "accessToken": "{{connections.matrix.accessToken}}",
+        "roomId": "!REPLACE-ME:matrix.org",
+        "msgType": "m.notice",
+        "message": "🧪 AutomateX showcase\n\nGitHub zen: “{{steps.0.output.body}}”\n\nAI riff ({{steps.2.output.model}}, {{steps.2.output.completionTokens}} tokens): {{steps.2.output.text}}\n\n(fetched HTTP {{steps.0.output.statusCode}} · {{steps.0.output.headers.date}})"
+      }
+    }
+  ],
+  "triggers": [
+    { "type": "cron", "config": { "cron": "0 9 * * *" } }
+  ]
+}

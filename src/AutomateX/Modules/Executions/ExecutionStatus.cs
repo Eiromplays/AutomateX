@@ -6,4 +6,7 @@ public enum ExecutionStatus
     Running,
     Succeeded,
     Failed,
+
+    // Step-only: a later step that never ran because a gate closed before it.
+    Skipped,
 }

@@ -9,7 +9,7 @@ type ImportDoc = {
   name?: string;
   description?: string | null;
   steps?: { actionType?: string; name?: string | null; config?: Record<string, unknown> }[];
-  triggers?: unknown[];
+  triggers?: { type?: string; config?: { cron?: string } }[];
 };
 
 export default function WorkflowNew() {
@@ -51,7 +51,8 @@ export default function WorkflowNew() {
       }
     : undefined;
 
-  const triggerCount = importDoc?.triggers?.length ?? 0;
+  // Only cron triggers travel through export/import; show what'll be created.
+  const cronTriggers = (importDoc?.triggers ?? []).filter((t) => t.type === "cron");
 
   return (
     <div className="max-w-2xl">
@@ -59,11 +60,23 @@ export default function WorkflowNew() {
         {importDoc ? "Import workflow" : "New workflow"}
       </h1>
       {importDoc && (
-        <p className="mb-6 text-xs text-zinc-500">
-          Review the imported steps and fill in placeholders (room ids, URLs, …) before creating.
-          {triggerCount > 0 &&
-            ` ${triggerCount} cron trigger${triggerCount === 1 ? "" : "s"} will be created with it.`}
-        </p>
+        <>
+          <p className="mb-3 text-xs text-zinc-500">
+            Review the imported steps and fill in placeholders (room ids, URLs, …) before creating.
+          </p>
+          {cronTriggers.length > 0 && (
+            <div className="mb-6 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-400">
+              Will also create with import:
+              <ul className="mt-1 space-y-0.5">
+                {cronTriggers.map((t, i) => (
+                  <li key={i}>
+                    ⏰ cron <code className="font-mono text-zinc-300">{t.config?.cron ?? "?"}</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
       <WorkflowForm
         initial={initial}

@@ -55,6 +55,13 @@ public sealed class Execution
         return step;
     }
 
+    public StepExecution AddSkippedStep(string actionType, int stepOrder)
+    {
+        var step = StepExecution.Skipped(Id, actionType, stepOrder);
+        Steps.Add(step);
+        return step;
+    }
+
     public void Complete()
     {
         Status = ExecutionStatus.Succeeded;
