@@ -1,4 +1,7 @@
+using System.Text.Json;
 using AutomateX.Database;
+using AutomateX.Engine.Security;
+using AutomateX.Engine.Templating;
 using AutomateX.Modules.Triggers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -119,7 +122,13 @@ public sealed class PluginTriggerHost(
                 var context = new TriggerRunnerContext(row.Id, row.WorkflowId,
                     payload => FireAsync(row, payload, cancellationToken));
 
-                await runner.RunAsync(row.ConfigJson, context, cancellationToken);
+                // Trigger configs support {{connections.<name>.<field>}} — resolved
+                // fresh at every listener start; the stored row keeps the template.
+                var configJson = row.ConfigJson.Contains("{{", StringComparison.Ordinal)
+                    ? await ResolveConfigAsync(row.WorkflowId, row.ConfigJson, cancellationToken)
+                    : row.ConfigJson;
+
+                await runner.RunAsync(configJson, context, cancellationToken);
                 failures = 0; // clean return = poll cycle done
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -144,6 +153,31 @@ public sealed class PluginTriggerHost(
                 return;
             }
         }
+    }
+
+    private async Task<string> ResolveConfigAsync(Guid workflowId, string configJson, CancellationToken cancellationToken)
+    {
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+        var cipher = scope.ServiceProvider.GetRequiredService<SecretCipher>();
+
+        var workspaceId = await dbContext.Workflows
+            .Where(x => x.Id == workflowId)
+            .Select(x => x.WorkspaceId)
+            .FirstAsync(cancellationToken);
+
+        Dictionary<string, JsonElement> connections = [];
+        foreach (var connection in await dbContext.Connections
+            .AsNoTracking()
+            .Where(x => x.WorkspaceId == workspaceId)
+            .ToListAsync(cancellationToken))
+        {
+            connections[connection.Name] = JsonSerializer.Deserialize<JsonElement>(cipher.Decrypt(connection.EncryptedSecrets));
+        }
+
+        // Connections are the only root that makes sense before an execution exists.
+        var context = new TemplateContext(null, new Dictionary<int, JsonElement>(), Guid.Empty, workflowId, connections);
+        return TemplateResolver.Resolve(configJson, context);
     }
 
     private async Task FireAsync(
