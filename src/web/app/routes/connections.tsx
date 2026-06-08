@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import { api, type ConnectionSummary, type ConnectionTypeInfo } from "../lib/api";
 import { toast } from "../components/toast";
 
@@ -90,6 +91,18 @@ export default function Connections() {
     setName(connection?.name ?? "");
     applyProvider(connection?.provider ?? "", connection);
   };
+
+  // Deep-link from the plugins page ("+ Add" on a connection type) preselects the type.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const wanted = searchParams.get("type");
+    const type = wanted ? (connectionTypes?.find((t) => t.type === wanted) ?? null) : null;
+    if (type) {
+      setProvider(type.type);
+      setRows(rowsFromType(type, []));
+      setSearchParams({}, { replace: true });
+    }
+  }, [connectionTypes, searchParams, setSearchParams]);
 
   const { data: connections, isLoading } = useQuery({
     queryKey: ["connections"],

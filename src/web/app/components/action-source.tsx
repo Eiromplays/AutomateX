@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, type ActionDescriptor } from "../lib/api";
+import { api } from "../lib/api";
 
-// Built-ins first, plugins alphabetically — shared by the builder dropdown and the Actions page.
-export function groupBySource(actions: ActionDescriptor[]): [string, ActionDescriptor[]][] {
-  const groups = new Map<string, ActionDescriptor[]>();
-  for (const action of actions) {
-    const list = groups.get(action.source) ?? [];
-    list.push(action);
-    groups.set(action.source, list);
+// Built-ins first, plugins alphabetically — shared by actions, triggers and connections.
+export function groupBySource<T extends { source: string }>(items: T[]): [string, T[]][] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const list = groups.get(item.source) ?? [];
+    list.push(item);
+    groups.set(item.source, list);
   }
   return [...groups.entries()].sort(([a], [b]) =>
     a === "builtin" ? -1 : b === "builtin" ? 1 : a.localeCompare(b),
