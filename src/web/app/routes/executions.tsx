@@ -38,7 +38,28 @@ export default function Executions() {
     queryFn: api.executions.list,
   });
 
-  useEngineEvents(() => queryClient.invalidateQueries({ queryKey: ["executions"] }));
+  // Events are workspace-scoped now, so patch the row's status in place; only fetch
+  // when the execution isn't already in the list (a brand-new run).
+  useEngineEvents((event) => {
+    const status =
+      event.type === "ExecutionStarted"
+        ? "Running"
+        : event.type === "ExecutionCompleted"
+          ? "Succeeded"
+          : event.type === "ExecutionFailed"
+            ? "Failed"
+            : null;
+
+    const current = queryClient.getQueryData<ExecutionSummary[]>(["executions"]);
+    if (!current?.some((x) => x.id === event.payload.executionId)) {
+      queryClient.invalidateQueries({ queryKey: ["executions"] });
+      return;
+    }
+    if (!status) return;
+    queryClient.setQueryData<ExecutionSummary[]>(["executions"], (rows) =>
+      rows?.map((x) => (x.id === event.payload.executionId ? { ...x, status } : x)),
+    );
+  });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.executions.remove(id),
