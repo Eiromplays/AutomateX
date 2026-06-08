@@ -364,6 +364,11 @@ export const api = {
         `/triggers/${id}/rotate-secret`,
         { method: "POST" },
       ),
+    update: (id: string, body: { config?: Record<string, unknown>; enabled?: boolean }) =>
+      request<{ id: string; type: string; enabled: boolean; nextRunAt: string | null }>(
+        `/triggers/${id}`,
+        { method: "PUT", body: JSON.stringify(body) },
+      ),
     remove: (id: string) => request<void>(`/triggers/${id}`, { method: "DELETE" }),
   },
   executions: {

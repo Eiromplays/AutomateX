@@ -7,6 +7,13 @@ public static class TriggerTypes
     public const string Workflow = "workflow";
 }
 
+public static class TriggerEditRules
+{
+    // A webhook's config holds its hashed secret — editing it would clobber the
+    // secret, so webhook config is immutable (rotate the secret instead).
+    public static bool CanEditConfig(string type) => type != TriggerTypes.Webhook;
+}
+
 public sealed record CronTriggerConfig(string Cron);
 
 public sealed class Trigger
@@ -45,6 +52,17 @@ public sealed class Trigger
     public void ReplaceConfig(string configJson)
     {
         ConfigJson = configJson;
+    }
+
+    public void Reconfigure(string configJson, DateTimeOffset? nextRunAt)
+    {
+        ConfigJson = configJson;
+        NextRunAt = nextRunAt;
+    }
+
+    public void SetEnabled(bool enabled)
+    {
+        Enabled = enabled;
     }
 
     public void MarkFired(DateTimeOffset? nextRunAt)

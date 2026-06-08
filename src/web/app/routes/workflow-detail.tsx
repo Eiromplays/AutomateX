@@ -20,6 +20,8 @@ export default function WorkflowDetail() {
   const [chainWorkflowId, setChainWorkflowId] = useState("");
   const [chainOn, setChainOn] = useState("succeeded");
   const [pluginTriggerConfig, setPluginTriggerConfig] = useState<Record<string, unknown>>({});
+  const [editingTriggerId, setEditingTriggerId] = useState<string | null>(null);
+  const [editConfig, setEditConfig] = useState<Record<string, unknown>>({});
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
 
@@ -81,6 +83,31 @@ export default function WorkflowDetail() {
     mutationFn: (triggerId: string) => api.triggers.rotateSecret(triggerId),
     onSuccess: (rotated) => setNewWebhook(rotated.webhookUrl),
   });
+
+  const updateTrigger = useMutation({
+    mutationFn: (body: { id: string; config?: Record<string, unknown>; enabled?: boolean }) =>
+      api.triggers.update(body.id, { config: body.config, enabled: body.enabled }),
+    onSuccess: (_, body) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow", id] });
+      if (body.config) {
+        setEditingTriggerId(null);
+        toast.success("Trigger updated.");
+      } else {
+        toast.success(body.enabled ? "Trigger enabled." : "Trigger disabled.");
+      }
+    },
+    onError: (error) => toast.error(`Trigger update failed — ${String(error)}`),
+  });
+
+  // Open the inline editor with the trigger's current config prefilled.
+  const startEdit = (trigger: { id: string; configJson: string }) => {
+    try {
+      setEditConfig(JSON.parse(trigger.configJson) as Record<string, unknown>);
+    } catch {
+      setEditConfig({});
+    }
+    setEditingTriggerId(trigger.id);
+  };
 
   const removeWorkflow = useMutation({
     mutationFn: () => api.workflows.remove(id),
@@ -277,43 +304,88 @@ export default function WorkflowDetail() {
         <h2 className="mb-3 text-sm font-medium text-zinc-300">Triggers</h2>
         <ul className="mb-4 space-y-2">
           {workflow.triggers.map((trigger) => (
-            <li
-              key={trigger.id}
-              className="flex items-center justify-between rounded-lg border border-zinc-800 px-4 py-2.5 text-sm"
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-medium">{trigger.type}</span>
-                {!trigger.enabled && <span className="text-xs text-red-400">disabled</span>}
-                {trigger.type === "webhook" && (
-                  <code className="text-xs text-zinc-500">POST /api/webhooks/{trigger.id}?secret=•••</code>
-                )}
-                {trigger.type === "workflow" && (
-                  <ChainSummary configJson={trigger.configJson} workflows={allWorkflows} />
-                )}
-                {trigger.nextRunAt && (
-                  <span className="text-xs text-zinc-500">
-                    next: {new Date(trigger.nextRunAt).toLocaleString()}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-3">
-                {trigger.type === "webhook" && (
+            <li key={trigger.id} className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="font-medium">{trigger.type}</span>
+                  {!trigger.enabled && <span className="text-xs text-red-400">disabled</span>}
+                  {trigger.type === "webhook" && (
+                    <code className="text-xs text-zinc-500">POST /api/webhooks/{trigger.id}?secret=•••</code>
+                  )}
+                  {trigger.type === "workflow" && (
+                    <ChainSummary configJson={trigger.configJson} workflows={allWorkflows} />
+                  )}
+                  {trigger.nextRunAt && (
+                    <span className="text-xs text-zinc-500">
+                      next: {new Date(trigger.nextRunAt).toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => rotateSecret.mutate(trigger.id)}
-                    className="text-xs text-zinc-500 hover:text-amber-400"
+                    onClick={() => updateTrigger.mutate({ id: trigger.id, enabled: !trigger.enabled })}
+                    className="text-xs text-zinc-500 hover:text-emerald-400"
                   >
-                    Rotate secret
+                    {trigger.enabled ? "Disable" : "Enable"}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => removeTrigger.mutate(trigger.id)}
-                  className="text-xs text-zinc-500 hover:text-red-400"
-                >
-                  Delete
-                </button>
+                  {trigger.type !== "webhook" && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        editingTriggerId === trigger.id ? setEditingTriggerId(null) : startEdit(trigger)
+                      }
+                      className="text-xs text-zinc-500 hover:text-zinc-100"
+                    >
+                      {editingTriggerId === trigger.id ? "Close" : "Edit"}
+                    </button>
+                  )}
+                  {trigger.type === "webhook" && (
+                    <button
+                      type="button"
+                      onClick={() => rotateSecret.mutate(trigger.id)}
+                      className="text-xs text-zinc-500 hover:text-amber-400"
+                    >
+                      Rotate secret
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeTrigger.mutate(trigger.id)}
+                    className="text-xs text-zinc-500 hover:text-red-400"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
+              {editingTriggerId === trigger.id && (
+                <div className="mt-3 border-t border-zinc-800 pt-3">
+                  <TriggerConfigEditor
+                    type={trigger.type}
+                    config={editConfig}
+                    onChange={setEditConfig}
+                    workflows={allWorkflows}
+                    triggerTypes={triggerTypes}
+                  />
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={updateTrigger.isPending}
+                      onClick={() => updateTrigger.mutate({ id: trigger.id, config: editConfig })}
+                      className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTriggerId(null)}
+                      className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
           {workflow.triggers.length === 0 && (
@@ -443,3 +515,73 @@ function ChainSummary({
 
 const onLabel = (on: string) =>
   on === "failed" ? "on failure" : on === "any" ? "on any finish" : "on success";
+
+// Inline config editor for an existing trigger — same controls as the add row,
+// keyed by trigger type (webhook isn't editable, so it never reaches here).
+function TriggerConfigEditor({
+  type,
+  config,
+  onChange,
+  workflows,
+  triggerTypes,
+}: {
+  type: string;
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  workflows: { id: string; name: string }[] | undefined;
+  triggerTypes: { type: string; configSchema: string | null }[] | undefined;
+}) {
+  if (type === "cron") {
+    return (
+      <label className="block">
+        <span className="mb-1 block text-xs text-zinc-400">cron expression</span>
+        <input
+          className={`${inputClass} w-full font-mono`}
+          value={String(config.cron ?? "")}
+          onChange={(e) => onChange({ ...config, cron: e.target.value })}
+          placeholder="*/5 * * * *"
+        />
+      </label>
+    );
+  }
+
+  if (type === "workflow") {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-zinc-500">when</span>
+        <select
+          className={inputClass}
+          value={String(config.workflowId ?? "")}
+          onChange={(e) => onChange({ ...config, workflowId: e.target.value })}
+        >
+          <option value="">choose workflow…</option>
+          {workflows?.map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className={inputClass}
+          value={String(config.on ?? "succeeded")}
+          onChange={(e) => onChange({ ...config, on: e.target.value })}
+        >
+          <option value="succeeded">succeeds</option>
+          <option value="failed">fails</option>
+          <option value="any">finishes (any)</option>
+        </select>
+      </div>
+    );
+  }
+
+  const schema = triggerTypes?.find((t) => t.type === type)?.configSchema ?? null;
+  return (
+    <div className="max-w-md">
+      <SchemaForm
+        schema={schema ? (JSON.parse(schema) as JsonSchema) : null}
+        value={config}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
