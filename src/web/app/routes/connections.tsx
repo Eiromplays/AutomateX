@@ -123,7 +123,11 @@ export default function Connections() {
       if (editing) {
         return api.connections.update(editing.id, { provider: provider || null, secrets });
       }
-      return api.connections.create({ name, provider: provider || null, secrets });
+      // Create has no merge/delete: nulls can't occur here, so narrow to plain values.
+      const created = Object.fromEntries(
+        Object.entries(secrets).filter(([, value]) => value !== null),
+      ) as Record<string, string>;
+      return api.connections.create({ name, provider: provider || null, secrets: created });
     },
     onSuccess: (saved) => {
       resetForm(null);
