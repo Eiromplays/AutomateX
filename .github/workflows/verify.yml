@@ -1,0 +1,53 @@
+name: Verify
+
+# Single source of truth for "is this commit shippable": backend build + tests
+# and the web typecheck + build. Called by CI (push/PR) and by Release before any
+# image is published, so a tag whose code fails checks can never publish images.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - run: dotnet restore AutomateX.slnx
+
+      - run: dotnet build AutomateX.slnx --no-restore --configuration Release
+
+      # Integration tests use Testcontainers against the runner's Docker daemon.
+      - run: dotnet test AutomateX.slnx --no-build --configuration Release
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/web
+    steps:
+      - uses: actions/checkout@v6
+
+      # Reads the pinned pnpm version from the web app's packageManager field
+      # (actions run from the repo root — defaults.run.working-directory doesn't apply).
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: src/web/package.json
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: src/web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm build

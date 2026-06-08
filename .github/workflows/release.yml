@@ -9,7 +9,12 @@ permissions:
   packages: write
 
 jobs:
+  # Same checks as CI — a tag that fails them publishes nothing.
+  verify:
+    uses: ./.github/workflows/verify.yml
+
   images:
+    needs: verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
