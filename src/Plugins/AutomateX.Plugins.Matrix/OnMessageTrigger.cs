@@ -33,7 +33,7 @@ public sealed class OnMessageTrigger : ITriggerListener<MatrixOnMessageConfig>
 
         var baseUrl = config.HomeserverUrl.TrimEnd('/');
         var ownUserId = await GetAsync(context.Http, config.AccessToken,
-            $"{baseUrl}/_matrix/client/v3/account/whoami", cancellationToken) is { } whoami
+            $"{baseUrl}/_matrix/client/v3/account/whoami", TimeSpan.FromSeconds(30), cancellationToken) is { } whoami
             && JsonNode.Parse(whoami)?["user_id"] is JsonValue userId
                 ? userId.GetValue<string>()
                 : throw new InvalidOperationException("matrix.onMessage could not resolve its own user id.");
@@ -44,10 +44,15 @@ public sealed class OnMessageTrigger : ITriggerListener<MatrixOnMessageConfig>
         while (!cancellationToken.IsCancellationRequested)
         {
             // First sync (timeout=0) only establishes the token — history is skipped.
-            var url = $"{baseUrl}/_matrix/client/v3/sync?timeout={(since is null ? 0 : config.TimeoutMilliseconds)}"
+            var longPollMs = since is null ? 0 : config.TimeoutMilliseconds;
+            var url = $"{baseUrl}/_matrix/client/v3/sync?timeout={longPollMs}"
                 + (since is null ? "" : $"&since={Uri.EscapeDataString(since)}");
 
-            var body = await GetAsync(context.Http, config.AccessToken, url, cancellationToken);
+            // Per-request budget = the long-poll window + headroom; the shared client is
+            // uncapped, so the listener owns the timeout for a hung connection.
+            var body = await GetAsync(
+                context.Http, config.AccessToken, url,
+                TimeSpan.FromMilliseconds(longPollMs + 15000), cancellationToken);
             var root = JsonNode.Parse(body) ?? throw new InvalidOperationException("matrix.onMessage got an empty sync response.");
 
             var nextBatch = (root["next_batch"] as JsonValue)?.GetValue<string>()
@@ -95,13 +100,16 @@ public sealed class OnMessageTrigger : ITriggerListener<MatrixOnMessageConfig>
     }
 
     private static async Task<string> GetAsync(
-        HttpClient http, string accessToken, string url, CancellationToken cancellationToken)
+        HttpClient http, string accessToken, string url, TimeSpan requestTimeout, CancellationToken cancellationToken)
     {
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(requestTimeout);
+
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
-        using var response = await http.SendAsync(request, cancellationToken);
-        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var response = await http.SendAsync(request, timeoutCts.Token);
+        var body = await response.Content.ReadAsStringAsync(timeoutCts.Token);
 
         if (!response.IsSuccessStatusCode)
         {

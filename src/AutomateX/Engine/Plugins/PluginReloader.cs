@@ -11,6 +11,7 @@ public sealed class PluginReloader(
     PluginAssemblies assemblies,
     ActionRegistry registry,
     Triggers.TriggerRegistry triggerRegistry,
+    Connections.ConnectionTypeRegistry connectionTypeRegistry,
     EngineEventBus eventBus,
     ILogger<PluginReloader> logger)
 {
@@ -23,6 +24,7 @@ public sealed class PluginReloader(
             assemblies.Reload();
             registry.Rebuild();
             triggerRegistry.Rebuild();
+            connectionTypeRegistry.Rebuild();
             eventBus.Rebuild();
 
             var snapshot = assemblies.Current;

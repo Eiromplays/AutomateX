@@ -47,6 +47,18 @@ public static class AutomateXEngine
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
         });
 
+        // Triggers may long-poll (e.g. matrix.onMessage holds a sync request open for
+        // ~30s). The standard resilience handler's total-request timeout + retries are
+        // fatal to that, so this client strips them and lets the listener bound each
+        // request itself.
+#pragma warning disable EXTEXP0001 // RemoveAllResilienceHandlers is experimental but the right tool for long-poll clients.
+        builder.Services.AddHttpClient(ActionContextFactory.TriggerHttpClientName, client =>
+        {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
+        }).RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
+
         builder.Services.AddOptions<EngineOptions>().BindConfiguration(EngineOptions.SectionName);
         builder.Services.AddOptions<EncryptionOptions>().BindConfiguration(EncryptionOptions.SectionName);
         builder.Services.AddSingleton<SecretCipher>();
@@ -61,6 +73,8 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<IActionSource, BuiltInActionSource>();
         builder.Services.AddSingleton<ActionRegistry>();
         builder.Services.AddSingleton<Triggers.TriggerRegistry>();
+        builder.Services.AddSingleton<Connections.IConnectionTypeSource, Connections.BuiltInConnectionTypeSource>();
+        builder.Services.AddSingleton<Connections.ConnectionTypeRegistry>();
         builder.Services.AddSingleton<EngineEventBus>();
         builder.Services.AddSingleton<PluginReloader>();
 

@@ -160,6 +160,23 @@ export type ConnectionSummary = {
   decryptable: boolean;
 };
 
+export type ConnectionField = {
+  key: string;
+  label: string;
+  secret: boolean;
+  required: boolean;
+  helpText: string | null;
+  docsUrl: string | null;
+};
+
+export type ConnectionTypeInfo = {
+  type: string;
+  displayName: string;
+  description: string | null;
+  source: string;
+  fields: ConnectionField[];
+};
+
 export type AuthMe = {
   mode: "open" | "apikey" | "oidc";
   authenticated: boolean;
@@ -240,6 +257,7 @@ export const api = {
   },
   connections: {
     list: () => request<ConnectionSummary[]>("/connections"),
+    types: () => request<ConnectionTypeInfo[]>("/connection-types"),
     create: (body: { name: string; provider: string | null; secrets: Record<string, string> }) =>
       request<{ id: string; name: string }>("/connections", {
         method: "POST",
