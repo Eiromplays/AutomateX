@@ -37,6 +37,12 @@ public static class AuthExtensions
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
                 options.ExpireTimeSpan = TimeSpan.FromHours(8);
                 options.SlidingExpiration = true;
+                // Each request: refresh the OIDC tokens just before they expire (and
+                // sign out if the IdP refuses), so the session tracks the provider.
+                options.Events.OnValidatePrincipal = context =>
+                    context.HttpContext.RequestServices
+                        .GetRequiredService<CookieTokenRefresher>()
+                        .ValidateAsync(context);
                 // API/XHR callers get a 401 to handle, not a redirect to chase.
                 options.Events.OnRedirectToLogin = context =>
                 {
@@ -60,10 +66,16 @@ public static class AuthExtensions
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
                 options.Scope.Add("email");
-                options.SaveTokens = false;
+                // offline_access yields a refresh token; SaveTokens stows it (plus the
+                // access token + expiry) in the cookie for OnValidatePrincipal to use.
+                options.Scope.Add("offline_access");
+                options.SaveTokens = true;
                 options.TokenValidationParameters.NameClaimType = "name";
             });
 
+        builder.Services.AddHttpClient();
+        builder.Services.AddSingleton<IOidcTokenClient, OidcTokenClient>();
+        builder.Services.AddSingleton<CookieTokenRefresher>();
         builder.Services.AddAuthorization();
 
         // Behind Caddy/Vite the OIDC redirect URI must be built from forwarded headers.
