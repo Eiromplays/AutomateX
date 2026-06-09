@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using AutomateX.Engine.Actions;
 using AutomateX.Plugin.Sdk;
 using AutomateX.Plugins.Ssh;
@@ -45,6 +46,35 @@ public sealed class SshServerFixture : IAsyncLifetime
         // "256 SHA256:<base64> root@host (ED25519)" — the same format users get from ssh-keygen -lf.
         var result = await _container.ExecAsync(["sh", "-c", "ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"]);
         HostKeyFingerprint = result.Stdout.Split(' ')[1].Trim();
+
+        // The wait strategy only confirms sshd inside the container; the host→mapped-port
+        // forwarding (esp. Docker Desktop on macOS) can briefly refuse right after start —
+        // the source of intermittent "Connection refused". Warm the forwarded path first.
+        await WaitForMappedPortAsync(TimeSpan.FromSeconds(30));
+    }
+
+    private async Task WaitForMappedPortAsync(TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (true)
+        {
+            try
+            {
+                using var client = new TcpClient();
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                await client.ConnectAsync(Host, Port, cts.Token);
+                return;
+            }
+            catch (Exception ex) when (ex is SocketException or OperationCanceledException)
+            {
+                if (DateTimeOffset.UtcNow >= deadline)
+                {
+                    throw;
+                }
+
+                await Task.Delay(250);
+            }
+        }
     }
 
     public Task DisposeAsync() => _container.DisposeAsync().AsTask();
