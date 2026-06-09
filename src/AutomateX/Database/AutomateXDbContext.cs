@@ -3,12 +3,19 @@ using AutomateX.Modules.Executions;
 using AutomateX.Modules.Triggers;
 using AutomateX.Modules.Workflows;
 using AutomateX.Modules.Workspaces;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace AutomateX.Database;
 
-public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> options) : DbContext(options)
+// IDataProtectionKeyContext: the key ring that encrypts the auth cookie lives in
+// Postgres, so it survives app restarts/container recreation — without it, every
+// restart regenerates the keys and invalidates all sessions (forced re-login).
+public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> options)
+    : DbContext(options), IDataProtectionKeyContext
 {
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
     public DbSet<Workspace> Workspaces => Set<Workspace>();
 
     public DbSet<WorkspaceMember> WorkspaceMembers => Set<WorkspaceMember>();

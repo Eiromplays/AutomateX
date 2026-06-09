@@ -29,6 +29,9 @@ services:
       # Auth__Authority: https://login.microsoftonline.com/<tenant-id>/v2.0
       # Auth__ClientId: <application-client-id>
       # Auth__ClientSecret: <client-secret>
+      # Auth cookie session length (sliding); unset = 14 days. e.g. "7.00:00:00" or "08:00:00":
+      # Auth__SessionLifetime: "7.00:00:00"
+      # (Data Protection keys persist in Postgres automatically, so sessions survive restarts.)
       # Required for connections (encrypted secrets) — generate: openssl rand -base64 32
       # Encryption__Key: <base64-32-bytes>  (losing it makes stored secrets unrecoverable)
       # Public origin used in generated webhook URLs (defaults to relative paths):

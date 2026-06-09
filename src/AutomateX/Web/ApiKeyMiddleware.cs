@@ -21,7 +21,14 @@ public sealed class AuthOptions
 
     public string? ClientSecret { get; set; }
 
+    // Auth cookie lifetime (sliding). Override via Auth__SessionLifetime, e.g.
+    // "7.00:00:00" (7 days) or "08:00:00" (8 hours); unset = the framework default.
+    public TimeSpan? SessionLifetime { get; set; }
+
     public bool OidcConfigured => !string.IsNullOrEmpty(Authority) && !string.IsNullOrEmpty(ClientId);
+
+    public TimeSpan ResolvedSessionLifetime =>
+        SessionLifetime is { } value && value > TimeSpan.Zero ? value : TimeSpan.FromDays(14);
 }
 
 // Tri-state gate for /api and /hubs: open (nothing configured), API key, or OIDC —

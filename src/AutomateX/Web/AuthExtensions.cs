@@ -1,6 +1,8 @@
+using AutomateX.Database;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -17,6 +19,13 @@ public static class AuthExtensions
     public static WebApplicationBuilder AddAutomateXAuth(this WebApplicationBuilder builder)
     {
         builder.Services.Configure<AuthOptions>(builder.Configuration.GetSection(AuthOptions.SectionName));
+
+        // Persist the key ring in Postgres so auth cookies survive restarts/recreation.
+        // Always on (cheap, future-proof) — the table is read only when a DP-protected
+        // payload like the OIDC auth cookie is actually used.
+        builder.Services.AddDataProtection()
+            .PersistKeysToDbContext<AutomateXDbContext>()
+            .SetApplicationName("AutomateX");
 
         var auth = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
         if (!auth.OidcConfigured)
@@ -35,7 +44,7 @@ public static class AuthExtensions
                 options.Cookie.HttpOnly = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                options.ExpireTimeSpan = TimeSpan.FromHours(8);
+                options.ExpireTimeSpan = auth.ResolvedSessionLifetime;
                 options.SlidingExpiration = true;
                 // Each request: refresh the OIDC tokens just before they expire (and
                 // sign out if the IdP refuses), so the session tracks the provider.
