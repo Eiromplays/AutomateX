@@ -1,5 +1,6 @@
 using AutomateX.Modules.Connections;
 using AutomateX.Modules.Executions;
+using AutomateX.Modules.State;
 using AutomateX.Modules.Triggers;
 using AutomateX.Modules.Workflows;
 using AutomateX.Modules.Workspaces;
@@ -33,6 +34,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
     public DbSet<Execution> Executions => Set<Execution>();
 
     public DbSet<StepExecution> StepExecutions => Set<StepExecution>();
+
+    public DbSet<WorkflowState> WorkflowStates => Set<WorkflowState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
