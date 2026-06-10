@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { toast } from "../components/toast";
@@ -10,7 +11,12 @@ export default function Workflows() {
     queryFn: api.workflows.list,
   });
 
-
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  const filtered =
+    workflows?.filter(
+      (w) => w.name.toLowerCase().includes(needle) || (w.description ?? "").toLowerCase().includes(needle),
+    ) ?? [];
 
   return (
     <div>
@@ -59,8 +65,18 @@ export default function Workflows() {
       {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
       {error && <p className="text-sm text-red-400">{String(error)}</p>}
 
+      {(workflows?.length ?? 0) > 0 && (
+        <input
+          type="text"
+          placeholder="Search workflows…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          className="mb-3 w-full max-w-sm rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+        />
+      )}
+
       <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-        {workflows?.map((workflow) => (
+        {filtered.map((workflow) => (
           <li key={workflow.id}>
             <Link
               to={`/workflows/${workflow.id}`}
@@ -94,6 +110,9 @@ export default function Workflows() {
             </Link>
             .
           </li>
+        )}
+        {(workflows?.length ?? 0) > 0 && filtered.length === 0 && (
+          <li className="px-4 py-6 text-center text-sm text-zinc-500">No workflows match “{query}”.</li>
         )}
       </ul>
     </div>

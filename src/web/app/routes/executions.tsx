@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api, type ExecutionSummary } from "../lib/api";
@@ -70,7 +70,15 @@ export default function Executions() {
     onError: (error) => toast.error(`Delete failed — ${String(error)}`),
   });
 
-  const { roots, children } = buildTree(executions ?? []);
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const filteredExecutions = (executions ?? []).filter(
+    (x) =>
+      (statusFilter === "All" || x.status === statusFilter) && x.workflowName.toLowerCase().includes(needle),
+  );
+
+  const { roots, children } = buildTree(filteredExecutions);
 
   const renderRow = (execution: ExecutionSummary, depth: number): ReactNode => (
     <li key={execution.id}>
@@ -151,10 +159,36 @@ export default function Executions() {
 
       {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
 
+      {(executions?.length ?? 0) > 0 && (
+        <div className="mb-3 flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Search by workflow…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm focus:border-emerald-500 focus:outline-none"
+          >
+            {["All", "Running", "Succeeded", "Failed"].map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
         {roots.map((execution) => renderRow(execution, 0))}
         {executions?.length === 0 && (
           <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions yet.</li>
+        )}
+        {(executions?.length ?? 0) > 0 && filteredExecutions.length === 0 && (
+          <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions match your filter.</li>
         )}
       </ul>
     </div>
