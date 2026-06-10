@@ -517,10 +517,10 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["workflow-state", workflowId] });
 
   const clear = useMutation({
-    mutationFn: () => api.workflows.clearState(workflowId),
+    mutationFn: (prefix?: string) => api.workflows.clearState(workflowId, prefix),
     onSuccess: () => {
       invalidate();
-      toast.success("State cleared — feeds will re-process from scratch.");
+      toast.success("State cleared — will re-process from scratch.");
     },
     onError: (error) => toast.error(`Clear failed — ${String(error)}`),
   });
@@ -563,7 +563,7 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
         <button
           type="button"
           onClick={() => {
-            if (window.confirm("Clear all stored state? Feeds will re-process from scratch.")) clear.mutate();
+            if (window.confirm("Clear all stored state? Feeds will re-process from scratch.")) clear.mutate(undefined);
           }}
           disabled={clear.isPending}
           className="text-xs text-zinc-500 hover:text-red-400 disabled:opacity-50"
@@ -581,7 +581,25 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
                 <span className="truncate text-zinc-200">
                   {group.triggerId ? triggerLabel(trigger) : "other"}
                 </span>
-                <span className="shrink-0 text-xs text-zinc-500">{group.rows.length} entries</span>
+                <span className="flex shrink-0 items-center gap-3 text-xs text-zinc-500">
+                  <span>{group.rows.length} entries</span>
+                  {group.triggerId && (
+                    <button
+                      type="button"
+                      title="Reset this feed's dedup"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.confirm("Reset this feed? Its items will re-process from scratch.")) {
+                          clear.mutate(`trigger:${group.triggerId}:`);
+                        }
+                      }}
+                      className="hover:text-red-400"
+                    >
+                      Clear feed
+                    </button>
+                  )}
+                </span>
               </summary>
               <ul className="max-h-72 divide-y divide-zinc-900 overflow-y-auto border-t border-zinc-800">
                 {group.rows.map((row) => (

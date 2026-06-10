@@ -72,6 +72,11 @@ public sealed class WorkflowStateStore(AutomateXDbContext dbContext) : IWorkflow
             .Where(x => x.WorkflowId == workflowId)
             .ExecuteDeleteAsync(cancellationToken);
 
+    public async Task<int> ClearByPrefixAsync(Guid workflowId, string prefix, CancellationToken cancellationToken = default) =>
+        await dbContext.WorkflowStates
+            .Where(x => x.WorkflowId == workflowId && x.Key.StartsWith(prefix))
+            .ExecuteDeleteAsync(cancellationToken);
+
     public async Task<IReadOnlyList<WorkflowStateItem>> ListByPrefixAsync(
         Guid workflowId, string prefix, CancellationToken cancellationToken = default)
     {

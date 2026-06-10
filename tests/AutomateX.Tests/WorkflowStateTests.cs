@@ -181,6 +181,25 @@ public sealed class WorkflowStateTests(EngineFixture fixture) : IClassFixture<En
     }
 
     [Fact]
+    public async Task ClearByPrefix_removes_only_the_matching_namespace()
+    {
+        var wf = await TestData.SeedWorkflowAsync(fixture.Host, 1);
+
+        var (cleared, remaining) = await WithStoreAsync(async store =>
+        {
+            await store.SetAsync(wf, "trigger:A:item:1", "1");
+            await store.SetAsync(wf, "trigger:A:item:2", "1");
+            await store.SetAsync(wf, "trigger:B:item:1", "1");
+            var count = await store.ClearByPrefixAsync(wf, "trigger:A:");
+            var left = await store.ListByPrefixAsync(wf, "");
+            return (count, left.Count);
+        });
+
+        Assert.Equal(2, cleared);
+        Assert.Equal(1, remaining); // trigger:B survives
+    }
+
+    [Fact]
     public async Task State_is_isolated_per_workflow()
     {
         var wf1 = await TestData.SeedWorkflowAsync(fixture.Host, 1);

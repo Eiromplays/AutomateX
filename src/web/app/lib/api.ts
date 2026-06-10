@@ -374,7 +374,10 @@ export const api = {
         ...(payload ? { body: payload } : {}),
       }),
     state: (id: string) => request<WorkflowStateEntry[]>(`/workflows/${id}/state`),
-    clearState: (id: string) => request<void>(`/workflows/${id}/state`, { method: "DELETE" }),
+    clearState: (id: string, prefix?: string) =>
+      request<void>(`/workflows/${id}/state${prefix ? `?prefix=${encodeURIComponent(prefix)}` : ""}`, {
+        method: "DELETE",
+      }),
     setState: (id: string, key: string, value: string) =>
       request<void>(`/workflows/${id}/state`, { method: "PUT", body: JSON.stringify({ key, value }) }),
     removeState: (id: string, key: string) =>

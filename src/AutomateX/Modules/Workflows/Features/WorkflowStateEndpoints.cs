@@ -69,7 +69,17 @@ public static class ClearWorkflowState
                 return;
             }
 
-            await state.ClearAsync(id, ct);
+            // ?prefix=trigger:<id>: clears just that namespace; absent clears everything.
+            var prefix = HttpContext.Request.Query["prefix"].ToString();
+            if (string.IsNullOrEmpty(prefix))
+            {
+                await state.ClearAsync(id, ct);
+            }
+            else
+            {
+                await state.ClearByPrefixAsync(id, prefix, ct);
+            }
+
             await Send.NoContentAsync(ct);
         }
     }

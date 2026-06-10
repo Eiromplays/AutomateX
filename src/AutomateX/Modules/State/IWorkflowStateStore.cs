@@ -19,5 +19,8 @@ public interface IWorkflowStateStore
     // Wipes all of a workflow's state (e.g. reset a feed's dedup so it re-processes).
     Task<int> ClearAsync(Guid workflowId, CancellationToken cancellationToken = default);
 
+    // Wipes one namespace (e.g. a single trigger's dedup: prefix "trigger:<id>:").
+    Task<int> ClearByPrefixAsync(Guid workflowId, string prefix, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<WorkflowStateItem>> ListByPrefixAsync(Guid workflowId, string prefix, CancellationToken cancellationToken = default);
 }
