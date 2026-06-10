@@ -1,0 +1,17 @@
+{
+  "automatex": 1,
+  "name": "rss-feed-test",
+  "description": "Smoke-test for the v3 'rss' trigger. Import this workflow, then add an 'rss' trigger to it in the UI — import carries cron triggers only, not plugin triggers, so the trigger is added separately (suggested config in the chat / README of this sample). Each new feed item fires a run that POSTs the item to httpbin, so the execution detail shows the payload that flowed through.",
+  "steps": [
+    {
+      "actionType": "http.request",
+      "name": "Echo the feed item",
+      "config": {
+        "method": "POST",
+        "url": "https://httpbin.org/anything",
+        "contentType": "text/plain",
+        "body": "{{trigger.payload.title}}"
+      }
+    }
+  ]
+}
