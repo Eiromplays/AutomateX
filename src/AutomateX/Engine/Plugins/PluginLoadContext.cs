@@ -11,15 +11,21 @@ public sealed class PluginLoadContext(string pluginAssemblyPath) : AssemblyLoadC
 
     protected override Assembly? Load(AssemblyName assemblyName)
     {
-        // SDK + framework assemblies must unify with the host's copies, otherwise the
-        // plugin's IAction<,> is a different Type than the one the engine scans for.
+        // The SDK and the shared Microsoft.Extensions.* contracts must unify with the
+        // host's copies — never load a plugin-local version, or the plugin's IAction<,>
+        // / ILogger become foreign Types the engine can't match.
         if (assemblyName.Name is "AutomateX.Plugin.Sdk"
-            || assemblyName.Name!.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal)
-            || assemblyName.Name.StartsWith("System.", StringComparison.Ordinal))
+            || assemblyName.Name!.StartsWith("Microsoft.Extensions.", StringComparison.Ordinal))
         {
             return null;
         }
 
+        // Let the resolver decide for everything else: bundled deps (SSH.NET,
+        // System.ServiceModel.Syndication, …) resolve to a path in the plugin folder and
+        // load there; true framework assemblies (System.Runtime, System.Text.Json, …)
+        // aren't deployed alongside, so the resolver returns null and they fall through
+        // to the host — unity preserved without an over-broad "System.*" name rule that
+        // also swallowed out-of-band System.* packages the host doesn't ship.
         var path = _resolver.ResolveAssemblyToPath(assemblyName);
         return path is null ? null : LoadFromAssemblyPath(path);
     }
