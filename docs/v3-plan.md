@@ -112,6 +112,7 @@ Recorded so they don't evaporate; each has a home in the v2 plan doc and grows f
 - **Workflow-scoped connections** — nullable `WorkflowId` on Connection, blast-radius reduction.
 - **`prompt=none` idle re-auth** — seamless idle-expiry redirect (refresh tokens already cover the access-token boundary).
 - **Hardening set for exposed deployment** — out-of-proc plugin sandboxing (the real isolation boundary), audit log, rate limiting, instance-admin role, envelope encryption / per-tenant DEKs (the `v1:`/`v2:` ciphertext prefix is ready), action idempotency keys.
+  - **Note — sandboxing retires the in-proc plugin-loading workarounds.** Several fragilities exist *only* because plugins share the host's CLR: the `PluginLoadContext` name rules (defer SDK/`Microsoft.Extensions.*` to the host so Types unify; resolver-decides for bundled deps), and `PluginReflection.LoadableTypes` (tolerate a plugin's partial type-load failure so it can't abort discovery). Out-of-proc dissolves this whole class — each plugin loads in its own process with its own dependency closure behind a serialized boundary, so type-unity and "one bad plugin aborts the scan" simply don't exist. When sandboxing lands, delete these workarounds rather than carry them. They are load-bearing only for the in-proc window (all of v3 MVP + launch).
 - **Broaden export/import** — beyond cron-only triggers; possibly a community plugin marketplace beyond the first-party catalog.
 
 ---

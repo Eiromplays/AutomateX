@@ -1,4 +1,5 @@
 using System.Reflection;
+using AutomateX.Engine.Plugins;
 using AutomateX.Plugin.Sdk;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,7 +21,7 @@ public static class ConnectionTypeDiscovery
 {
     public static IEnumerable<ConnectionTypeDescriptor> FromAssembly(Assembly assembly, string source, IServiceProvider services)
     {
-        foreach (var type in assembly.GetTypes())
+        foreach (var type in PluginReflection.LoadableTypes(assembly, services, source))
         {
             var attribute = type.GetCustomAttribute<ConnectionTypeAttribute>();
             if (attribute is null || type.IsAbstract || !typeof(IConnectionType).IsAssignableFrom(type))

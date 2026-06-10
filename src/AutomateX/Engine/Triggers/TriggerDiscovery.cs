@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
 using AutomateX.Engine.Actions;
+using AutomateX.Engine.Plugins;
 using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Engine.Triggers;
@@ -38,7 +39,7 @@ public static class TriggerDiscovery
     {
         var contextFactory = services.GetRequiredService<ActionContextFactory>();
 
-        foreach (var type in assembly.GetTypes())
+        foreach (var type in PluginReflection.LoadableTypes(assembly, services, source))
         {
             var attribute = type.GetCustomAttribute<TriggerAttribute>();
             if (attribute is null || type.IsAbstract)

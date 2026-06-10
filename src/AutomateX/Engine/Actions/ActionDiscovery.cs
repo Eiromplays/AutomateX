@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
+using AutomateX.Engine.Plugins;
 using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Engine.Actions;
@@ -12,7 +13,7 @@ public static class ActionDiscovery
     {
         var contextFactory = services.GetRequiredService<ActionContextFactory>();
 
-        foreach (var type in assembly.GetTypes())
+        foreach (var type in PluginReflection.LoadableTypes(assembly, services, source))
         {
             var attribute = type.GetCustomAttribute<ActionAttribute>();
             if (attribute is null || type.IsAbstract)
