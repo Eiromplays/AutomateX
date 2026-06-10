@@ -44,6 +44,9 @@ export default function Workflows() {
               }}
             />
           </label>
+          <Link to="/templates" className="text-sm text-zinc-400 hover:text-zinc-100">
+            Templates
+          </Link>
           <Link
             to="/workflows/new"
             className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
@@ -85,7 +88,11 @@ export default function Workflows() {
         ))}
         {workflows?.length === 0 && (
           <li className="px-4 py-6 text-center text-sm text-zinc-500">
-            No workflows yet — create the first one.
+            No workflows yet — create the first one, or{" "}
+            <Link to="/templates" className="text-emerald-400 hover:underline">
+              start from a template
+            </Link>
+            .
           </li>
         )}
       </ul>
