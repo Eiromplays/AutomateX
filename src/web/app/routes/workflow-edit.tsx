@@ -39,7 +39,7 @@ export default function WorkflowEdit() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-5xl">
       <h1 className="mb-1 text-lg font-semibold">Edit workflow</h1>
       <p className="mb-6 text-xs text-zinc-500">
         Saving appends version v{workflow.latestVersion.version + 1} — past executions keep the

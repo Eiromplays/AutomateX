@@ -55,7 +55,7 @@ export default function WorkflowNew() {
   const cronTriggers = (importDoc?.triggers ?? []).filter((t) => t.type === "cron");
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-5xl">
       <h1 className={importDoc ? "mb-1 text-lg font-semibold" : "mb-6 text-lg font-semibold"}>
         {importDoc ? "Import workflow" : "New workflow"}
       </h1>

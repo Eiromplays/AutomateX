@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api, type CreateWorkflowStep } from "../lib/api";
 import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
+import { WorkflowCanvas } from "./workflow-canvas";
 
 type DraftStep = CreateWorkflowStep & { key: number };
 
@@ -59,6 +60,18 @@ export function WorkflowForm({
       return next;
     });
 
+  const addStep = () =>
+    setSteps((current) => [
+      ...current,
+      { key: nextKey++, actionType: actions?.[0]?.type ?? "", name: null, config: {} },
+    ]);
+
+  const removeStep = (key: number) => setSteps((current) => current.filter((s) => s.key !== key));
+
+  const [mode, setMode] = useState<"canvas" | "form">("canvas");
+  const tabClass = (active: boolean) =>
+    `px-2 py-1 ${active ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`;
+
   return (
     <div className="space-y-4">
       <label className="block">
@@ -77,21 +90,41 @@ export function WorkflowForm({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-zinc-300">Steps</h2>
-          <button
-            type="button"
-            onClick={() =>
-              setSteps((current) => [
-                ...current,
-                { key: nextKey++, actionType: actions?.[0]?.type ?? "", name: null, config: {} },
-              ])
-            }
-            className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
-          >
-            Add step
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex overflow-hidden rounded-md border border-zinc-700 text-xs">
+              <button type="button" onClick={() => setMode("canvas")} className={tabClass(mode === "canvas")}>
+                Canvas
+              </button>
+              <button type="button" onClick={() => setMode("form")} className={tabClass(mode === "form")}>
+                Form
+              </button>
+            </div>
+            {mode === "form" && (
+              <button
+                type="button"
+                onClick={addStep}
+                className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+              >
+                Add step
+              </button>
+            )}
+          </div>
         </div>
 
-        {steps.map((step, index) => (
+        {mode === "canvas" && (
+          <WorkflowCanvas
+            steps={steps}
+            actions={actions ?? []}
+            schemaFor={schemaFor}
+            onUpdateStep={updateStep}
+            onMoveStep={moveStep}
+            onAddStep={addStep}
+            onRemoveStep={removeStep}
+          />
+        )}
+
+        {mode === "form" &&
+          steps.map((step, index) => (
           <div key={step.key} className="rounded-lg border border-zinc-800 p-4">
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs text-zinc-500">#{index + 1}</span>
