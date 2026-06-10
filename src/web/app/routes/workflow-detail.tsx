@@ -315,6 +315,7 @@ export default function WorkflowDetail() {
                   {trigger.type === "workflow" && (
                     <ChainSummary configJson={trigger.configJson} workflows={allWorkflows} />
                   )}
+                  <TriggerSummary type={trigger.type} configJson={trigger.configJson} />
                   {trigger.nextRunAt && (
                     <span className="text-xs text-zinc-500">
                       next: {new Date(trigger.nextRunAt).toLocaleString()}
@@ -486,6 +487,42 @@ export default function WorkflowDetail() {
       </section>
     </div>
   );
+}
+
+// Inline config preview so trigger rows aren't just a bare type (e.g. two rss
+// triggers showing their distinct feed URLs). webhook + workflow have their own.
+function TriggerSummary({ type, configJson }: { type: string; configJson: string }) {
+  if (type === "webhook" || type === "workflow") return null;
+
+  let config: Record<string, unknown> = {};
+  try {
+    config = JSON.parse(configJson) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+
+  if (type === "cron" && typeof config.cron === "string") {
+    return <code className="text-xs text-zinc-500">⏰ {config.cron}</code>;
+  }
+
+  if ((type === "rss" || type === "http.poll") && typeof config.url === "string") {
+    return (
+      <span className="max-w-md truncate text-xs text-zinc-500" title={config.url}>
+        🔗 {config.url}
+      </span>
+    );
+  }
+
+  // Generic plugin trigger: a couple of primitive fields, skipping templated secrets.
+  const entries = Object.entries(config)
+    .filter(([, v]) => typeof v === "string" || typeof v === "number" || typeof v === "boolean")
+    .filter(([, v]) => !(typeof v === "string" && v.includes("{{")))
+    .slice(0, 3)
+    .map(([k, v]) => `${k}: ${typeof v === "string" && v.length > 30 ? `${v.slice(0, 30)}…` : v}`);
+
+  return entries.length > 0 ? (
+    <span className="max-w-md truncate text-xs text-zinc-500">{entries.join(" · ")}</span>
+  ) : null;
 }
 
 function ChainSummary({
