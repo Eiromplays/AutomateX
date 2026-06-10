@@ -15,6 +15,8 @@ declare -A DESCRIPTIONS=(
   [AutomateX.Plugins.Matrix]="Send Matrix room messages with retry-safe transaction ids."
   [AutomateX.Plugins.Llm]="Prompt any OpenAI-compatible LLM endpoint (OpenAI, OpenRouter, Ollama, local)."
   [AutomateX.Plugins.Feed]="Watch RSS/Atom feeds or any URL and fire workflows on new items (durable dedup)."
+  [AutomateX.Plugins.Discord]="Post messages to a Discord channel webhook."
+  [AutomateX.Plugins.Pushover]="Send mobile push notifications via Pushover."
 )
 
 ENTRIES=()

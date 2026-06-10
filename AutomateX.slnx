@@ -13,9 +13,11 @@
     <Project Path="src/AutomateX/AutomateX.csproj" />
   </Folder>
   <Folder Name="/plugins/">
+    <Project Path="src/Plugins/AutomateX.Plugins.Discord/AutomateX.Plugins.Discord.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Feed/AutomateX.Plugins.Feed.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Llm/AutomateX.Plugins.Llm.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Matrix/AutomateX.Plugins.Matrix.csproj" />
+    <Project Path="src/Plugins/AutomateX.Plugins.Pushover/AutomateX.Plugins.Pushover.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Ssh/AutomateX.Plugins.Ssh.csproj" />
   </Folder>
   <Folder Name="/samples/">
