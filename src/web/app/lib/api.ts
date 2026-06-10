@@ -47,6 +47,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
+export type WorkflowStateEntry = { key: string; value: string; expiresAt: string | null; updatedAt: string };
+
 export type WorkflowSummary = {
   id: string;
   name: string;
@@ -371,6 +373,12 @@ export const api = {
         method: "POST",
         ...(payload ? { body: payload } : {}),
       }),
+    state: (id: string) => request<WorkflowStateEntry[]>(`/workflows/${id}/state`),
+    clearState: (id: string) => request<void>(`/workflows/${id}/state`, { method: "DELETE" }),
+    setState: (id: string, key: string, value: string) =>
+      request<void>(`/workflows/${id}/state`, { method: "PUT", body: JSON.stringify({ key, value }) }),
+    removeState: (id: string, key: string) =>
+      request<void>(`/workflows/${id}/state/entry`, { method: "DELETE", body: JSON.stringify({ key }) }),
   },
   triggers: {
     types: () => request<TriggerTypeInfo[]>("/trigger-types"),

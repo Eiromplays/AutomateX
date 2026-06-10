@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { api } from "../lib/api";
+import { api, type WorkflowTrigger } from "../lib/api";
 import { DriftWarning, SourceBadge, sourceLabel } from "../components/action-source";
 import { CodeBlock } from "../components/code-block";
 import { SchemaForm, type JsonSchema } from "../components/schema-form";
@@ -485,7 +485,167 @@ export default function WorkflowDetail() {
           </div>
         )}
       </section>
+
+      <WorkflowStateSection workflowId={id} triggers={workflow.triggers} />
     </div>
+  );
+}
+
+// Friendly label for a state group's owning trigger: type + its url/cron.
+function triggerLabel(trigger: WorkflowTrigger | undefined): string {
+  if (!trigger) return "unknown / deleted trigger";
+  let config: Record<string, unknown> = {};
+  try {
+    config = JSON.parse(trigger.configJson) as Record<string, unknown>;
+  } catch {
+    // ignore
+  }
+  const detail = typeof config.url === "string" ? config.url : typeof config.cron === "string" ? config.cron : "";
+  return detail ? `${trigger.type} · ${detail}` : trigger.type;
+}
+
+// Durable per-workflow KV state (feed dedup, cursors). Keys are namespaced
+// `trigger:<id>:…`, so group by owning trigger and collapse the long dedup sets
+// instead of dumping every row. Only shows when there's state.
+function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; triggers: WorkflowTrigger[] }) {
+  const queryClient = useQueryClient();
+  const { data: entries } = useQuery({
+    queryKey: ["workflow-state", workflowId],
+    queryFn: () => api.workflows.state(workflowId),
+  });
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["workflow-state", workflowId] });
+
+  const clear = useMutation({
+    mutationFn: () => api.workflows.clearState(workflowId),
+    onSuccess: () => {
+      invalidate();
+      toast.success("State cleared — feeds will re-process from scratch.");
+    },
+    onError: (error) => toast.error(`Clear failed — ${String(error)}`),
+  });
+
+  const setEntry = useMutation({
+    mutationFn: ({ key, value }: { key: string; value: string }) => api.workflows.setState(workflowId, key, value),
+    onSuccess: invalidate,
+    onError: (error) => toast.error(`Save failed — ${String(error)}`),
+  });
+
+  const removeEntry = useMutation({
+    mutationFn: (key: string) => api.workflows.removeState(workflowId, key),
+    onSuccess: invalidate,
+    onError: (error) => toast.error(`Delete failed — ${String(error)}`),
+  });
+
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  if (!entries || entries.length === 0) return null;
+
+  // Group by the `trigger:<id>:` prefix; the remainder is the entry's own key.
+  const groups = new Map<string, { triggerId: string | null; rows: { key: string; rest: string; value: string; expiresAt: string | null }[] }>();
+  for (const entry of entries) {
+    const match = /^trigger:([^:]+):(.+)$/.exec(entry.key);
+    const triggerId = match ? match[1] : null;
+    const rest = match ? match[2] : entry.key;
+    const groupKey = triggerId ?? "__other__";
+    const group = groups.get(groupKey) ?? { triggerId, rows: [] };
+    group.rows.push({ key: entry.key, rest, value: entry.value, expiresAt: entry.expiresAt });
+    groups.set(groupKey, group);
+  }
+
+  return (
+    <section>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-medium text-zinc-300">
+          State <span className="text-zinc-500">({entries.length})</span>
+        </h2>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm("Clear all stored state? Feeds will re-process from scratch.")) clear.mutate();
+          }}
+          disabled={clear.isPending}
+          className="text-xs text-zinc-500 hover:text-red-400 disabled:opacity-50"
+        >
+          Clear all
+        </button>
+      </div>
+
+      <div className="space-y-2">
+        {[...groups.values()].map((group) => {
+          const trigger = group.triggerId ? triggers.find((t) => t.id === group.triggerId) : undefined;
+          return (
+            <details key={group.triggerId ?? "other"} className="rounded-lg border border-zinc-800">
+              <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm">
+                <span className="truncate text-zinc-200">
+                  {group.triggerId ? triggerLabel(trigger) : "other"}
+                </span>
+                <span className="shrink-0 text-xs text-zinc-500">{group.rows.length} entries</span>
+              </summary>
+              <ul className="max-h-72 divide-y divide-zinc-900 overflow-y-auto border-t border-zinc-800">
+                {group.rows.map((row) => (
+                  <li key={row.key} className="flex items-center justify-between gap-3 px-4 py-1.5 text-xs">
+                    <code className="min-w-0 flex-1 truncate text-zinc-400">{row.rest}</code>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {editingKey === row.key ? (
+                        <>
+                          <input
+                            autoFocus
+                            value={draft}
+                            onChange={(e) => setDraft(e.target.value)}
+                            className="w-28 rounded border border-zinc-700 bg-zinc-900 px-1.5 py-0.5 text-xs focus:border-emerald-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            title="Save"
+                            onClick={() => {
+                              setEntry.mutate({ key: row.key, value: draft });
+                              setEditingKey(null);
+                            }}
+                            className="text-emerald-400 hover:text-emerald-300"
+                          >
+                            ✓
+                          </button>
+                          <button type="button" title="Cancel" onClick={() => setEditingKey(null)} className="text-zinc-500 hover:text-zinc-200">
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            title="Edit value"
+                            onClick={() => {
+                              setEditingKey(row.key);
+                              setDraft(row.value);
+                            }}
+                            className="max-w-[8rem] truncate font-mono text-zinc-500 hover:text-zinc-200"
+                          >
+                            {row.value}
+                          </button>
+                          {row.expiresAt && (
+                            <span title={`Expires ${new Date(row.expiresAt).toLocaleString()}`}>⏳</span>
+                          )}
+                          <button
+                            type="button"
+                            title="Delete entry"
+                            onClick={() => removeEntry.mutate(row.key)}
+                            className="text-zinc-600 hover:text-red-400"
+                          >
+                            🗑
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

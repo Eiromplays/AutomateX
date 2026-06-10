@@ -16,5 +16,8 @@ public interface IWorkflowStateStore
 
     Task<bool> RemoveAsync(Guid workflowId, string key, CancellationToken cancellationToken = default);
 
+    // Wipes all of a workflow's state (e.g. reset a feed's dedup so it re-processes).
+    Task<int> ClearAsync(Guid workflowId, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<WorkflowStateItem>> ListByPrefixAsync(Guid workflowId, string prefix, CancellationToken cancellationToken = default);
 }

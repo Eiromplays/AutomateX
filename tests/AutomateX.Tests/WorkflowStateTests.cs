@@ -162,6 +162,25 @@ public sealed class WorkflowStateTests(EngineFixture fixture) : IClassFixture<En
     }
 
     [Fact]
+    public async Task Clear_removes_all_state_for_the_workflow()
+    {
+        var wf = await TestData.SeedWorkflowAsync(fixture.Host, 1);
+
+        var (cleared, remaining) = await WithStoreAsync(async store =>
+        {
+            await store.SetAsync(wf, "seen:a", "1");
+            await store.SetAsync(wf, "seen:b", "2");
+            await store.SetAsync(wf, "baseline", "1");
+            var count = await store.ClearAsync(wf);
+            var left = await store.ListByPrefixAsync(wf, "");
+            return (count, left.Count);
+        });
+
+        Assert.Equal(3, cleared);
+        Assert.Equal(0, remaining);
+    }
+
+    [Fact]
     public async Task State_is_isolated_per_workflow()
     {
         var wf1 = await TestData.SeedWorkflowAsync(fixture.Host, 1);
