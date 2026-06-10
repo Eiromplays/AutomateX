@@ -143,6 +143,7 @@ export type ExecutionDetail = Omit<ExecutionSummary, "workflowName"> & {
   triggerPayload: string | null;
   steps: ExecutionStep[];
   chained: ChainedExecution[];
+  retries: ChainedExecution[];
 };
 
 export type CreateWorkflowStep = {

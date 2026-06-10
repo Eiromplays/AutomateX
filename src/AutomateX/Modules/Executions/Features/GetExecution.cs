@@ -75,7 +75,17 @@ public static class GetExecution
                 .Select(x => new ChainedResponse(x.Id, x.WorkflowId, x.Status))
                 .ToList();
 
-            await Send.OkAsync(execution with { Chained = chained }, ct);
+            // Downstream retries: reruns carry TriggeredBy "retry:<thisId>", so the
+            // original execution can link forward to every replay of it.
+            var retryTag = $"retry:{id}";
+            var retries = await dbContext.Executions
+                .AsNoTracking()
+                .Where(x => x.WorkspaceId == ws && x.TriggeredBy == retryTag)
+                .OrderByDescending(x => x.StartedAt)
+                .Select(x => new ChainedResponse(x.Id, x.WorkflowId, x.Status.ToString()))
+                .ToListAsync(ct);
+
+            await Send.OkAsync(execution with { Chained = chained, Retries = retries }, ct);
         }
     }
 
@@ -91,6 +101,8 @@ public static class GetExecution
         List<StepResponse> Steps)
     {
         public List<ChainedResponse> Chained { get; init; } = [];
+
+        public List<ChainedResponse> Retries { get; init; } = [];
     }
 
     public sealed record ChainedResponse(Guid ExecutionId, Guid WorkflowId, string Status);

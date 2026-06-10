@@ -252,7 +252,7 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
     }
   })();
 
-  if (!lineage && !retryOf && execution.chained.length === 0) return null;
+  if (!lineage && !retryOf && execution.chained.length === 0 && execution.retries.length === 0) return null;
 
   return (
     <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
@@ -276,6 +276,15 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
           </span>
         </p>
       )}
+      {execution.retries.map((r) => (
+        <p key={r.executionId}>
+          ↻ Retried as execution{" "}
+          <Link to={`/executions/${r.executionId}`} className="text-violet-400 hover:underline">
+            {r.executionId.slice(0, 13)}…
+          </Link>{" "}
+          <span className="text-xs text-zinc-500">({r.status})</span>
+        </p>
+      ))}
       {execution.chained.map((child) => (
         <p key={child.executionId}>
           ⛓ Chained into execution{" "}
