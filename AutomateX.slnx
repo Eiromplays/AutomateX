@@ -14,6 +14,7 @@
   </Folder>
   <Folder Name="/plugins/">
     <Project Path="src/Plugins/AutomateX.Plugins.Discord/AutomateX.Plugins.Discord.csproj" />
+    <Project Path="src/Plugins/AutomateX.Plugins.Email/AutomateX.Plugins.Email.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Feed/AutomateX.Plugins.Feed.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Llm/AutomateX.Plugins.Llm.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Matrix/AutomateX.Plugins.Matrix.csproj" />

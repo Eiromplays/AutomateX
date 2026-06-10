@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AutomateX\AutomateX.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Discord\AutomateX.Plugins.Discord.csproj" />
+    <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Email\AutomateX.Plugins.Email.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Feed\AutomateX.Plugins.Feed.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Pushover\AutomateX.Plugins.Pushover.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Llm\AutomateX.Plugins.Llm.csproj" />

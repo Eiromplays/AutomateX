@@ -17,6 +17,7 @@ declare -A DESCRIPTIONS=(
   [AutomateX.Plugins.Feed]="Watch RSS/Atom feeds or any URL and fire workflows on new items (durable dedup)."
   [AutomateX.Plugins.Discord]="Post messages to a Discord channel webhook."
   [AutomateX.Plugins.Pushover]="Send mobile push notifications via Pushover."
+  [AutomateX.Plugins.Email]="Send email notifications over SMTP."
 )
 
 ENTRIES=()
