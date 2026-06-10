@@ -14,6 +14,7 @@ declare -A DESCRIPTIONS=(
   [AutomateX.Plugins.Ssh]="Run commands on remote hosts over SSH (password/key auth, host-key pinning)."
   [AutomateX.Plugins.Matrix]="Send Matrix room messages with retry-safe transaction ids."
   [AutomateX.Plugins.Llm]="Prompt any OpenAI-compatible LLM endpoint (OpenAI, OpenRouter, Ollama, local)."
+  [AutomateX.Plugins.Feed]="Watch RSS/Atom feeds or any URL and fire workflows on new items (durable dedup)."
 )
 
 ENTRIES=()

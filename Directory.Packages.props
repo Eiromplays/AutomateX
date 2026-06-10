@@ -22,6 +22,7 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
     <PackageVersion Include="SSH.NET" Version="2025.1.0" />
+    <PackageVersion Include="System.ServiceModel.Syndication" Version="10.0.0" />
     <PackageVersion Include="WolverineFx.EntityFrameworkCore" Version="6.5.1" />
     <PackageVersion Include="WolverineFx.Postgresql" Version="6.5.1" />
     <PackageVersion Include="WolverineFx.RuntimeCompilation" Version="6.5.1" />

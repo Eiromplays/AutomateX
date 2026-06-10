@@ -4,6 +4,7 @@
     <File Path="Directory.Packages.props" />
     <File Path="README.md" />
     <File Path="docs/v2-plan.md" />
+    <File Path="docs/v3-plan.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/AutomateX.AppHost/AutomateX.AppHost.csproj" />
@@ -12,6 +13,7 @@
     <Project Path="src/AutomateX/AutomateX.csproj" />
   </Folder>
   <Folder Name="/plugins/">
+    <Project Path="src/Plugins/AutomateX.Plugins.Feed/AutomateX.Plugins.Feed.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Llm/AutomateX.Plugins.Llm.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Matrix/AutomateX.Plugins.Matrix.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Ssh/AutomateX.Plugins.Ssh.csproj" />
