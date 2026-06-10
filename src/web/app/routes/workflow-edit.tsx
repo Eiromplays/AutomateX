@@ -58,6 +58,7 @@ export default function WorkflowEdit() {
               config: JSON.parse(step.configJson) as Record<string, unknown>,
             })),
         }}
+        triggers={workflow.triggers}
         submitLabel={`Save as v${workflow.latestVersion.version + 1}`}
         pendingLabel="Saving…"
         pending={update.isPending}

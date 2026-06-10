@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, type CreateWorkflowStep } from "../lib/api";
+import { api, type CreateWorkflowStep, type WorkflowTrigger } from "../lib/api";
 import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { WorkflowCanvas } from "./workflow-canvas";
@@ -27,6 +27,7 @@ export function WorkflowForm({
   pending,
   error,
   onSubmit,
+  triggers,
 }: {
   initial?: WorkflowFormValue;
   submitLabel: string;
@@ -34,6 +35,7 @@ export function WorkflowForm({
   pending: boolean;
   error: unknown;
   onSubmit: (value: WorkflowFormValue) => void;
+  triggers?: WorkflowTrigger[];
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -120,6 +122,7 @@ export function WorkflowForm({
             onMoveStep={moveStep}
             onAddStep={addStep}
             onRemoveStep={removeStep}
+            triggers={triggers}
           />
         )}
 
