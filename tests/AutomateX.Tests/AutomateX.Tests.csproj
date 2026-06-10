@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AutomateX\AutomateX.csproj" />
+    <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Feed\AutomateX.Plugins.Feed.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Llm\AutomateX.Plugins.Llm.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Matrix\AutomateX.Plugins.Matrix.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Ssh\AutomateX.Plugins.Ssh.csproj" />

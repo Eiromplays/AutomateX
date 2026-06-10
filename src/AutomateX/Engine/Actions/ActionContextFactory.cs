@@ -2,7 +2,8 @@ using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Engine.Actions;
 
-public sealed class ActionContextFactory(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory)
+public sealed class ActionContextFactory(
+    IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory, IServiceScopeFactory scopeFactory)
 {
     public const string HttpClientName = "automatex-actions";
 
@@ -25,5 +26,6 @@ public sealed class ActionContextFactory(IHttpClientFactory httpClientFactory, I
         TriggerId = runner.TriggerId,
         WorkflowId = runner.WorkflowId,
         Fire = runner.Fire,
+        State = new Triggers.WorkflowScopedTriggerState(scopeFactory, runner.WorkflowId, runner.TriggerId),
     };
 }
