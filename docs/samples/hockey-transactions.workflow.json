@@ -1,0 +1,17 @@
+{
+  "automatex": 1,
+  "name": "hockey-transactions",
+  "description": "Alerts on Edmonton Oilers + Storhamar transactions from Elite Prospects. Import this, then add one or two 'rss' triggers in the UI (import carries cron triggers only). Suggested trigger configs in the chat. The step echoes the transaction title to httpbin so you can see each item; swap it for matrix.send / discord.send to get a real notification.",
+  "steps": [
+    {
+      "actionType": "http.request",
+      "name": "Echo the transaction",
+      "config": {
+        "method": "POST",
+        "url": "https://httpbin.org/anything",
+        "contentType": "text/plain",
+        "body": "{{trigger.payload.title}}"
+      }
+    }
+  ]
+}

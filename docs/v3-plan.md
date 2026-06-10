@@ -38,6 +38,7 @@ The current SPA is functional and form-driven; v3 makes it a product. Built enti
 
 - **Dashboard + statistics.** Executions over time, success/failure trend, durations (p50/p95), per-workflow and per-action usage, trigger activity, recent failures. All derivable from the execution + step-execution history. A read-only stats API (aggregations) feeds it; consider a live artifact-style page that refreshes from the API.
 - **Visual workflow builder, with a power-user escape hatch.** A node graph (drag-drop, connect steps, see the gate branch) becomes the friendly default — but it is **not** a full replacement. Power users keep a leaner mode: the form/list editor with direct access to each step's raw JSON config, no canvas gimmicks, fast keyboard-driven editing. Decided: ship **dual-mode** (visual default + advanced/raw view, toggle per workflow), not one or the other. The data model already supports both (ordered steps, typed configs, schema-rendered forms per node); this is front-end reshaping over the existing API, not a domain change.
+- **Trigger UX parity with steps (dogfood finding, June 2026).** Trigger rows today render only the *type* — two `rss` triggers on one workflow are visually identical, and you must open Edit to tell Oilers from Storhamar apart. Triggers should surface a config summary inline (the feed URL for `rss`, the expression for `cron`, the target for `workflow`, the URL for `http.poll`) and get the same first-class inline-edit treatment steps have, rather than being a thin type label with Disable/Edit/Delete. Low effort, high "this feels finished" payoff.
 - **Execution inspector upgrade.** Timeline view of a run, per-step input/output, attempt history, the gate open/closed reason, and a diff between two runs (e.g. original vs retried).
 - **Global search & filtering.** Across workflows, executions (by status/workflow/date), and connections.
 - **Workflow state viewer.** A per-workflow "State" tab to view (and hand-edit/clear) stored KV entries from §3, grouped by key namespace — the debugging surface for "why didn't it re-alert."
@@ -85,7 +86,15 @@ feed/poll trigger (NHL transactions + Oilers news, Storhamar news)
   → discord.send / email.send   ("🏒 Oilers: <headline> — <link>")
 ```
 
-The LLM classify, `gate`, and notify already exist; the durable feed trigger + dedup state (§3) is the missing piece. **First task of this epic is a source-scouting spike** — verify exactly what feeds/APIs exist before designing. Expected shape: the NHL side has clean machine-readable transaction data (an `nhl` plugin pulling Oilers transactions/signings is realistic); the **Storhamar / Norwegian league** side has far sparser structured data, so it leans on RSS + news-site polling with the LLM filter doing the heavy lifting. Scope note: this watches **news and official transactions only** — informational alerts, nothing resembling a trading signal.
+The LLM classify, `gate`, and notify already exist; the durable feed trigger + dedup state (§3) is the missing piece. Scope note: this watches **news and official transactions only** — informational alerts, nothing resembling a trading signal.
+
+**Source-scouting spike — done (June 2026).** Result is cleaner than the original guess: **one uniform source covers both teams** — Elite Prospects per-team *transactions* RSS, which lists confirmed trades/signings/loans in a consistent format for NHL and Norwegian-league clubs alike. Both feeds verified live (`application/rss+xml`, parse with the §3 `rss` trigger as-is):
+
+- Oilers (EP team 61): `https://www.eliteprospects.com/rss/team/61/edmonton-oilers/transactions`
+- Storhamar (EP team 181): `https://www.eliteprospects.com/rss/team/181/storhamar/transactions`
+- Convenience redirector: `https://www.eliteprospects.com/rss_team.php?team=<id>` → the slugged URL above.
+
+**Conclusion: no `nhl` plugin needed.** The generic `rss` trigger from §3 handles both the NHL and Norwegian sides with zero custom code — the milestone-3 work is sufficient. The NHL official API (`api-web.nhle.com`) exposes rosters but no clean transactions feed, so EP is the better, uniform choice. The recipe simplifies for *confirmed transactions* (already team-scoped, so no LLM filter needed): `rss (EP team feed) → notify`. For trade **rumours** specifically, EP's transactions feed is confirmed-only; add either the league-wide rumour feed (`eliteprospects.com/transfers/rumour`) with an `llm.prompt`/`gate` team filter, or a news RSS (e.g. ProHockeyRumors' Oilers page) — a follow-up, not core. The buildable end-to-end therefore waits only on a real notify channel (§4): use `matrix.send` today, or the new Discord/Pushover plugins once §4 lands.
 
 ---
 
@@ -124,7 +133,7 @@ Each its own commit under the **v3** umbrella tag; tests/rules first; dogfooded.
 1. **v3 plan doc** (this file) — anchor the scope. *(done)*
 2. **Durable state primitive** — the `TriggerState`/KV store, tests-first (dedup identity + restart semantics), no trigger consuming it yet. The foundation everything in §3 stands on.
 3. **Feed/poll triggers** — `http.poll` + RSS trigger built on the state store; webhook payload → templating alongside.
-4. **Source-scouting spike + hockey plugins** — verify NHL/Storhamar sources, then the `nhl` plugin (+ RSS config for Storhamar). First real consumer of the new triggers.
+4. **Source-scouting spike** — *done.* Result: Elite Prospects per-team transactions RSS covers both Oilers and Storhamar uniformly (§5), so **no `nhl` plugin is needed** — the §3 `rss` trigger is the consumer. Scope shrinks accordingly.
 5. **Notification plugins** — `discord.send` + `email.send` + `pushover.send`, tests-first.
 6. **Hockey workflow end-to-end** — the §5 recipe, dogfooded for real.
 7. **UI 2.0** — likely sub-milestoned: stats API + dashboard → execution inspector → visual builder → templates/onboarding → theming/a11y/E2E.
