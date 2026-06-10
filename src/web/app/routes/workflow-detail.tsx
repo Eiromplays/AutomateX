@@ -114,7 +114,7 @@ export default function WorkflowDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
       toast.success("Workflow and its execution history deleted.");
-      navigate("/");
+      navigate("/workflows");
     },
     onError: (error) => toast.error(`Delete failed — ${String(error)}`),
   });
@@ -133,7 +133,7 @@ export default function WorkflowDetail() {
     return (
       <p className="text-sm text-zinc-500">
         Workflow not found in this workspace —{" "}
-        <a href="/" className="text-emerald-400 hover:underline">
+        <a href="/workflows" className="text-emerald-400 hover:underline">
           back to workflows
         </a>
         .

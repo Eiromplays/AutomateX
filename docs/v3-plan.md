@@ -65,7 +65,7 @@ Design rule (tests-first): dedup is **exactly-once-ish by item identity** — a 
 
 ## 4. Notifications & integration breadth
 
-Three first-party plugins beside the existing `matrix.send`, chosen (June 2026) for reach and triviality:
+Three first-party plugins beside the existing `matrix.send`, chosen (June 2026) for reach and triviality. **Delivered** — Discord + Pushover validated live (real phone push), email's SMTP send unit-tested behind an `IEmailSender` seam:
 
 - **Discord (`discord.send`).** Incoming-webhook based — a Discord webhook URL is the entire connection; post content/embeds. The lowest-friction "it pinged my phone" channel for personal and community setups.
 - **Email (`email.send`, SMTP).** An SMTP connection (host/port/username/password/from-address, TLS), send to/subject/body. Universal; the right default for alerts and digests.
@@ -131,11 +131,11 @@ Recorded so they don't evaporate; each has a home in the v2 plan doc and grows f
 Each its own commit under the **v3** umbrella tag; tests/rules first; dogfooded. Proposed sequence (confirm the first one before building):
 
 1. **v3 plan doc** (this file) — anchor the scope. *(done)*
-2. **Durable state primitive** — the `TriggerState`/KV store, tests-first (dedup identity + restart semantics), no trigger consuming it yet. The foundation everything in §3 stands on.
-3. **Feed/poll triggers** — `http.poll` + RSS trigger built on the state store; webhook payload → templating alongside.
+2. **Durable state primitive** — *done.* `WorkflowState` KV store + `IWorkflowStateStore` (atomic `SetIfAbsent` dedup, TTL), tests-first.
+3. **Feed/poll triggers** — *done.* `rss` + `http.poll` on the state store, plus the SDK trigger-state seam. (Webhook payload → templating split out as its own small follow-up, still pending.)
 4. **Source-scouting spike** — *done.* Result: Elite Prospects per-team transactions RSS covers both Oilers and Storhamar uniformly (§5), so **no `nhl` plugin is needed** — the §3 `rss` trigger is the consumer. Scope shrinks accordingly.
-5. **Notification plugins** — `discord.send` + `email.send` + `pushover.send`, tests-first.
-6. **Hockey workflow end-to-end** — the §5 recipe, dogfooded for real.
+5. **Notification plugins** — *done.* `discord.send` + `pushover.send` + `email.send`, tests-first; Discord/Pushover validated live.
+6. **Hockey workflow end-to-end** — *proven.* EP feeds → execution → Pushover push all ran live; the "official" alert workflow is one step-swap from the smoke-test sample.
 7. **UI 2.0** — likely sub-milestoned: stats API + dashboard → execution inspector → visual builder → templates/onboarding → theming/a11y/E2E.
 8. **Release engineering** — docs, SECURITY/CONTRIBUTING, screenshots, observability view, API-stability pass.
 9. **Tag v3, make the repo public.**

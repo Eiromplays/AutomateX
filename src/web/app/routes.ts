@@ -1,7 +1,8 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
-  index("routes/workflows.tsx"),
+  index("routes/dashboard.tsx"),
+  route("workflows", "routes/workflows.tsx"),
   route("workflows/new", "routes/workflow-new.tsx"),
   route("workflows/:id", "routes/workflow-detail.tsx"),
   route("workflows/:id/edit", "routes/workflow-edit.tsx"),

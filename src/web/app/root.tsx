@@ -227,6 +227,9 @@ function Shell() {
             <>
               <WorkspaceSwitcher />
               <NavLink to="/" end className={navLinkClass}>
+                Dashboard
+              </NavLink>
+              <NavLink to="/workflows" className={navLinkClass}>
                 Workflows
               </NavLink>
               <NavLink to="/executions" className={navLinkClass}>

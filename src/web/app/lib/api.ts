@@ -235,6 +235,29 @@ export type WorkspaceMember = {
   signedInBefore: boolean;
 };
 
+export type DayBucket = { date: string; total: number; succeeded: number; failed: number };
+export type WorkflowStat = {
+  workflowId: string;
+  name: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  avgDurationMs: number | null;
+};
+export type RecentFailure = { id: string; workflowId: string; name: string; startedAt: string };
+export type ExecutionStats = {
+  total: number;
+  succeeded: number;
+  failed: number;
+  running: number;
+  successRate: number;
+  p50DurationMs: number | null;
+  p95DurationMs: number | null;
+  perDay: DayBucket[];
+  topWorkflows: WorkflowStat[];
+  recentFailures: RecentFailure[];
+};
+
 export const api = {
   workspaces: {
     list: () => request<WorkspaceSummary[]>("/workspaces"),
@@ -378,5 +401,9 @@ export const api = {
     // Replay with the byte-identical original payload, on the latest version.
     retry: (id: string) =>
       request<{ executionId: string }>(`/executions/${id}/retry`, { method: "POST" }),
+  },
+  stats: {
+    get: (days?: number) =>
+      request<ExecutionStats>(`/stats${days ? `?days=${days}` : ""}`),
   },
 };

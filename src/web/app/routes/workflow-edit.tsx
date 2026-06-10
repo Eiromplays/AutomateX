@@ -30,7 +30,7 @@ export default function WorkflowEdit() {
     return (
       <p className="text-sm text-zinc-500">
         Workflow not found in this workspace —{" "}
-        <a href="/" className="text-emerald-400 hover:underline">
+        <a href="/workflows" className="text-emerald-400 hover:underline">
           back to workflows
         </a>
         .
