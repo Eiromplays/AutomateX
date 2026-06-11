@@ -36,6 +36,12 @@ public sealed class Trigger
 
     public DateTimeOffset? LastFiredAt { get; private set; }
 
+    // Set by the trigger host when a listener crashes (e.g. a feed 404s / won't parse);
+    // cleared on the next successful fire. Surfaces "this trigger is broken" in the UI.
+    public string? LastError { get; private set; }
+
+    public DateTimeOffset? LastErrorAt { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
     public static Trigger Create(Guid workflowId, string type, string configJson, DateTimeOffset? nextRunAt) => new()

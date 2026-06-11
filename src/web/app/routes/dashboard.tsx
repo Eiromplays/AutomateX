@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api, type ExecutionStats } from "../lib/api";
@@ -44,7 +45,8 @@ function DayChart({ perDay }: { perDay: ExecutionStats["perDay"] }) {
 }
 
 export default function Dashboard() {
-  const { data, isLoading } = useQuery({ queryKey: ["stats"], queryFn: () => api.stats.get() });
+  const [days, setDays] = useState(14);
+  const { data, isLoading } = useQuery({ queryKey: ["stats", days], queryFn: () => api.stats.get(days) });
   const { data: workflows } = useQuery({ queryKey: ["workflows"], queryFn: api.workflows.list });
 
   if (isLoading) return <div className="text-sm text-zinc-500">Loading…</div>;
@@ -59,9 +61,19 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-lg font-semibold">
-        Dashboard <span className="text-sm font-normal text-zinc-500">· last 14 days</span>
-      </h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold">Dashboard</h1>
+        <select
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300 focus:border-emerald-500 focus:outline-none"
+        >
+          <option value={7}>Last 7 days</option>
+          <option value={14}>Last 14 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={90}>Last 90 days</option>
+        </select>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label="Executions" value={String(data.total)} sub={`${data.running} running`} />

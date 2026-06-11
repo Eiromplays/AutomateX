@@ -309,6 +309,11 @@ export default function WorkflowDetail() {
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{trigger.type}</span>
                   {!trigger.enabled && <span className="text-xs text-red-400">disabled</span>}
+                  {trigger.lastError && (
+                    <span className="text-xs text-amber-400" title={trigger.lastError}>
+                      ⚠ failing
+                    </span>
+                  )}
                   {trigger.type === "webhook" && (
                     <code className="text-xs text-zinc-500">POST /api/webhooks/{trigger.id}?secret=•••</code>
                   )}
@@ -359,6 +364,14 @@ export default function WorkflowDetail() {
                   </button>
                 </div>
               </div>
+              {trigger.lastError && (
+                <p
+                  className="mt-1.5 text-xs text-amber-400/80"
+                  title={trigger.lastErrorAt ? `Last failed ${new Date(trigger.lastErrorAt).toLocaleString()}` : undefined}
+                >
+                  ⚠ {trigger.lastError}
+                </p>
+              )}
               {editingTriggerId === trigger.id && (
                 <div className="mt-3 border-t border-zinc-800 pt-3">
                   <TriggerConfigEditor

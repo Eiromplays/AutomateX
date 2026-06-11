@@ -129,6 +129,11 @@ public sealed class PluginTriggerHost(
                     : row.ConfigJson;
 
                 await runner.RunAsync(configJson, context, cancellationToken);
+                if (failures > 0)
+                {
+                    await ClearErrorAsync(row.Id, cancellationToken); // recovered after a crash
+                }
+
                 failures = 0; // clean return = poll cycle done
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -141,6 +146,7 @@ public sealed class PluginTriggerHost(
                 logger.LogError(ex,
                     "Trigger listener {TriggerType} ({TriggerId}) crashed (failure {Failures}), backing off",
                     row.Type, row.Id, failures);
+                await RecordErrorAsync(row.Id, ex.Message, cancellationToken);
             }
 
             var delay = TimeSpan.FromSeconds(Math.Min(5 * Math.Max(1, failures * failures), 300));
@@ -190,8 +196,54 @@ public sealed class PluginTriggerHost(
         var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
 
         await bus.PublishAsync(new RunWorkflow(Guid.CreateVersion7(), row.WorkflowId, row.Type, payload));
+        // A fire means the listener is healthy — stamp last-fired and clear any prior error.
         await dbContext.Triggers
             .Where(x => x.Id == row.Id)
-            .ExecuteUpdateAsync(x => x.SetProperty(t => t.LastFiredAt, DateTimeOffset.UtcNow), cancellationToken);
+            .ExecuteUpdateAsync(
+                x => x
+                    .SetProperty(t => t.LastFiredAt, DateTimeOffset.UtcNow)
+                    .SetProperty(t => t.LastError, (string?)null)
+                    .SetProperty(t => t.LastErrorAt, (DateTimeOffset?)null),
+                cancellationToken);
+    }
+
+    // Best-effort status writes — never let a status update break the listener loop.
+    private async Task RecordErrorAsync(Guid triggerId, string message, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+            var trimmed = message.Length > 500 ? message[..500] : message;
+            await dbContext.Triggers
+                .Where(x => x.Id == triggerId)
+                .ExecuteUpdateAsync(
+                    x => x
+                        .SetProperty(t => t.LastError, trimmed)
+                        .SetProperty(t => t.LastErrorAt, DateTimeOffset.UtcNow),
+                    cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not record trigger error for {TriggerId}", triggerId);
+        }
+    }
+
+    private async Task ClearErrorAsync(Guid triggerId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+            await dbContext.Triggers
+                .Where(x => x.Id == triggerId)
+                .ExecuteUpdateAsync(
+                    x => x.SetProperty(t => t.LastError, (string?)null).SetProperty(t => t.LastErrorAt, (DateTimeOffset?)null),
+                    cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not clear trigger error for {TriggerId}", triggerId);
+        }
     }
 }

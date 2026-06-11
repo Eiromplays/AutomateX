@@ -73,6 +73,8 @@ export type WorkflowTrigger = {
   enabled: boolean;
   nextRunAt: string | null;
   lastFiredAt: string | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
   configJson: string;
 };
 
