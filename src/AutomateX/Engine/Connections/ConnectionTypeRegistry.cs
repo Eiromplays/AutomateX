@@ -1,5 +1,6 @@
 using System.Collections.Frozen;
 using AutomateX.Engine.Plugins;
+using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Engine.Connections;
 
@@ -12,7 +13,8 @@ public sealed class ConnectionTypeRegistry
     private readonly PluginAssemblies _plugins;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ConnectionTypeRegistry> _logger;
-    private volatile FrozenDictionary<string, ConnectionTypeDescriptor> _snapshot;
+    private volatile FrozenDictionary<string, ConnectionTypeDescriptor> _descriptors;
+    private volatile FrozenDictionary<string, IConnectionType> _instances;
 
     public ConnectionTypeRegistry(
         IEnumerable<IConnectionTypeSource> sources,
@@ -24,30 +26,34 @@ public sealed class ConnectionTypeRegistry
         _plugins = plugins;
         _serviceProvider = serviceProvider;
         _logger = logger;
-        _snapshot = Build();
+        (_descriptors, _instances) = Build();
     }
 
-    public void Rebuild() => _snapshot = Build();
+    public void Rebuild() => (_descriptors, _instances) = Build();
 
-    public IReadOnlyCollection<ConnectionTypeDescriptor> Descriptors => _snapshot.Values;
+    public IReadOnlyCollection<ConnectionTypeDescriptor> Descriptors => _descriptors.Values;
 
-    private FrozenDictionary<string, ConnectionTypeDescriptor> Build()
+    // The live type instance for a provider key — used to run its credential test.
+    public IConnectionType? GetInstance(string typeKey) => _instances.GetValueOrDefault(typeKey);
+
+    private (FrozenDictionary<string, ConnectionTypeDescriptor> Descriptors, FrozenDictionary<string, IConnectionType> Instances) Build()
     {
-        Dictionary<string, ConnectionTypeDescriptor> types = [];
+        Dictionary<string, ConnectionTypeDescriptor> descriptors = [];
+        Dictionary<string, IConnectionType> instances = [];
 
-        foreach (var descriptor in _sources.SelectMany(x => x.GetConnectionTypes()))
+        foreach (var registered in _sources.SelectMany(x => x.GetConnectionTypes()))
         {
-            types[descriptor.Type] = descriptor;
+            Add(registered);
         }
 
         foreach (var plugin in _plugins.Current.Global)
         {
             try
             {
-                foreach (var descriptor in ConnectionTypeDiscovery.FromAssembly(plugin.Assembly, $"plugin:{plugin.Name}", _serviceProvider))
+                foreach (var registered in ConnectionTypeDiscovery.FromAssembly(plugin.Assembly, $"plugin:{plugin.Name}", _serviceProvider))
                 {
-                    types[descriptor.Type] = descriptor;
-                    _logger.LogInformation("Registered connection type {Type} from plugin {Plugin}", descriptor.Type, plugin.Name);
+                    Add(registered);
+                    _logger.LogInformation("Registered connection type {Type} from plugin {Plugin}", registered.Descriptor.Type, plugin.Name);
                 }
             }
             catch (Exception ex)
@@ -56,12 +62,18 @@ public sealed class ConnectionTypeRegistry
             }
         }
 
-        return types.ToFrozenDictionary();
+        return (descriptors.ToFrozenDictionary(), instances.ToFrozenDictionary());
+
+        void Add(RegisteredConnectionType registered)
+        {
+            descriptors[registered.Descriptor.Type] = registered.Descriptor;
+            instances[registered.Descriptor.Type] = registered.Instance;
+        }
     }
 }
 
 public sealed class BuiltInConnectionTypeSource(IServiceProvider serviceProvider) : IConnectionTypeSource
 {
-    public IEnumerable<ConnectionTypeDescriptor> GetConnectionTypes() =>
+    public IEnumerable<RegisteredConnectionType> GetConnectionTypes() =>
         ConnectionTypeDiscovery.FromAssembly(typeof(BuiltInConnectionTypeSource).Assembly, "builtin", serviceProvider);
 }

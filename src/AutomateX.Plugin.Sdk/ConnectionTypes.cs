@@ -26,3 +26,13 @@ public interface IConnectionType
 {
     IReadOnlyList<ConnectionField> Fields { get; }
 }
+
+public sealed record ConnectionTestResult(bool Ok, string Message);
+
+// Optional: a connection type can verify its credentials work (a webhook ping, an
+// auth call, an SMTP connect). `values` are the connection's decrypted field values.
+public interface IConnectionTester
+{
+    Task<ConnectionTestResult> TestAsync(
+        IReadOnlyDictionary<string, string> values, HttpClient http, CancellationToken cancellationToken);
+}

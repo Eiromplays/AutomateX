@@ -107,6 +107,42 @@ public sealed class DiscordSendActionTests
     }
 
     [Fact]
+    public async Task Connection_test_succeeds_when_webhook_reachable()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK));
+
+        var result = await new DiscordConnectionType().TestAsync(
+            new Dictionary<string, string> { ["webhookUrl"] = "https://discord.com/api/webhooks/1/x" },
+            new HttpClient(handler),
+            CancellationToken.None);
+
+        Assert.True(result.Ok);
+    }
+
+    [Fact]
+    public async Task Connection_test_fails_on_error_status()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized));
+
+        var result = await new DiscordConnectionType().TestAsync(
+            new Dictionary<string, string> { ["webhookUrl"] = "https://discord.com/api/webhooks/1/x" },
+            new HttpClient(handler),
+            CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains("401", result.Message);
+    }
+
+    [Fact]
+    public async Task Connection_test_reports_missing_webhook()
+    {
+        var result = await new DiscordConnectionType().TestAsync(
+            new Dictionary<string, string>(), new HttpClient(new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK))), CancellationToken.None);
+
+        Assert.False(result.Ok);
+    }
+
+    [Fact]
     public void Discord_action_is_discoverable_with_schema()
     {
         using var services = new ServiceCollection()

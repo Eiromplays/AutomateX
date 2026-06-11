@@ -157,6 +157,13 @@ export default function Connections() {
     },
   });
 
+  const test = useMutation({
+    mutationFn: (id: string) => api.connections.test(id),
+    onSuccess: (result) =>
+      result.ok ? toast.success(`✓ ${result.message}`) : toast.error(`Test failed — ${result.message}`),
+    onError: (error) => toast.error(`Test failed — ${String(error)}`),
+  });
+
   const updateRow = (key: number, patch: Partial<SecretRow>) =>
     setRows((current) => current.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
@@ -197,6 +204,14 @@ export default function Connections() {
               )}
             </div>
             <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => test.mutate(connection.id)}
+                disabled={test.isPending}
+                className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+              >
+                {test.isPending && test.variables === connection.id ? "Testing…" : "Test"}
+              </button>
               <button type="button" onClick={() => resetForm(connection)} className="text-xs text-zinc-500 hover:text-zinc-100">
                 Edit
               </button>

@@ -129,6 +129,38 @@ public sealed class PushoverSendActionTests
     }
 
     [Fact]
+    public async Task Connection_test_succeeds_when_credentials_validate()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"status":1}""", Encoding.UTF8, "application/json"),
+        });
+
+        var result = await new PushoverConnectionType().TestAsync(
+            new Dictionary<string, string> { ["appToken"] = "t", ["userKey"] = "u" },
+            new HttpClient(handler),
+            CancellationToken.None);
+
+        Assert.True(result.Ok);
+    }
+
+    [Fact]
+    public async Task Connection_test_fails_when_rejected()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent("""{"status":0}""", Encoding.UTF8, "application/json"),
+        });
+
+        var result = await new PushoverConnectionType().TestAsync(
+            new Dictionary<string, string> { ["appToken"] = "t", ["userKey"] = "u" },
+            new HttpClient(handler),
+            CancellationToken.None);
+
+        Assert.False(result.Ok);
+    }
+
+    [Fact]
     public void Pushover_action_is_discoverable_with_schema()
     {
         using var services = new ServiceCollection()

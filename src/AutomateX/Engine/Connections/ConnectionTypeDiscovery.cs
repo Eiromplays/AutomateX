@@ -12,14 +12,17 @@ public sealed record ConnectionTypeDescriptor(
     string Source,
     IReadOnlyList<ConnectionField> Fields);
 
+// The descriptor (for the UI) plus the live instance (for testing credentials).
+public sealed record RegisteredConnectionType(ConnectionTypeDescriptor Descriptor, IConnectionType Instance);
+
 public interface IConnectionTypeSource
 {
-    IEnumerable<ConnectionTypeDescriptor> GetConnectionTypes();
+    IEnumerable<RegisteredConnectionType> GetConnectionTypes();
 }
 
 public static class ConnectionTypeDiscovery
 {
-    public static IEnumerable<ConnectionTypeDescriptor> FromAssembly(Assembly assembly, string source, IServiceProvider services)
+    public static IEnumerable<RegisteredConnectionType> FromAssembly(Assembly assembly, string source, IServiceProvider services)
     {
         foreach (var type in PluginReflection.LoadableTypes(assembly, services, source))
         {
@@ -30,8 +33,9 @@ public static class ConnectionTypeDiscovery
             }
 
             var instance = (IConnectionType)ActivatorUtilities.CreateInstance(services, type);
-            yield return new ConnectionTypeDescriptor(
-                attribute.Type, attribute.DisplayName, attribute.Description, source, instance.Fields);
+            yield return new RegisteredConnectionType(
+                new ConnectionTypeDescriptor(attribute.Type, attribute.DisplayName, attribute.Description, source, instance.Fields),
+                instance);
         }
     }
 }

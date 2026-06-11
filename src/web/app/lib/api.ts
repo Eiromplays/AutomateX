@@ -299,6 +299,7 @@ export const api = {
       }),
     remove: (id: string, force = false) =>
       request<void>(`/connections/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
+    test: (id: string) => request<{ ok: boolean; message: string }>(`/connections/${id}/test`, { method: "POST" }),
   },
   auth: {
     me: () => request<AuthMe>("/auth/me"),

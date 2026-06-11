@@ -148,6 +148,36 @@ public sealed class MatrixSendActionTests
     }
 
     [Fact]
+    public async Task Connection_test_succeeds_with_a_valid_token()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StringContent("""{"user_id":"@bot:hs"}""", Encoding.UTF8, "application/json"),
+        });
+
+        var result = await new MatrixConnectionType().TestAsync(
+            new Dictionary<string, string> { ["homeserverUrl"] = "https://hs", ["accessToken"] = "syt_x" },
+            new HttpClient(handler),
+            CancellationToken.None);
+
+        Assert.True(result.Ok);
+    }
+
+    [Fact]
+    public async Task Connection_test_fails_on_unauthorized()
+    {
+        var handler = new FakeHandler(_ => new HttpResponseMessage(HttpStatusCode.Unauthorized));
+
+        var result = await new MatrixConnectionType().TestAsync(
+            new Dictionary<string, string> { ["homeserverUrl"] = "https://hs", ["accessToken"] = "bad" },
+            new HttpClient(handler),
+            CancellationToken.None);
+
+        Assert.False(result.Ok);
+        Assert.Contains("401", result.Message);
+    }
+
+    [Fact]
     public void Matrix_action_is_discoverable_with_schema()
     {
         using var services = new ServiceCollection()

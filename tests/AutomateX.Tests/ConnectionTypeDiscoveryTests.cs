@@ -33,7 +33,7 @@ public sealed class ConnectionTypeDiscoveryTests
 
         var types = ConnectionTypeDiscovery.FromAssembly(typeof(TestServiceConnectionType).Assembly, "test", services).ToList();
 
-        var type = Assert.Single(types, x => x.Type == "test.service");
+        var type = Assert.Single(types, x => x.Descriptor.Type == "test.service").Descriptor;
         Assert.Equal("Test Service", type.DisplayName);
         Assert.Equal("test", type.Source);
         Assert.Equal(3, type.Fields.Count);
@@ -72,6 +72,6 @@ public sealed class ConnectionTypeDiscoveryTests
 internal sealed class AssemblyConnectionTypeSource(System.Reflection.Assembly assembly, IServiceProvider services)
     : IConnectionTypeSource
 {
-    public IEnumerable<ConnectionTypeDescriptor> GetConnectionTypes() =>
+    public IEnumerable<RegisteredConnectionType> GetConnectionTypes() =>
         ConnectionTypeDiscovery.FromAssembly(assembly, "test", services);
 }
