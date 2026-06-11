@@ -34,6 +34,8 @@ public static class ExportWorkflow
                 .AsNoTracking()
                 .Include(x => x.Versions)
                 .ThenInclude(x => x.Steps)
+                .Include(x => x.Versions)
+                .ThenInclude(x => x.Edges)
                 .FirstOrDefaultAsync(x => x.Id == id && x.WorkspaceId == ws, ct);
 
             if (workflow is null)
@@ -47,6 +49,9 @@ public static class ExportWorkflow
                 .OrderBy(x => x.Order)
                 .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson))
                 .ToList();
+            var edges = latest.Edges
+                .Select(x => new EdgeDefinition(x.FromOrder, x.ToOrder, x.Label))
+                .ToList();
 
             var triggers = await dbContext.Triggers
                 .AsNoTracking()
@@ -59,7 +64,8 @@ public static class ExportWorkflow
                     workflow.Name,
                     workflow.Description,
                     steps,
-                    triggers.Select(x => (x.Type, x.ConfigJson)).ToList()),
+                    triggers.Select(x => (x.Type, x.ConfigJson)).ToList(),
+                    edges),
                 ct);
         }
     }
@@ -110,7 +116,7 @@ public static class ImportWorkflow
             }
 
             var workflow = Workflow.Create(parsed.Name, parsed.Description, ws);
-            var version = workflow.AddVersion(parsed.Steps.ToList());
+            var version = workflow.AddVersion(parsed.Steps.ToList(), parsed.Edges.ToList());
             dbContext.Workflows.Add(workflow);
 
             foreach (var configJson in parsed.CronTriggerConfigs)

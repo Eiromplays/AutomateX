@@ -18,6 +18,9 @@ type SchemaFormProps = {
   schema: JsonSchema | null;
   value: Record<string, unknown>;
   onChange: (value: Record<string, unknown>) => void;
+  // The active action type, so a few actions (e.g. switch) can swap in a purpose-built
+  // editor for a field instead of the generic JSON fallback.
+  actionType?: string;
 };
 
 type FieldKind = "number" | "boolean" | "text" | "json";
@@ -195,7 +198,135 @@ function ConnectionCreateModal({
   );
 }
 
-export function SchemaForm({ schema, value, onChange }: SchemaFormProps) {
+// A single switch case carries exactly one operator. The backend ANDs multiple operators
+// per case, but one-per-row covers the routing use and stays legible; power users can still
+// reach the others via export/import.
+type SwitchCaseValue = {
+  label?: string;
+  equals?: string;
+  notEquals?: string;
+  contains?: string;
+  isTruthy?: boolean;
+};
+
+type SwitchOp = "equals" | "notEquals" | "contains" | "truthy" | "falsy";
+
+const SWITCH_OP_LABELS: Record<SwitchOp, string> = {
+  equals: "equals",
+  notEquals: "not equals",
+  contains: "contains",
+  truthy: "is truthy",
+  falsy: "is falsy",
+};
+
+const SWITCH_OPS_NEEDING_VALUE: SwitchOp[] = ["equals", "notEquals", "contains"];
+
+function switchOpOf(c: SwitchCaseValue): SwitchOp {
+  if (c.equals !== undefined) return "equals";
+  if (c.notEquals !== undefined) return "notEquals";
+  if (c.contains !== undefined) return "contains";
+  if (c.isTruthy === false) return "falsy";
+  return "truthy";
+}
+
+function switchComparisonOf(c: SwitchCaseValue): string {
+  return c.equals ?? c.notEquals ?? c.contains ?? "";
+}
+
+function buildSwitchCase(label: string, op: SwitchOp, comparison: string): SwitchCaseValue {
+  switch (op) {
+    case "equals":
+      return { label, equals: comparison };
+    case "notEquals":
+      return { label, notEquals: comparison };
+    case "contains":
+      return { label, contains: comparison };
+    case "truthy":
+      return { label, isTruthy: true };
+    case "falsy":
+      return { label, isTruthy: false };
+  }
+}
+
+// Row-based editor for a switch step's cases — each row is label + one operator (+ a
+// comparison value for equals/notEquals/contains). The labels here are the outgoing
+// edge labels you wire to target steps on the canvas.
+function SwitchCasesEditor({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (cases: SwitchCaseValue[]) => void;
+}) {
+  const cases: SwitchCaseValue[] = Array.isArray(value) ? (value as SwitchCaseValue[]) : [];
+  const update = (index: number, next: SwitchCaseValue) =>
+    onChange(cases.map((c, i) => (i === index ? next : c)));
+  const remove = (index: number) => onChange(cases.filter((_, i) => i !== index));
+  const add = () => onChange([...cases, { label: "", equals: "" }]);
+
+  return (
+    <div className="space-y-2">
+      {cases.map((c, index) => {
+        const op = switchOpOf(c);
+        const label = c.label ?? "";
+        const comparison = switchComparisonOf(c);
+        return (
+          <div key={index} className="space-y-1.5 rounded-md border border-zinc-800 p-2">
+            <div className="flex items-center gap-1.5">
+              <input
+                className={`${inputClass} flex-1`}
+                placeholder="label (e.g. paid)"
+                value={label}
+                onChange={(e) => update(index, buildSwitchCase(e.target.value, op, comparison))}
+              />
+              <button
+                type="button"
+                onClick={() => remove(index)}
+                className="px-1 text-zinc-500 hover:text-red-400"
+                title="Remove case"
+              >
+                ✕
+              </button>
+            </div>
+            <select
+              className={inputClass}
+              value={op}
+              onChange={(e) => update(index, buildSwitchCase(label, e.target.value as SwitchOp, comparison))}
+            >
+              {(Object.keys(SWITCH_OP_LABELS) as SwitchOp[]).map((o) => (
+                <option key={o} value={o}>
+                  {SWITCH_OP_LABELS[o]}
+                </option>
+              ))}
+            </select>
+            {SWITCH_OPS_NEEDING_VALUE.includes(op) && (
+              <input
+                className={inputClass}
+                placeholder="value to compare"
+                value={comparison}
+                onChange={(e) => update(index, buildSwitchCase(label, op, e.target.value))}
+              />
+            )}
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        onClick={add}
+        className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+      >
+        + Add case
+      </button>
+      <p className="text-[11px] text-zinc-600">
+        Tried top to bottom; first match wins. No match falls through to{" "}
+        <code className="text-zinc-400">default</code>. On the Canvas, connect each label (and{" "}
+        <code className="text-zinc-400">default</code>) to the step it should run.
+      </p>
+    </div>
+  );
+}
+
+export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormProps) {
   if (!schema?.properties) {
     return (
       <textarea
@@ -226,6 +357,17 @@ export function SchemaForm({ schema, value, onChange }: SchemaFormProps) {
   return (
     <div className="space-y-3">
       {Object.entries(schema.properties).map(([key, property]) => {
+        if (actionType === "switch" && key === "cases") {
+          return (
+            <div key={key} className="block">
+              <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
+                {key}
+                {required.has(key) && <span className="text-emerald-400">*</span>}
+              </span>
+              <SwitchCasesEditor value={value[key]} onChange={(cases) => set(key, cases)} />
+            </div>
+          );
+        }
         const kind = kindOf(property);
         return (
           <label key={key} className="block">

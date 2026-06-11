@@ -34,10 +34,14 @@ public static class CreateWorkflow
                 ThrowError($"Unknown action type '{step.ActionType}'.");
             }
 
+            var edges = BuildEdges(req.Edges, req.Steps.Count, message => ThrowError(message));
+
             var workflow = Workflow.Create(req.Name, req.Description, ws);
-            var version = workflow.AddVersion(req.Steps
-                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
-                .ToList());
+            var version = workflow.AddVersion(
+                req.Steps
+                    .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
+                    .ToList(),
+                edges);
 
             dbContext.Workflows.Add(workflow);
             await dbContext.SaveChangesAsync(ct);
@@ -46,9 +50,29 @@ public static class CreateWorkflow
         }
     }
 
-    public sealed record Request(string Name, string? Description, List<StepRequest> Steps);
+    public sealed record Request(string Name, string? Description, List<StepRequest> Steps, List<EdgeRequest>? Edges = null);
 
     public sealed record StepRequest(string ActionType, string? Name, JsonElement Config);
 
+    public sealed record EdgeRequest(int From, int To, string? Label);
+
     public sealed record Response(Guid Id, Guid VersionId, int Version);
+
+    // Maps edge requests to definitions, rejecting any that point outside the step set.
+    // A blank label is normalised to null (an unconditional link).
+    internal static List<EdgeDefinition> BuildEdges(IReadOnlyList<EdgeRequest>? edges, int stepCount, Action<string> fail)
+    {
+        List<EdgeDefinition> result = [];
+        foreach (var edge in edges ?? [])
+        {
+            if (edge.From < 0 || edge.From >= stepCount || edge.To < 0 || edge.To >= stepCount)
+            {
+                fail($"Edge {edge.From}->{edge.To} references a step that doesn't exist.");
+            }
+
+            result.Add(new EdgeDefinition(edge.From, edge.To, string.IsNullOrWhiteSpace(edge.Label) ? null : edge.Label));
+        }
+
+        return result;
+    }
 }

@@ -57,6 +57,7 @@ export default function WorkflowEdit() {
               name: step.name,
               config: JSON.parse(step.configJson) as Record<string, unknown>,
             })),
+          edges: workflow.latestVersion.edges,
         }}
         triggers={workflow.triggers}
         submitLabel={`Save as v${workflow.latestVersion.version + 1}`}

@@ -27,6 +27,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<WorkflowStep> WorkflowSteps => Set<WorkflowStep>();
 
+    public DbSet<WorkflowEdge> WorkflowEdges => Set<WorkflowEdge>();
+
     public DbSet<Trigger> Triggers => Set<Trigger>();
 
     public DbSet<Connection> Connections => Set<Connection>();

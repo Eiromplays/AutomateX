@@ -96,7 +96,13 @@ export type WorkflowDetail = {
   name: string;
   description: string | null;
   createdAt: string;
-  latestVersion: { id: string; version: number; createdAt: string; steps: WorkflowStep[] };
+  latestVersion: {
+    id: string;
+    version: number;
+    createdAt: string;
+    steps: WorkflowStep[];
+    edges: WorkflowEdgeInput[];
+  };
   versions: WorkflowVersionSummary[];
   triggers: WorkflowTrigger[];
   runsAfter: ChainLink[];
@@ -155,6 +161,10 @@ export type CreateWorkflowStep = {
   name: string | null;
   config: Record<string, unknown>;
 };
+
+// A branch edge between step orders. label = null is an unconditional link; a labelled
+// edge is a switch outcome. The backend validates from/to point at real steps.
+export type WorkflowEdgeInput = { from: number; to: number; label: string | null };
 
 export type ConnectionSummary = {
   id: string;
@@ -345,13 +355,16 @@ export const api = {
   workflows: {
     list: () => request<WorkflowSummary[]>("/workflows"),
     get: (id: string) => request<WorkflowDetail>(`/workflows/${id}`),
-    create: (body: { name: string; description: string | null; steps: CreateWorkflowStep[] }) =>
+    create: (body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[] }) =>
       request<{ id: string; versionId: string; version: number }>("/workflows", {
         method: "POST",
         body: JSON.stringify(body),
       }),
     // Appends an immutable new version — past executions keep the version they ran.
-    update: (id: string, body: { name: string; description: string | null; steps: CreateWorkflowStep[] }) =>
+    update: (
+      id: string,
+      body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[] },
+    ) =>
       request<{ id: string; versionId: string; version: number }>(`/workflows/${id}`, {
         method: "PUT",
         body: JSON.stringify(body),

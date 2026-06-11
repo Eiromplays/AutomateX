@@ -29,6 +29,8 @@ public static class RestoreWorkflowVersion
             var workflow = await dbContext.Workflows
                 .Include(x => x.Versions)
                 .ThenInclude(x => x.Steps)
+                .Include(x => x.Versions)
+                .ThenInclude(x => x.Edges)
                 .FirstOrDefaultAsync(x => x.Id == id && x.WorkspaceId == ws, ct);
 
             if (workflow is null)

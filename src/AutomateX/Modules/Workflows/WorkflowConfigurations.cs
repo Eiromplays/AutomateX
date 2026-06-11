@@ -32,6 +32,11 @@ internal sealed class WorkflowVersionConfiguration : IEntityTypeConfiguration<Wo
             .WithOne()
             .HasForeignKey(x => x.WorkflowVersionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.Edges)
+            .WithOne()
+            .HasForeignKey(x => x.WorkflowVersionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
 
@@ -44,5 +49,15 @@ internal sealed class WorkflowStepConfiguration : IEntityTypeConfiguration<Workf
         builder.Property(x => x.ConfigJson).HasColumnType("jsonb");
 
         builder.HasIndex(x => new { x.WorkflowVersionId, x.Order }).IsUnique();
+    }
+}
+
+internal sealed class WorkflowEdgeConfiguration : IEntityTypeConfiguration<WorkflowEdge>
+{
+    public void Configure(EntityTypeBuilder<WorkflowEdge> builder)
+    {
+        builder.Property(x => x.Label).HasMaxLength(64);
+
+        builder.HasIndex(x => x.WorkflowVersionId);
     }
 }

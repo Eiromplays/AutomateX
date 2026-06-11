@@ -29,10 +29,10 @@ public sealed class Workflow
         CreatedAt = DateTimeOffset.UtcNow,
     };
 
-    public WorkflowVersion AddVersion(IReadOnlyList<StepDefinition> steps)
+    public WorkflowVersion AddVersion(IReadOnlyList<StepDefinition> steps, IReadOnlyList<EdgeDefinition>? edges = null)
     {
         var nextVersion = Versions.Count == 0 ? 1 : Versions.Max(x => x.Version) + 1;
-        var version = WorkflowVersion.Create(Id, nextVersion, steps);
+        var version = WorkflowVersion.Create(Id, nextVersion, steps, edges);
         Versions.Add(version);
         return version;
     }
@@ -49,10 +49,14 @@ public sealed class Workflow
             throw new InvalidOperationException($"v{version} is already the latest version.");
         }
 
-        return AddVersion(target.Steps
-            .OrderBy(x => x.Order)
-            .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson))
-            .ToList());
+        return AddVersion(
+            target.Steps
+                .OrderBy(x => x.Order)
+                .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson))
+                .ToList(),
+            target.Edges
+                .Select(x => new EdgeDefinition(x.FromOrder, x.ToOrder, x.Label))
+                .ToList());
     }
 
     public void Rename(string name, string? description)

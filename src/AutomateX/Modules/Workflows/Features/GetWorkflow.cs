@@ -46,6 +46,9 @@ public static class GetWorkflow
                             v.Steps
                                 .OrderBy(s => s.Order)
                                 .Select(s => new StepResponse(s.Id, s.Order, s.Name, s.ActionType, s.ConfigJson))
+                                .ToList(),
+                            v.Edges
+                                .Select(e => new EdgeResponse(e.FromOrder, e.ToOrder, e.Label))
                                 .ToList()))
                         .First(),
                     Versions = x.Versions
@@ -147,11 +150,14 @@ public static class GetWorkflow
 
     public sealed record ChainLink(Guid WorkflowId, string Name, string On);
 
-    public sealed record VersionResponse(Guid Id, int Version, DateTimeOffset CreatedAt, List<StepResponse> Steps);
+    public sealed record VersionResponse(
+        Guid Id, int Version, DateTimeOffset CreatedAt, List<StepResponse> Steps, List<EdgeResponse> Edges);
 
     public sealed record VersionSummary(Guid Id, int Version, DateTimeOffset CreatedAt, int StepCount);
 
     public sealed record StepResponse(Guid Id, int Order, string? Name, string ActionType, string ConfigJson);
+
+    public sealed record EdgeResponse(int From, int To, string? Label);
 
     public sealed record TriggerResponse(
         Guid Id, string Type, bool Enabled, DateTimeOffset? NextRunAt, DateTimeOffset? LastFiredAt,

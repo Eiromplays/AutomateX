@@ -45,10 +45,14 @@ public static class UpdateWorkflow
                 return;
             }
 
+            var edges = CreateWorkflow.BuildEdges(req.Edges, req.Steps.Count, message => ThrowError(message));
+
             workflow.Rename(req.Name, req.Description);
-            var version = workflow.AddVersion(req.Steps
-                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
-                .ToList());
+            var version = workflow.AddVersion(
+                req.Steps
+                    .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
+                    .ToList(),
+                edges);
 
             // Explicit Add — see ExecuteStepHandler: discovered children with client-set keys track as Modified.
             dbContext.WorkflowVersions.Add(version);
@@ -59,7 +63,9 @@ public static class UpdateWorkflow
         }
     }
 
-    public sealed record Request(Guid Id, string Name, string? Description, List<CreateWorkflow.StepRequest> Steps);
+    public sealed record Request(
+        Guid Id, string Name, string? Description, List<CreateWorkflow.StepRequest> Steps,
+        List<CreateWorkflow.EdgeRequest>? Edges = null);
 
     public sealed record Response(Guid Id, Guid VersionId, int Version);
 }

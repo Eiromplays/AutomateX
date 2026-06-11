@@ -60,7 +60,9 @@ public static class ExecuteStepHandler
         {
             // Redelivered after a crash between step completion and the cascade —
             // advance without re-executing or re-emitting the step's events.
-            return await AdvanceAsync(execution, message.StepOrder, dbContext, eventBus, options, logger, cancellationToken);
+            return await AdvanceAsync(
+                execution, message.StepOrder, step.ActionType, stepExecution.Output,
+                dbContext, eventBus, options, logger, cancellationToken);
         }
 
         if (stepExecution is null)
@@ -176,9 +178,11 @@ public static class ExecuteStepHandler
             return Cascade(gateChains);
         }
 
-        var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, message.StepOrder, cancellationToken);
+        var nextOrders = await ResolveNextAndMarkSkippedAsync(
+            dbContext, execution, message.StepOrder, step.ActionType, output, cancellationToken);
+
         List<RunWorkflow> successChains = [];
-        if (nextOrder is null)
+        if (nextOrders.Count == 0)
         {
             execution.Complete();
             successChains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
@@ -188,26 +192,29 @@ public static class ExecuteStepHandler
         await eventBus.PublishAsync(
             new StepCompleted(execution.Id, message.StepOrder, step.ActionType, output), cancellationToken);
 
-        if (nextOrder is null)
+        if (nextOrders.Count == 0)
         {
             await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
             return Cascade(successChains);
         }
 
-        return new ExecuteStep(execution.Id, nextOrder.Value);
+        return NextMessage(execution.Id, nextOrders);
     }
 
     private static async Task<object?> AdvanceAsync(
         Execution execution,
         int currentOrder,
+        string actionType,
+        string? output,
         AutomateXDbContext dbContext,
         EngineEventBus eventBus,
         EngineOptions options,
         ILogger logger,
         CancellationToken cancellationToken)
     {
-        var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, currentOrder, cancellationToken);
-        if (nextOrder is null)
+        var nextOrders = await ResolveNextAndMarkSkippedAsync(
+            dbContext, execution, currentOrder, actionType, output, cancellationToken);
+        if (nextOrders.Count == 0)
         {
             execution.Complete();
             var chains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
@@ -216,7 +223,76 @@ public static class ExecuteStepHandler
             return Cascade(chains);
         }
 
-        return new ExecuteStep(execution.Id, nextOrder.Value);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return NextMessage(execution.Id, nextOrders);
+    }
+
+    // The successor step orders after `currentOrder`. With no edges the version runs
+    // linearly by Order (backward compatible); with edges it routes the graph — a switch
+    // by its chosen label, others by their unconditional edge — and records the steps that
+    // become unreachable as Skipped (mirrors the gate's skip-the-rest).
+    private static async Task<List<int>> ResolveNextAndMarkSkippedAsync(
+        AutomateXDbContext dbContext,
+        Execution execution,
+        int currentOrder,
+        string actionType,
+        string? output,
+        CancellationToken cancellationToken)
+    {
+        var edges = await dbContext.WorkflowEdges
+            .AsNoTracking()
+            .Where(x => x.WorkflowVersionId == execution.WorkflowVersionId)
+            .Select(x => new WorkflowEdgeDef(x.FromOrder, x.ToOrder, x.Label))
+            .ToListAsync(cancellationToken);
+
+        if (edges.Count == 0)
+        {
+            var nextOrder = await NextOrderAsync(dbContext, execution.WorkflowVersionId, currentOrder, cancellationToken);
+            return nextOrder is null ? [] : [nextOrder.Value];
+        }
+
+        var chosenLabel = actionType == Switch.ActionType
+            ? Switch.ChosenLabel(output) ?? Switch.DefaultLabel
+            : null;
+        var decision = WorkflowRouter.Route(currentOrder, edges, chosenLabel);
+
+        if (decision.Skipped.Count > 0)
+        {
+            var skippedOrders = decision.Skipped.ToList();
+            var skippedSteps = await dbContext.WorkflowSteps
+                .AsNoTracking()
+                .Where(x => x.WorkflowVersionId == execution.WorkflowVersionId && skippedOrders.Contains(x.Order))
+                .Select(x => new { x.Order, x.ActionType })
+                .ToListAsync(cancellationToken);
+
+            foreach (var skipped in skippedSteps)
+            {
+                // Guard against double-marking if this message is redelivered.
+                if (execution.Steps.All(x => x.StepOrder != skipped.Order))
+                {
+                    dbContext.StepExecutions.Add(execution.AddSkippedStep(skipped.ActionType, skipped.Order));
+                }
+            }
+        }
+
+        return [.. decision.Next];
+    }
+
+    // One active path → a single cascade message; multiple (parallel lanes, later) → fan out.
+    private static object NextMessage(Guid executionId, IReadOnlyList<int> orders)
+    {
+        if (orders.Count == 1)
+        {
+            return new ExecuteStep(executionId, orders[0]);
+        }
+
+        var outgoing = new OutgoingMessages();
+        foreach (var order in orders)
+        {
+            outgoing.Add(new ExecuteStep(executionId, order));
+        }
+
+        return outgoing;
     }
 
     // Chained RunWorkflow messages cascade through the same outbox as step messages.

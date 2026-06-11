@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, type CreateWorkflowStep, type WorkflowTrigger } from "../lib/api";
+import { api, type CreateWorkflowStep, type WorkflowEdgeInput, type WorkflowTrigger } from "../lib/api";
 import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { WorkflowCanvas } from "./workflow-canvas";
+import { keyEdges, routingFromEdges, submitEdges, SwitchTargets, type SwitchRouting } from "./switch-routing";
 
-type DraftStep = CreateWorkflowStep & { key: number };
+type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting };
 
 const inputClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -17,6 +18,7 @@ export type WorkflowFormValue = {
   name: string;
   description: string | null;
   steps: CreateWorkflowStep[];
+  edges?: WorkflowEdgeInput[];
 };
 
 // Shared by the create and edit routes — same builder, different mutation.
@@ -39,9 +41,11 @@ export function WorkflowForm({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const [steps, setSteps] = useState<DraftStep[]>(
-    () => initial?.steps.map((step) => ({ ...step, key: nextKey++ })) ?? [],
-  );
+  const [steps, setSteps] = useState<DraftStep[]>(() => {
+    const built: DraftStep[] = initial?.steps.map((step) => ({ ...step, key: nextKey++ })) ?? [];
+    if (initial?.edges?.length) routingFromEdges(built, initial.edges);
+    return built;
+  });
 
   const { data: actions } = useQuery({ queryKey: ["actions"], queryFn: api.actions.list });
 
@@ -116,6 +120,7 @@ export function WorkflowForm({
         {mode === "canvas" && (
           <WorkflowCanvas
             steps={steps}
+            stepEdges={keyEdges(steps)}
             actions={actions ?? []}
             schemaFor={schemaFor}
             onUpdateStep={updateStep}
@@ -134,7 +139,7 @@ export function WorkflowForm({
               <select
                 className={`${inputClass} flex-1`}
                 value={step.actionType}
-                onChange={(e) => updateStep(step.key, { actionType: e.target.value, config: {} })}
+                onChange={(e) => updateStep(step.key, { actionType: e.target.value, config: {}, routing: undefined })}
               >
                 {groupBySource(actions ?? []).map(([source, items]) => (
                   <optgroup
@@ -172,8 +177,18 @@ export function WorkflowForm({
             <SchemaForm
               schema={schemaFor(step.actionType)}
               value={step.config}
+              actionType={step.actionType}
               onChange={(config) => updateStep(step.key, { config })}
             />
+            {step.actionType === "switch" && (
+              <div className="mt-3">
+                <SwitchTargets
+                  step={step}
+                  steps={steps}
+                  onChange={(routing) => updateStep(step.key, { routing })}
+                />
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -187,7 +202,8 @@ export function WorkflowForm({
           onSubmit({
             name,
             description: description || null,
-            steps: steps.map(({ key: _, ...step }) => step),
+            steps: steps.map(({ key: _key, routing: _routing, ...step }) => step),
+            edges: submitEdges(steps),
           })
         }
         className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"

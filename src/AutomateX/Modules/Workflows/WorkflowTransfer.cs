@@ -16,7 +16,8 @@ public static class WorkflowTransfer
         string name,
         string? description,
         IReadOnlyList<StepDefinition> steps,
-        IReadOnlyList<(string Type, string ConfigJson)> triggers)
+        IReadOnlyList<(string Type, string ConfigJson)> triggers,
+        IReadOnlyList<EdgeDefinition>? edges = null)
     {
         var stepsArray = new JsonArray(steps
             .Select(step => (JsonNode)new JsonObject
@@ -24,6 +25,15 @@ public static class WorkflowTransfer
                 ["actionType"] = step.ActionType,
                 ["name"] = step.Name,
                 ["config"] = ParseOrEmpty(step.ConfigJson),
+            })
+            .ToArray());
+
+        var edgesArray = new JsonArray((edges ?? [])
+            .Select(edge => (JsonNode)new JsonObject
+            {
+                ["from"] = edge.FromOrder,
+                ["to"] = edge.ToOrder,
+                ["label"] = edge.Label,
             })
             .ToArray());
 
@@ -42,6 +52,7 @@ public static class WorkflowTransfer
             ["name"] = name,
             ["description"] = description,
             ["steps"] = stepsArray,
+            ["edges"] = edgesArray,
             ["triggers"] = triggersArray,
         };
     }
@@ -50,6 +61,7 @@ public static class WorkflowTransfer
         string Name,
         string? Description,
         IReadOnlyList<StepDefinition> Steps,
+        IReadOnlyList<EdgeDefinition> Edges,
         IReadOnlyList<string> CronTriggerConfigs);
 
     public static ParsedImport Parse(JsonObject document)
@@ -81,6 +93,26 @@ public static class WorkflowTransfer
             steps.Add(new StepDefinition(actionType, stepName, node?["config"]?.ToJsonString() ?? "{}"));
         }
 
+        // Edges are optional — pre-branching documents simply have none (linear by Order).
+        List<EdgeDefinition> edges = [];
+        foreach (var node in document["edges"] as JsonArray ?? [])
+        {
+            var from = GetInt(node?["from"]);
+            var to = GetInt(node?["to"]);
+            if (from is null || to is null)
+            {
+                throw new InvalidOperationException("Every edge needs numeric from/to step indexes.");
+            }
+
+            if (from < 0 || from >= steps.Count || to < 0 || to >= steps.Count)
+            {
+                throw new InvalidOperationException($"Edge {from}->{to} references a step that doesn't exist.");
+            }
+
+            var label = node?["label"] is JsonValue value && value.TryGetValue<string>(out var parsed) ? parsed : null;
+            edges.Add(new EdgeDefinition(from.Value, to.Value, string.IsNullOrWhiteSpace(label) ? null : label));
+        }
+
         List<string> crons = [];
         foreach (var node in document["triggers"] as JsonArray ?? [])
         {
@@ -90,7 +122,7 @@ public static class WorkflowTransfer
             }
         }
 
-        return new ParsedImport(name, description, steps, crons);
+        return new ParsedImport(name, description, steps, edges, crons);
     }
 
     private static JsonNode ParseOrEmpty(string json)

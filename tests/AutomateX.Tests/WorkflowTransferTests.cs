@@ -97,5 +97,32 @@ public sealed class WorkflowTransferTests
         Assert.Null(step.Name);
         Assert.Equal("{}", step.ConfigJson);
         Assert.Empty(parsed.CronTriggerConfigs);
+        Assert.Empty(parsed.Edges);
+    }
+
+    [Fact]
+    public void Round_trip_preserves_edges()
+    {
+        List<EdgeDefinition> edges =
+        [
+            new(0, 1, "ok"),
+            new(0, 1, null),
+        ];
+
+        var document = WorkflowTransfer.Export("wf", "desc", Steps, Triggers, edges);
+        var parsed = WorkflowTransfer.Parse(document);
+
+        Assert.Equal(2, parsed.Edges.Count);
+        Assert.Equal(new EdgeDefinition(0, 1, "ok"), parsed.Edges[0]);
+        Assert.Equal(new EdgeDefinition(0, 1, null), parsed.Edges[1]);
+    }
+
+    [Fact]
+    public void Edge_pointing_outside_the_step_set_is_rejected()
+    {
+        var document = WorkflowTransfer.Export("wf", "desc", Steps, Triggers, [new EdgeDefinition(0, 5, "ok")]);
+
+        var exception = Assert.Throws<InvalidOperationException>(() => WorkflowTransfer.Parse(document));
+        Assert.Contains("doesn't exist", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 }

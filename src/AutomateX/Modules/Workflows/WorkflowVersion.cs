@@ -16,7 +16,10 @@ public sealed class WorkflowVersion
 
     public List<WorkflowStep> Steps { get; } = [];
 
-    internal static WorkflowVersion Create(Guid workflowId, int version, IReadOnlyList<StepDefinition> steps)
+    public List<WorkflowEdge> Edges { get; } = [];
+
+    internal static WorkflowVersion Create(
+        Guid workflowId, int version, IReadOnlyList<StepDefinition> steps, IReadOnlyList<EdgeDefinition>? edges = null)
     {
         var workflowVersion = new WorkflowVersion
         {
@@ -29,6 +32,11 @@ public sealed class WorkflowVersion
         for (var order = 0; order < steps.Count; order++)
         {
             workflowVersion.Steps.Add(WorkflowStep.Create(workflowVersion.Id, order, steps[order]));
+        }
+
+        foreach (var edge in edges ?? [])
+        {
+            workflowVersion.Edges.Add(WorkflowEdge.Create(workflowVersion.Id, edge));
         }
 
         return workflowVersion;
