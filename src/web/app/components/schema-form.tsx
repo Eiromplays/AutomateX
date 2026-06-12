@@ -326,7 +326,129 @@ function SwitchCasesEditor({
   );
 }
 
+// Guided editor for mcp.call: pick a stored MCP server connection, list its tools live, and
+// render a form for the chosen tool's JSON-Schema arguments (reusing SchemaForm). serverUrl/
+// token are stored as template refs to the connection so the action stays connection-agnostic.
+function McpCallEditor({
+  value,
+  onChange,
+}: {
+  value: Record<string, unknown>;
+  onChange: (value: Record<string, unknown>) => void;
+}) {
+  const { data: connections } = useQuery({
+    queryKey: ["connections"],
+    queryFn: api.connections.list,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const mcpConnections = (connections ?? []).filter((c) => c.provider === "mcp");
+
+  const serverUrl = typeof value.serverUrl === "string" ? value.serverUrl : "";
+  const selectedName = serverUrl.match(/\{\{connections\.([^.}]+)\.serverUrl\}\}/)?.[1] ?? null;
+  const selectedConn = mcpConnections.find((c) => c.name === selectedName) ?? null;
+
+  const tools = useQuery({
+    queryKey: ["mcp-tools", selectedConn?.id],
+    queryFn: () => api.connections.mcpTools(selectedConn!.id),
+    enabled: selectedConn != null,
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  const tool = typeof value.tool === "string" ? value.tool : "";
+  const selectedTool = tools.data?.find((t) => t.name === tool) ?? null;
+
+  let argSchema: JsonSchema | null = null;
+  if (selectedTool) {
+    try {
+      argSchema = JSON.parse(selectedTool.inputSchema) as JsonSchema;
+    } catch {
+      argSchema = null;
+    }
+  }
+
+  const set = (patch: Record<string, unknown>) => onChange({ ...value, ...patch });
+
+  const pickServer = (name: string) => {
+    const conn = mcpConnections.find((c) => c.name === name);
+    if (!conn) {
+      set({ serverUrl: "", token: "", tool: "", arguments: {} });
+      return;
+    }
+    set({
+      serverUrl: `{{connections.${conn.name}.serverUrl}}`,
+      token: conn.secretKeys.includes("token") ? `{{connections.${conn.name}.token}}` : "",
+      tool: "",
+      arguments: {},
+    });
+  };
+
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">MCP server</span>
+        <select className={inputClass} value={selectedName ?? ""} onChange={(e) => pickServer(e.target.value)}>
+          <option value="">Select an MCP connection…</option>
+          {mcpConnections.map((c) => (
+            <option key={c.id} value={c.name}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {mcpConnections.length === 0 && (
+          <span className="mt-1 block text-[11px] text-zinc-600">
+            No MCP connections yet — create one (type “MCP server”) on the{" "}
+            <a href="/connections" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">
+              Connections page
+            </a>
+            .
+          </span>
+        )}
+      </label>
+
+      {selectedConn && (
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-zinc-400">Tool</span>
+          {tools.isLoading ? (
+            <span className="text-xs text-zinc-500">Loading tools…</span>
+          ) : tools.error ? (
+            <span className="text-xs text-red-400">Couldn’t list tools — {String(tools.error)}</span>
+          ) : (
+            <select className={inputClass} value={tool} onChange={(e) => set({ tool: e.target.value, arguments: {} })}>
+              <option value="">Select a tool…</option>
+              {tools.data?.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {selectedTool?.description && (
+            <span className="mt-1 block text-[11px] text-zinc-600">{selectedTool.description}</span>
+          )}
+        </label>
+      )}
+
+      {selectedTool && (
+        <div className="block">
+          <span className="mb-1 block text-xs font-medium text-zinc-400">Arguments</span>
+          <SchemaForm
+            schema={argSchema}
+            value={(value.arguments as Record<string, unknown>) ?? {}}
+            onChange={(args) => set({ arguments: args })}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormProps) {
+  if (actionType === "mcp.call") {
+    return <McpCallEditor value={value} onChange={onChange} />;
+  }
+
   if (!schema?.properties) {
     return (
       <textarea

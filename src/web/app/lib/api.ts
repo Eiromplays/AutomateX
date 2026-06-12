@@ -195,6 +195,9 @@ export type ConnectionTypeInfo = {
   isOAuth: boolean;
 };
 
+// inputSchema is the tool's JSON-Schema arguments shape (rendered via SchemaForm).
+export type McpToolInfo = { name: string; description: string | null; inputSchema: string };
+
 export type AuthMe = {
   mode: "open" | "apikey" | "oidc";
   authenticated: boolean;
@@ -316,6 +319,9 @@ export const api = {
     // Returns the provider's consent URL; the caller redirects the browser there.
     oauthStart: (id: string) =>
       request<{ authorizeUrl: string }>(`/connections/${id}/oauth/start`, { method: "POST" }),
+    // Live tools/list against an MCP server connection (for the builder's tool picker).
+    mcpTools: (id: string) =>
+      request<McpToolInfo[]>(`/connections/${id}/mcp/tools`, { method: "POST" }),
   },
   auth: {
     me: () => request<AuthMe>("/auth/me"),
