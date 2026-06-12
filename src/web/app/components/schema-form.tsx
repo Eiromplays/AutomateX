@@ -444,9 +444,136 @@ function McpCallEditor({
   );
 }
 
+// Guided editor for llm.agent: the LLM fields plus a checklist of MCP server connections that
+// become the agent's tool sources (stored as templated serverUrl/token entries in mcpServers).
+function LlmAgentEditor({
+  value,
+  onChange,
+}: {
+  value: Record<string, unknown>;
+  onChange: (value: Record<string, unknown>) => void;
+}) {
+  const { data: connections } = useQuery({
+    queryKey: ["connections"],
+    queryFn: api.connections.list,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const mcpConnections = (connections ?? []).filter((c) => c.provider === "mcp");
+
+  const set = (patch: Record<string, unknown>) => onChange({ ...value, ...patch });
+  const str = (key: string, fallback = "") => (typeof value[key] === "string" ? (value[key] as string) : fallback);
+
+  const servers = Array.isArray(value.mcpServers)
+    ? (value.mcpServers as { serverUrl?: string; token?: string }[])
+    : [];
+  const selectedNames = new Set<string>(
+    servers.flatMap((s) => {
+      const match = typeof s.serverUrl === "string" ? s.serverUrl.match(/\{\{connections\.([^.}]+)\.serverUrl\}\}/) : null;
+      return match ? [match[1]] : [];
+    }),
+  );
+
+  const toggleServer = (name: string, hasToken: boolean) => {
+    if (selectedNames.has(name)) {
+      set({ mcpServers: servers.filter((s) => !(typeof s.serverUrl === "string" && s.serverUrl.includes(`connections.${name}.serverUrl`))) });
+    } else {
+      const entry: { serverUrl: string; token?: string } = { serverUrl: `{{connections.${name}.serverUrl}}` };
+      if (hasToken) entry.token = `{{connections.${name}.token}}`;
+      set({ mcpServers: [...servers, entry] });
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">Goal *</span>
+        <textarea
+          className={`${inputClass} font-normal`}
+          rows={2}
+          placeholder="What should the agent accomplish?"
+          value={str("goal")}
+          onChange={(e) => set({ goal: e.target.value })}
+        />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">System prompt</span>
+        <textarea
+          className={inputClass}
+          rows={2}
+          value={str("system")}
+          onChange={(e) => set({ system: e.target.value || undefined })}
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-zinc-400">Model *</span>
+          <input className={inputClass} placeholder="gpt-4o-mini" value={str("model")} onChange={(e) => set({ model: e.target.value })} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium text-zinc-400">Max iterations</span>
+          <input
+            type="number"
+            className={inputClass}
+            value={typeof value.maxIterations === "number" ? value.maxIterations : 8}
+            onChange={(e) => set({ maxIterations: e.target.value === "" ? undefined : Number(e.target.value) })}
+          />
+        </label>
+      </div>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">Base URL</span>
+        <input
+          className={inputClass}
+          value={str("baseUrl", "https://api.openai.com")}
+          onChange={(e) => set({ baseUrl: e.target.value })}
+        />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">API key</span>
+        <input
+          className={inputClass}
+          placeholder="{{connections.openai.apiKey}}"
+          value={str("apiKey")}
+          onChange={(e) => set({ apiKey: e.target.value || undefined })}
+        />
+      </label>
+      <div className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">Tool servers (MCP)</span>
+        {mcpConnections.length === 0 ? (
+          <span className="text-[11px] text-zinc-600">
+            No MCP connections yet — create one (type “MCP server”) on the{" "}
+            <a href="/connections" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">
+              Connections page
+            </a>
+            .
+          </span>
+        ) : (
+          <div className="space-y-1 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
+            {mcpConnections.map((c) => (
+              <label key={c.id} className="flex items-center gap-2 text-sm text-zinc-300">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-emerald-500"
+                  checked={selectedNames.has(c.name)}
+                  onChange={() => toggleServer(c.name, c.secretKeys.includes("token"))}
+                />
+                {c.name}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormProps) {
   if (actionType === "mcp.call") {
     return <McpCallEditor value={value} onChange={onChange} />;
+  }
+
+  if (actionType === "llm.agent") {
+    return <LlmAgentEditor value={value} onChange={onChange} />;
   }
 
   if (!schema?.properties) {
