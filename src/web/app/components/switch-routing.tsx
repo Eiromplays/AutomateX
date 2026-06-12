@@ -28,12 +28,20 @@ export function caseLabelsOf(config: Record<string, unknown>): string[] {
   return [...new Set(labels)];
 }
 
+// The routes that still correspond to a live case label (plus default). Routes for cases
+// that were deleted or renamed are dropped here, so a stale label can't emit a branch edge.
+function validRoutes(step: RoutingStep): { byLabel: [string, number][]; default: number | null } {
+  if (step.actionType !== SWITCH || !step.routing) return { byLabel: [], default: null };
+  const labels = new Set(caseLabelsOf(step.config));
+  return {
+    byLabel: Object.entries(step.routing.byLabel).filter(([label]) => labels.has(label)),
+    default: step.routing.default,
+  };
+}
+
 function isConfiguredSwitch(step: RoutingStep): boolean {
-  return (
-    step.actionType === SWITCH &&
-    !!step.routing &&
-    (Object.keys(step.routing.byLabel).length > 0 || step.routing.default != null)
-  );
+  const routes = validRoutes(step);
+  return routes.byLabel.length > 0 || routes.default != null;
 }
 
 // A workflow is "branched" once any switch has a target wired. Until then it stays linear
@@ -56,20 +64,21 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
 
   const targetKeys = new Set<number>();
   for (const step of steps) {
-    if (!isConfiguredSwitch(step)) continue;
-    for (const key of Object.values(step.routing!.byLabel)) targetKeys.add(key);
-    if (step.routing!.default != null) targetKeys.add(step.routing!.default);
+    const routes = validRoutes(step);
+    for (const [, key] of routes.byLabel) targetKeys.add(key);
+    if (routes.default != null) targetKeys.add(routes.default);
   }
 
   const edges: KeyEdge[] = [];
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     if (isConfiguredSwitch(step)) {
-      for (const [label, key] of Object.entries(step.routing!.byLabel)) {
+      const routes = validRoutes(step);
+      for (const [label, key] of routes.byLabel) {
         edges.push({ sourceKey: step.key, targetKey: key, label });
       }
-      if (step.routing!.default != null) {
-        edges.push({ sourceKey: step.key, targetKey: step.routing!.default, label: "default" });
+      if (routes.default != null) {
+        edges.push({ sourceKey: step.key, targetKey: routes.default, label: "default" });
       }
     } else {
       const next = steps[i + 1];
