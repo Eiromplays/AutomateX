@@ -1,7 +1,10 @@
+using System.Globalization;
 using System.Text.Json;
 using AutomateX.Database;
+using AutomateX.Engine.Connections;
 using AutomateX.Engine.Security;
 using AutomateX.Modules.Workspaces;
+using AutomateX.Plugin.Sdk;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,7 +12,11 @@ namespace AutomateX.Modules.Connections.Features;
 
 public static class GetConnections
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access) : EndpointWithoutRequest<List<Response>>
+    public sealed class Endpoint(
+        AutomateXDbContext dbContext,
+        SecretCipher cipher,
+        ConnectionTypeRegistry registry,
+        WorkspaceAccess access) : EndpointWithoutRequest<List<Response>>
     {
         public override void Configure()
         {
@@ -36,17 +43,29 @@ public static class GetConnections
             {
                 List<string> keys = [];
                 var decryptable = true;
+                long? oauthExpiresAt = null;
                 try
                 {
-                    var secrets = JsonSerializer.Deserialize<Dictionary<string, string>>(cipher.Decrypt(connection.EncryptedSecrets));
-                    keys = [.. (secrets ?? []).Keys];
+                    var secrets = JsonSerializer.Deserialize<Dictionary<string, string>>(cipher.Decrypt(connection.EncryptedSecrets))
+                        ?? [];
+                    keys = [.. secrets.Keys];
+                    if (secrets.TryGetValue("expiresAt", out var raw)
+                        && long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var unix))
+                    {
+                        oauthExpiresAt = unix;
+                    }
                 }
                 catch (SecretCipherException)
                 {
                     decryptable = false;
                 }
 
-                responses.Add(new Response(connection.Id, connection.Name, connection.Provider, connection.CreatedAt, keys, decryptable));
+                var isOAuth = connection.Provider is not null
+                    && registry.GetInstance(connection.Provider) is IOAuthConnectionType;
+
+                responses.Add(new Response(
+                    connection.Id, connection.Name, connection.Provider, connection.CreatedAt, keys, decryptable,
+                    isOAuth, oauthExpiresAt));
             }
 
             await Send.OkAsync(responses, ct);
@@ -59,5 +78,7 @@ public static class GetConnections
         string? Provider,
         DateTimeOffset CreatedAt,
         List<string> SecretKeys,
-        bool Decryptable);
+        bool Decryptable,
+        bool IsOAuth,
+        long? OAuthExpiresAt);
 }

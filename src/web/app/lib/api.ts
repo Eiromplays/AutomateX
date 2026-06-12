@@ -173,6 +173,8 @@ export type ConnectionSummary = {
   createdAt: string;
   secretKeys: string[];
   decryptable: boolean;
+  isOAuth: boolean;
+  oauthExpiresAt: number | null;
 };
 
 export type ConnectionField = {
@@ -190,6 +192,7 @@ export type ConnectionTypeInfo = {
   description: string | null;
   source: string;
   fields: ConnectionField[];
+  isOAuth: boolean;
 };
 
 export type AuthMe = {
@@ -310,6 +313,9 @@ export const api = {
     remove: (id: string, force = false) =>
       request<void>(`/connections/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
     test: (id: string) => request<{ ok: boolean; message: string }>(`/connections/${id}/test`, { method: "POST" }),
+    // Returns the provider's consent URL; the caller redirects the browser there.
+    oauthStart: (id: string) =>
+      request<{ authorizeUrl: string }>(`/connections/${id}/oauth/start`, { method: "POST" }),
   },
   auth: {
     me: () => request<AuthMe>("/auth/me"),

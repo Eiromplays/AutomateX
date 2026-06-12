@@ -164,6 +164,27 @@ export default function Connections() {
     onError: (error) => toast.error(`Test failed — ${String(error)}`),
   });
 
+  // Hand off to the provider's consent screen; the callback returns to /connections?oauth=…
+  const connect = useMutation({
+    mutationFn: (id: string) => api.connections.oauthStart(id),
+    onSuccess: ({ authorizeUrl }) => {
+      window.location.href = authorizeUrl;
+    },
+    onError: (error) => toast.error(`Connect failed — ${String(error)}`),
+  });
+
+  // Surface the OAuth callback outcome (?oauth=connected / ?oauth_error=…) once, then clear it.
+  useEffect(() => {
+    if (searchParams.get("oauth") === "connected") {
+      toast.success("Connected.");
+      queryClient.invalidateQueries({ queryKey: ["connections"] });
+      setSearchParams({}, { replace: true });
+    } else if (searchParams.get("oauth_error")) {
+      toast.error(`Connect failed — ${searchParams.get("oauth_error")}`);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams, queryClient]);
+
   const updateRow = (key: number, patch: Partial<SecretRow>) =>
     setRows((current) => current.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
@@ -203,15 +224,40 @@ export default function Connections() {
                 <span className="text-xs text-red-400">undecryptable — wrong encryption key?</span>
               )}
             </div>
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => test.mutate(connection.id)}
-                disabled={test.isPending}
-                className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
-              >
-                {test.isPending && test.variables === connection.id ? "Testing…" : "Test"}
-              </button>
+            <div className="flex items-center gap-3">
+              {connection.isOAuth ? (
+                <>
+                  {(() => {
+                    const connected = connection.secretKeys.includes("accessToken");
+                    const expired =
+                      connection.oauthExpiresAt != null && connection.oauthExpiresAt * 1000 < Date.now();
+                    return (
+                      <span
+                        className={`text-xs ${!connected ? "text-zinc-500" : expired ? "text-amber-400" : "text-emerald-400"}`}
+                      >
+                        {!connected ? "● not connected" : expired ? "● expired" : "● connected"}
+                      </span>
+                    );
+                  })()}
+                  <button
+                    type="button"
+                    onClick={() => connect.mutate(connection.id)}
+                    disabled={connect.isPending}
+                    className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+                  >
+                    {connection.secretKeys.includes("accessToken") ? "Reconnect" : "Connect"}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => test.mutate(connection.id)}
+                  disabled={test.isPending}
+                  className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+                >
+                  {test.isPending && test.variables === connection.id ? "Testing…" : "Test"}
+                </button>
+              )}
               <button type="button" onClick={() => resetForm(connection)} className="text-xs text-zinc-500 hover:text-zinc-100">
                 Edit
               </button>
@@ -262,6 +308,12 @@ export default function Connections() {
 
         {selectedType?.description && (
           <p className="text-xs text-zinc-500">{selectedType.description}</p>
+        )}
+
+        {selectedType?.isOAuth && (
+          <p className="text-xs text-sky-400">
+            After saving, click <strong>Connect</strong> on the connection above to authorize with the provider.
+          </p>
         )}
 
         {!selectedType && (

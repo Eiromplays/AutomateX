@@ -29,14 +29,16 @@ public static class GetConnectionTypes
                     x.DisplayName,
                     x.Description,
                     x.Source,
-                    x.Fields.Select(f => new FieldResponse(f.Key, f.Label, f.Secret, f.Required, f.HelpText, f.DocsUrl)).ToList()))
+                    x.Fields.Select(f => new FieldResponse(f.Key, f.Label, f.Secret, f.Required, f.HelpText, f.DocsUrl)).ToList(),
+                    x.IsOAuth))
                 .ToList();
 
             await Send.OkAsync(types, ct);
         }
     }
 
-    public sealed record Response(string Type, string DisplayName, string? Description, string Source, List<FieldResponse> Fields);
+    public sealed record Response(
+        string Type, string DisplayName, string? Description, string Source, List<FieldResponse> Fields, bool IsOAuth);
 
     public sealed record FieldResponse(string Key, string Label, bool Secret, bool Required, string? HelpText, string? DocsUrl);
 }
