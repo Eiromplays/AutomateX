@@ -1,6 +1,7 @@
 using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Actions;
+using AutomateX.Engine.Connections;
 using AutomateX.Engine.Events;
 using AutomateX.Engine.Security;
 using AutomateX.Engine.Templating;
@@ -21,7 +22,7 @@ public static class ExecuteStepHandler
         AutomateXDbContext dbContext,
         ActionRegistry actions,
         EngineEventBus eventBus,
-        SecretCipher cipher,
+        ConnectionResolver connectionResolver,
         IOptions<EngineOptions> engineOptions,
         ILogger logger,
         CancellationToken cancellationToken)
@@ -78,7 +79,7 @@ public static class ExecuteStepHandler
         string resolvedConfig;
         try
         {
-            var templateContext = await BuildTemplateContextAsync(execution, step.ConfigJson, dbContext, cipher, cancellationToken)
+            var templateContext = await BuildTemplateContextAsync(execution, step.ConfigJson, dbContext, connectionResolver, cancellationToken)
                 with { SecretSink = secretSink };
             resolvedConfig = TemplateResolver.Resolve(step.ConfigJson, templateContext);
         }
@@ -312,7 +313,7 @@ public static class ExecuteStepHandler
         Execution execution,
         string configJson,
         AutomateXDbContext dbContext,
-        SecretCipher cipher,
+        ConnectionResolver connectionResolver,
         CancellationToken cancellationToken)
     {
         Dictionary<int, JsonElement> stepOutputs = [];
@@ -321,20 +322,17 @@ public static class ExecuteStepHandler
             stepOutputs[step.StepOrder] = ParseOutput(step.Output);
         }
 
-        // Decrypt connections only when the config can possibly reference them —
-        // and only the workflow's own workspace's connections (isolation boundary).
+        // Decrypt connections only when the config can possibly reference them — and only the
+        // workflow's own workspace's connections (isolation boundary). OAuth tokens that are
+        // expired get refreshed here, before the step runs.
         Dictionary<string, JsonElement>? connections = null;
         if (configJson.Contains("connections", StringComparison.Ordinal))
         {
-            connections = [];
             var workspaceConnections = await dbContext.Connections
                 .AsNoTracking()
                 .Where(x => x.WorkspaceId == execution.WorkspaceId)
                 .ToListAsync(cancellationToken);
-            foreach (var connection in workspaceConnections)
-            {
-                connections[connection.Name] = JsonSerializer.Deserialize<JsonElement>(cipher.Decrypt(connection.EncryptedSecrets));
-            }
+            connections = await connectionResolver.ResolveAsync(workspaceConnections, cancellationToken);
         }
 
         return new TemplateContext(

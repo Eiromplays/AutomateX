@@ -78,6 +78,7 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<Connections.ConnectionTypeRegistry>();
         builder.Services.AddSingleton<Connections.OAuthClient>();
         builder.Services.AddSingleton<Connections.OAuthStateProtector>();
+        builder.Services.AddSingleton<Connections.ConnectionResolver>();
         builder.Services.AddSingleton<EngineEventBus>();
         builder.Services.AddSingleton<PluginReloader>();
 
