@@ -27,6 +27,25 @@ public interface IConnectionType
     IReadOnlyList<ConnectionField> Fields { get; }
 }
 
+// The OAuth2 parameters for a connection, built from its stored field values. The generic
+// type reads endpoints + client from the values; presets hardcode endpoints/scopes and read
+// only the client id/secret.
+public sealed record OAuthConfig(
+    string AuthorizationEndpoint,
+    string TokenEndpoint,
+    string ClientId,
+    string ClientSecret,
+    IReadOnlyList<string> Scopes,
+    bool UsePkce);
+
+// Optional: a connection type whose credential is obtained via the OAuth2 authorization-code
+// flow. The host runs the consent redirect, code exchange, and refresh; this just maps the
+// connection's stored values to the OAuth parameters.
+public interface IOAuthConnectionType : IConnectionType
+{
+    OAuthConfig BuildOAuthConfig(IReadOnlyDictionary<string, string> values);
+}
+
 public sealed record ConnectionTestResult(bool Ok, string Message);
 
 // Optional: a connection type can verify its credentials work (a webhook ping, an
