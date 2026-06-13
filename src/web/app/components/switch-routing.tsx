@@ -10,6 +10,9 @@ export type RoutingStep = {
   name: string | null;
   config: Record<string, unknown>;
   routing?: SwitchRouting;
+  // Explicit unconditional successors (parallel lanes / joins), authored as stable step keys.
+  // When set they replace this step's implicit order backbone.
+  fanOut?: number[];
 };
 
 export type KeyEdge = { sourceKey: number; targetKey: number; label: string | null };
@@ -44,10 +47,20 @@ function isConfiguredSwitch(step: RoutingStep): boolean {
   return routes.byLabel.length > 0 || routes.default != null;
 }
 
-// A workflow is "branched" once any switch has a target wired. Until then it stays linear
-// and emits no edges (backward compatible — the engine runs it by order).
+// A step's live fan-out targets — self-references and keys of deleted steps are dropped.
+export function validFanOut(step: RoutingStep, liveKeys: Set<number>): number[] {
+  return (step.fanOut ?? []).filter((key) => key !== step.key && liveKeys.has(key));
+}
+
+function liveKeySet(steps: RoutingStep[]): Set<number> {
+  return new Set(steps.map((s) => s.key));
+}
+
+// A workflow is "branched" once any switch has a target wired or any step fans out. Until then it
+// stays linear and emits no edges (backward compatible — the engine runs it by order).
 export function isBranched(steps: RoutingStep[]): boolean {
-  return steps.some(isConfiguredSwitch);
+  const live = liveKeySet(steps);
+  return steps.some((s) => isConfiguredSwitch(s) || validFanOut(s, live).length > 0);
 }
 
 // The logical edges as step keys, for canvas display. Linear workflows show their implicit
@@ -62,16 +75,23 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
     return edges;
   }
 
-  const targetKeys = new Set<number>();
+  const live = liveKeySet(steps);
+  // Switch route targets are lane heads — the implicit order backbone is cut before them so a
+  // neighbouring lane doesn't bleed in. Fan-out targets are explicit joins/lanes and are terminal
+  // by default (they emit only what they themselves fan out to).
+  const switchTargets = new Set<number>();
+  const fanOutTargets = new Set<number>();
   for (const step of steps) {
     const routes = validRoutes(step);
-    for (const [, key] of routes.byLabel) targetKeys.add(key);
-    if (routes.default != null) targetKeys.add(routes.default);
+    for (const [, key] of routes.byLabel) switchTargets.add(key);
+    if (routes.default != null) switchTargets.add(routes.default);
+    for (const key of validFanOut(step, live)) fanOutTargets.add(key);
   }
 
   const edges: KeyEdge[] = [];
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
+    const fanOut = validFanOut(step, live);
     if (isConfiguredSwitch(step)) {
       const routes = validRoutes(step);
       for (const [label, key] of routes.byLabel) {
@@ -80,9 +100,13 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
       if (routes.default != null) {
         edges.push({ sourceKey: step.key, targetKey: routes.default, label: "default" });
       }
-    } else {
+    } else if (fanOut.length > 0) {
+      for (const key of fanOut) edges.push({ sourceKey: step.key, targetKey: key, label: null });
+    } else if (!fanOutTargets.has(step.key)) {
+      // No explicit successors and not an explicit lane head — chain to the next step by order,
+      // unless that next step is a switch lane head.
       const next = steps[i + 1];
-      if (next && !targetKeys.has(next.key)) {
+      if (next && !switchTargets.has(next.key)) {
         edges.push({ sourceKey: step.key, targetKey: next.key, label: null });
       }
     }
@@ -101,17 +125,22 @@ export function submitEdges(steps: RoutingStep[]): WorkflowEdgeInput[] {
   });
 }
 
-// Rebuild per-switch routing from persisted edges (the reverse of submitEdges). Backbone
-// (unlabelled) edges are ignored — they're recomputed from order.
+// Rebuild authored intent from persisted edges (the reverse of submitEdges): labelled edges
+// become switch routes, unlabelled edges become explicit fan-out. Reconstructing every
+// unlabelled edge as fan-out round-trips exactly — terminal lanes simply have no edge.
 export function routingFromEdges(steps: RoutingStep[], edges: WorkflowEdgeInput[]): void {
   for (const edge of edges) {
-    if (edge.label == null) continue;
     const from = steps[edge.from];
     const toKey = steps[edge.to]?.key;
     if (!from || toKey == null) continue;
-    from.routing ??= { byLabel: {}, default: null };
-    if (edge.label === "default") from.routing.default = toKey;
-    else from.routing.byLabel[edge.label] = toKey;
+    if (edge.label != null) {
+      from.routing ??= { byLabel: {}, default: null };
+      if (edge.label === "default") from.routing.default = toKey;
+      else from.routing.byLabel[edge.label] = toKey;
+    } else {
+      from.fanOut ??= [];
+      if (!from.fanOut.includes(toKey)) from.fanOut.push(toKey);
+    }
   }
 }
 
@@ -177,6 +206,52 @@ export function SwitchTargets({
       ))}
       <p className="text-[11px] text-zinc-600">
         Each label runs from its step up to the next branch target (or end). “— end —” stops that path.
+      </p>
+    </div>
+  );
+}
+
+// Unconditional successor picker for a non-switch step. Selecting more than one target fans the
+// run out into concurrent lanes; pointing several steps at the same target makes it a join.
+export function FanOutTargets({
+  step,
+  steps,
+  onChange,
+}: {
+  step: RoutingStep;
+  steps: RoutingStep[];
+  onChange: (fanOut: number[]) => void;
+}) {
+  const others = steps.filter((s) => s.key !== step.key);
+  const selected = new Set(validFanOut(step, liveKeySet(steps)));
+  const indexOf = (key: number) => steps.findIndex((s) => s.key === key);
+  const optionLabel = (s: RoutingStep) => `#${indexOf(s.key) + 1} ${s.name || s.actionType}`;
+
+  const toggle = (key: number, on: boolean) => {
+    const next = new Set(selected);
+    if (on) next.add(key);
+    else next.delete(key);
+    onChange([...next]);
+  };
+
+  return (
+    <div className="space-y-2 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
+      <p className="text-xs font-medium text-zinc-400">Parallel branches</p>
+      {others.length === 0 && <p className="text-[11px] text-zinc-600">Add another step to branch into.</p>}
+      {others.map((s) => (
+        <label key={s.key} className="flex items-center gap-2 text-xs text-zinc-300">
+          <input
+            type="checkbox"
+            className="accent-emerald-500"
+            checked={selected.has(s.key)}
+            onChange={(e) => toggle(s.key, e.target.checked)}
+          />
+          {optionLabel(s)}
+        </label>
+      ))}
+      <p className="text-[11px] text-zinc-600">
+        Pick none to run the next step in order. Pick two or more to run them at once; point several
+        steps at the same one to join.
       </p>
     </div>
   );

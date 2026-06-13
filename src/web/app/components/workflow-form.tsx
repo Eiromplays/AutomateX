@@ -4,10 +4,10 @@ import { api, type CreateWorkflowStep, type WorkflowEdgeInput } from "../lib/api
 import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { WorkflowCanvas } from "./workflow-canvas";
-import { keyEdges, routingFromEdges, submitEdges, SwitchTargets, type SwitchRouting } from "./switch-routing";
+import { FanOutTargets, keyEdges, routingFromEdges, submitEdges, SwitchTargets, type SwitchRouting } from "./switch-routing";
 import { TriggersSection, type DraftTrigger } from "./workflow-triggers";
 
-type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting };
+type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting; fanOut?: number[] };
 
 const inputClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -161,7 +161,7 @@ export function WorkflowForm({
               <select
                 className={`${inputClass} flex-1`}
                 value={step.actionType}
-                onChange={(e) => updateStep(step.key, { actionType: e.target.value, config: {}, routing: undefined })}
+                onChange={(e) => updateStep(step.key, { actionType: e.target.value, config: {}, routing: undefined, fanOut: undefined })}
               >
                 {groupBySource(actions ?? []).map(([source, items]) => (
                   <optgroup
@@ -202,15 +202,21 @@ export function WorkflowForm({
               actionType={step.actionType}
               onChange={(config) => updateStep(step.key, { config })}
             />
-            {step.actionType === "switch" && (
-              <div className="mt-3">
+            <div className="mt-3">
+              {step.actionType === "switch" ? (
                 <SwitchTargets
                   step={step}
                   steps={steps}
                   onChange={(routing) => updateStep(step.key, { routing })}
                 />
-              </div>
-            )}
+              ) : (
+                <FanOutTargets
+                  step={step}
+                  steps={steps}
+                  onChange={(fanOut) => updateStep(step.key, { fanOut })}
+                />
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -230,7 +236,7 @@ export function WorkflowForm({
           onSubmit({
             name,
             description: description || null,
-            steps: steps.map(({ key: _key, routing: _routing, ...step }) => step),
+            steps: steps.map(({ key: _key, routing: _routing, fanOut: _fanOut, ...step }) => step),
             edges: submitEdges(steps),
             triggers: triggerDrafts,
             continueOnFailure,

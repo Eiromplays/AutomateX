@@ -2,11 +2,11 @@ import { useState } from "react";
 import type { ActionDescriptor, CreateWorkflowStep } from "../lib/api";
 import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
-import { SwitchTargets, type KeyEdge, type SwitchRouting } from "./switch-routing";
+import { FanOutTargets, SwitchTargets, type KeyEdge, type SwitchRouting } from "./switch-routing";
 import { newDraftTrigger, triggerSummary, TriggerEditor, type DraftTrigger } from "./workflow-triggers";
 import { WorkflowGraph, type GraphSelection } from "./workflow-graph";
 
-type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting };
+type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting; fanOut?: number[] };
 
 const fieldClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -120,7 +120,7 @@ export function WorkflowCanvas({
               className={fieldClass}
               value={selectedStep.actionType}
               onChange={(e) =>
-                onUpdateStep(selectedStep.key, { actionType: e.target.value, config: {}, routing: undefined })
+                onUpdateStep(selectedStep.key, { actionType: e.target.value, config: {}, routing: undefined, fanOut: undefined })
               }
             >
               {groupBySource(actions).map(([source, items]) => (
@@ -152,11 +152,17 @@ export function WorkflowCanvas({
               actionType={selectedStep.actionType}
               onChange={(config) => onUpdateStep(selectedStep.key, { config })}
             />
-            {selectedStep.actionType === "switch" && (
+            {selectedStep.actionType === "switch" ? (
               <SwitchTargets
                 step={selectedStep}
                 steps={steps}
                 onChange={(routing) => onUpdateStep(selectedStep.key, { routing })}
+              />
+            ) : (
+              <FanOutTargets
+                step={selectedStep}
+                steps={steps}
+                onChange={(fanOut) => onUpdateStep(selectedStep.key, { fanOut })}
               />
             )}
           </div>
