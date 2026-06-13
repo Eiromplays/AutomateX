@@ -1,0 +1,91 @@
+{
+  "automatex": 1,
+  "name": "API uptime watchdog",
+  "description": "Probes a health endpoint on a schedule. If it's up, sends a quiet heartbeat. If it's down, an LLM diagnoses the failure and two alert lanes run in parallel (page on-call + log the incident), then join into a confirmation. continueOnFailure keeps the page going even if the incident log fails.",
+  "continueOnFailure": true,
+  "steps": [
+    {
+      "actionType": "http.request",
+      "name": "Probe health endpoint",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/zen",
+        "timeoutSeconds": 10,
+        "failOnErrorStatus": false
+      }
+    },
+    {
+      "actionType": "switch",
+      "name": "Healthy?",
+      "config": {
+        "value": "{{steps.0.output.statusCode}}",
+        "cases": [{ "label": "up", "equals": "200" }]
+      }
+    },
+    {
+      "actionType": "pushover.send",
+      "name": "Heartbeat OK",
+      "config": {
+        "appToken": "{{connections.pushover.appToken}}",
+        "userKey": "{{connections.pushover.userKey}}",
+        "title": "API healthy",
+        "message": "Probe returned {{steps.0.output.statusCode}}.",
+        "priority": -1
+      }
+    },
+    {
+      "actionType": "llm.prompt",
+      "name": "Diagnose failure",
+      "config": {
+        "model": "gpt-4o-mini",
+        "apiKey": "{{connections.openai.apiKey}}",
+        "system": "You are a terse SRE assistant.",
+        "prompt": "A health probe returned HTTP {{steps.0.output.statusCode}}. Response body:\n{{steps.0.output.body}}\n\nGive one sentence on the likely cause and one on the next step.",
+        "maxTokens": 120
+      }
+    },
+    {
+      "actionType": "pushover.send",
+      "name": "Page on-call",
+      "config": {
+        "appToken": "{{connections.pushover.appToken}}",
+        "userKey": "{{connections.pushover.userKey}}",
+        "title": "API DOWN ({{steps.0.output.statusCode}})",
+        "message": "{{steps.3.output.text}}",
+        "priority": 1
+      }
+    },
+    {
+      "actionType": "http.request",
+      "name": "Log incident",
+      "config": {
+        "method": "POST",
+        "url": "https://httpbin.org/post",
+        "contentType": "application/json",
+        "body": "{\"event\":\"api_down\",\"status\":{{steps.0.output.statusCode}}}",
+        "failOnErrorStatus": true
+      }
+    },
+    {
+      "actionType": "pushover.send",
+      "name": "Incident recorded",
+      "config": {
+        "appToken": "{{connections.pushover.appToken}}",
+        "userKey": "{{connections.pushover.userKey}}",
+        "title": "Incident logged",
+        "message": "On-call paged and incident recorded for status {{steps.0.output.statusCode}}.",
+        "priority": 0
+      }
+    }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "label": null },
+    { "from": 1, "to": 2, "label": "up" },
+    { "from": 1, "to": 3, "label": "default" },
+    { "from": 3, "to": 4, "label": null },
+    { "from": 3, "to": 5, "label": null },
+    { "from": 4, "to": 6, "label": null },
+    { "from": 5, "to": 6, "label": null }
+  ],
+  "triggers": [{ "type": "cron", "config": { "cron": "*/5 * * * *" } }]
+}
