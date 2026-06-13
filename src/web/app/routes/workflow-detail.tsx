@@ -39,6 +39,7 @@ export default function WorkflowDetail() {
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
   const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
+  const [selectedTriggerIndex, setSelectedTriggerIndex] = useState<number | null>(null);
   const [runOpen, setRunOpen] = useState(false);
 
   const { data: workflow, isLoading, error } = useQuery({
@@ -215,6 +216,37 @@ export default function WorkflowDetail() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={selectedTriggerIndex != null} onOpenChange={(open) => { if (!open) setSelectedTriggerIndex(null); }}>
+        <DialogContent
+          title={(() => {
+            const trigger = selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
+            return trigger ? `${trigger.type} trigger` : "Trigger";
+          })()}
+        >
+          {(() => {
+            const trigger = selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
+            if (!trigger) return null;
+            return (
+              <div className="space-y-2 text-xs">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={trigger.enabled ? "text-emerald-400" : "text-red-400"}>
+                    {trigger.enabled ? "● enabled" : "● disabled"}
+                  </span>
+                  {trigger.nextRunAt && (
+                    <span className="text-zinc-500">next: {new Date(trigger.nextRunAt).toLocaleString()}</span>
+                  )}
+                  {trigger.lastFiredAt && (
+                    <span className="text-zinc-500">last: {new Date(trigger.lastFiredAt).toLocaleString()}</span>
+                  )}
+                </div>
+                {trigger.lastError && <p className="text-amber-400/80">⚠ {trigger.lastError}</p>}
+                <CodeBlock text={prettyJson(trigger.configJson)} />
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       {(workflow.runsAfter.length > 0 || workflow.feeds.length > 0) && (
         <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
           {workflow.runsAfter.map((link) => (
@@ -249,8 +281,16 @@ export default function WorkflowDetail() {
               .map((s) => ({ key: s.order, label: s.name ?? s.actionType, actionType: s.actionType }))}
             triggers={workflow.triggers.map((t, i) => ({ key: i, label: triggerNodeLabel(t) }))}
             stepEdges={workflow.latestVersion.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))}
-            selection={selectedStepOrder}
-            onSelect={(sel) => setSelectedStepOrder(typeof sel === "number" ? sel : null)}
+            selection={selectedTriggerIndex != null ? `trigger:${selectedTriggerIndex}` : selectedStepOrder}
+            onSelect={(sel) => {
+              if (typeof sel === "number") {
+                setSelectedStepOrder(sel);
+                setSelectedTriggerIndex(null);
+              } else if (typeof sel === "string" && sel.startsWith("trigger:")) {
+                setSelectedTriggerIndex(Number(sel.slice("trigger:".length)));
+                setSelectedStepOrder(null);
+              }
+            }}
             height="20rem"
           />
           <p className="mt-1 text-[11px] text-zinc-600">
