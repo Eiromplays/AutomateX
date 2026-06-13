@@ -3,13 +3,15 @@ import { useLocation, useNavigate } from "react-router";
 import { api } from "../lib/api";
 import { toast } from "../components/toast";
 import { WorkflowForm, type WorkflowFormValue } from "../components/workflow-form";
+import { applyTriggers, importedDraftTriggers } from "../components/workflow-triggers";
 
 type ImportDoc = {
   automatex?: number;
   name?: string;
   description?: string | null;
   steps?: { actionType?: string; name?: string | null; config?: Record<string, unknown> }[];
-  triggers?: { type?: string; config?: { cron?: string } }[];
+  edges?: { from: number; to: number; label: string | null }[];
+  triggers?: { type?: string; config?: Record<string, unknown> }[];
 };
 
 export default function WorkflowNew() {
@@ -17,23 +19,22 @@ export default function WorkflowNew() {
   const location = useLocation();
   const importDoc = (location.state as { importDoc?: ImportDoc } | null)?.importDoc ?? null;
 
+  // Import is just a prefilled builder: the doc seeds steps/edges/triggers, then everything is
+  // created through the same path as a fresh workflow — so imported triggers are shown and
+  // editable, and webhook secrets surface on save like anywhere else.
   const create = useMutation({
-    mutationFn: (value: WorkflowFormValue) =>
-      importDoc
-        ? // Submit the reviewed values through the import endpoint so its
-          // validation and cron-trigger creation run in one transaction.
-          api.workflows.import({
-            ...importDoc,
-            name: value.name,
-            description: value.description,
-            steps: value.steps.map((step) => ({
-              actionType: step.actionType,
-              name: step.name,
-              config: step.config,
-            })),
-          })
-        : api.workflows.create(value),
-    onSuccess: (created) => {
+    mutationFn: async (value: WorkflowFormValue) => {
+      const created = await api.workflows.create({
+        name: value.name,
+        description: value.description,
+        steps: value.steps,
+        edges: value.edges,
+      });
+      const secrets = await applyTriggers(created.id, value.triggers ?? [], []);
+      return { created, secrets };
+    },
+    onSuccess: ({ created, secrets }) => {
+      secrets.forEach((url) => toast.success(`Webhook URL — copy it now, it's shown only once: ${url}`));
       toast.success(importDoc ? "Workflow imported." : "Workflow created.");
       navigate(`/workflows/${created.id}`);
     },
@@ -48,11 +49,10 @@ export default function WorkflowNew() {
           name: step.name ?? null,
           config: step.config ?? {},
         })),
+        edges: importDoc.edges ?? [],
+        triggers: importedDraftTriggers(importDoc.triggers ?? []),
       }
     : undefined;
-
-  // Only cron triggers travel through export/import; show what'll be created.
-  const cronTriggers = (importDoc?.triggers ?? []).filter((t) => t.type === "cron");
 
   return (
     <div className="max-w-5xl">
@@ -60,23 +60,9 @@ export default function WorkflowNew() {
         {importDoc ? "Import workflow" : "New workflow"}
       </h1>
       {importDoc && (
-        <>
-          <p className="mb-3 text-xs text-zinc-500">
-            Review the imported steps and fill in placeholders (room ids, URLs, …) before creating.
-          </p>
-          {cronTriggers.length > 0 && (
-            <div className="mb-6 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs text-zinc-400">
-              Will also create with import:
-              <ul className="mt-1 space-y-0.5">
-                {cronTriggers.map((t, i) => (
-                  <li key={i}>
-                    ⏰ cron <code className="font-mono text-zinc-300">{t.config?.cron ?? "?"}</code>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </>
+        <p className="mb-6 text-xs text-zinc-500">
+          Review the imported steps, triggers, and connection placeholders (room ids, URLs, …) before creating.
+        </p>
       )}
       <WorkflowForm
         initial={initial}

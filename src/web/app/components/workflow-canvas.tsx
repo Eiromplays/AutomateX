@@ -1,32 +1,22 @@
 import { useMemo, useState } from "react";
 import { ReactFlow, Background, Controls, Handle, Position, type Node, type Edge, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import type { ActionDescriptor, CreateWorkflowStep, WorkflowTrigger } from "../lib/api";
+import type { ActionDescriptor, CreateWorkflowStep } from "../lib/api";
 import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { SwitchTargets, type KeyEdge, type SwitchRouting } from "./switch-routing";
+import { newDraftTrigger, triggerSummary, TriggerEditor, type DraftTrigger } from "./workflow-triggers";
 
 type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting };
 
 type StepNodeData = { index: number; label: string; actionType: string; selected: boolean; unreachable?: boolean };
 
-// number = step key; string = a trigger node id ("trigger" placeholder or "trigger:<id>").
+// number = step key; string = a trigger node id ("trigger:<key>").
 type Selection = number | string | null;
 
 const fieldClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
   "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
-
-function triggerLabel(trigger: WorkflowTrigger): string {
-  let config: Record<string, unknown> = {};
-  try {
-    config = JSON.parse(trigger.configJson) as Record<string, unknown>;
-  } catch {
-    // ignore
-  }
-  const detail = typeof config.url === "string" ? config.url : typeof config.cron === "string" ? config.cron : "";
-  return detail ? `${trigger.type} · ${detail}` : trigger.type;
-}
 
 function StepNode(props: NodeProps) {
   const data = props.data as StepNodeData;
@@ -123,6 +113,7 @@ export function WorkflowCanvas({
   onAddStep,
   onRemoveStep,
   triggers,
+  onTriggersChange,
 }: {
   steps: DraftStep[];
   stepEdges: KeyEdge[];
@@ -132,20 +123,24 @@ export function WorkflowCanvas({
   onMoveStep: (index: number, delta: number) => void;
   onAddStep: () => void;
   onRemoveStep: (key: number) => void;
-  triggers?: WorkflowTrigger[];
+  triggers: DraftTrigger[];
+  onTriggersChange: (triggers: DraftTrigger[]) => void;
 }) {
   const [selection, setSelection] = useState<Selection>(steps[0]?.key ?? null);
 
   const displayName = (actionType: string) => actions.find((a) => a.type === actionType)?.displayName ?? actionType;
 
-  // Real triggers (edit page) render as labeled nodes; with none, a single placeholder.
+  // Trigger nodes are the editable drafts; selecting one edits it in the side panel.
   const triggerNodeList = useMemo(
-    () =>
-      triggers && triggers.length > 0
-        ? triggers.map((t) => ({ id: `trigger:${t.id}`, label: triggerLabel(t) }))
-        : [{ id: "trigger", label: "Trigger" }],
+    () => triggers.map((t) => ({ id: `trigger:${t.key}`, label: triggerSummary(t) })),
     [triggers],
   );
+
+  const addTrigger = () => {
+    const draft = newDraftTrigger();
+    onTriggersChange([...triggers, draft]);
+    setSelection(`trigger:${draft.key}`);
+  };
 
   const { positions, unreachable } = useMemo(() => layoutPositions(steps, stepEdges), [steps, stepEdges]);
 
@@ -195,11 +190,11 @@ export function WorkflowCanvas({
 
   const selectedStep = typeof selection === "number" ? steps.find((s) => s.key === selection) ?? null : null;
   const selectedIndex = selectedStep ? steps.findIndex((s) => s.key === selectedStep.key) : -1;
-  const isTriggerSelection = typeof selection === "string";
-  const selectedTrigger =
-    isTriggerSelection && selection.startsWith("trigger:")
-      ? triggers?.find((t) => `trigger:${t.id}` === selection) ?? null
+  const selectedTriggerKey =
+    typeof selection === "string" && selection.startsWith("trigger:")
+      ? Number(selection.slice("trigger:".length))
       : null;
+  const selectedTrigger = selectedTriggerKey != null ? triggers.find((t) => t.key === selectedTriggerKey) ?? null : null;
 
   return (
     <div className="grid gap-3 lg:grid-cols-[1fr_22rem]">
@@ -221,31 +216,35 @@ export function WorkflowCanvas({
       </div>
 
       <div className="space-y-3 rounded-lg border border-zinc-800 p-4">
-        <button
-          type="button"
-          onClick={onAddStep}
-          className="w-full rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
-        >
-          + Add step
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onAddStep}
+            className="flex-1 rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+          >
+            + Add step
+          </button>
+          <button
+            type="button"
+            onClick={addTrigger}
+            className="flex-1 rounded-md border border-violet-500/40 px-2.5 py-1 text-xs text-violet-200 hover:bg-violet-500/10"
+          >
+            + Add trigger
+          </button>
+        </div>
 
-        {isTriggerSelection ? (
-          <div className="space-y-2 text-xs text-zinc-400">
-            <div className="text-sm font-medium text-zinc-300">
-              {selectedTrigger ? `${selectedTrigger.type} trigger` : "Trigger"}
-            </div>
-            {selectedTrigger ? (
-              <p>
-                Fires this workflow ({triggerLabel(selectedTrigger)}). Triggers are added and edited on the
-                workflow&apos;s own page — the builder edits the steps.
-              </p>
-            ) : (
-              <p>
-                What starts this workflow — cron, webhook, RSS, Matrix, … configured on the workflow&apos;s page after
-                it&apos;s created (or run it manually with “Run now”).
-              </p>
-            )}
-            <p className="text-zinc-600">Steps below run top-to-bottom each time a trigger fires.</p>
+        {selectedTrigger ? (
+          <div className="space-y-2">
+            <div className="text-xs font-medium text-violet-300">Trigger</div>
+            <TriggerEditor
+              draft={selectedTrigger}
+              onChange={(draft) => onTriggersChange(triggers.map((t) => (t.key === draft.key ? draft : t)))}
+              onRemove={() => {
+                onTriggersChange(triggers.filter((t) => t.key !== selectedTrigger.key));
+                setSelection(null);
+              }}
+            />
+            <p className="text-[11px] text-zinc-600">Fires this workflow. Changes apply when you save.</p>
           </div>
         ) : selectedStep ? (
           <div className="space-y-3">

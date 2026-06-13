@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, type CreateWorkflowStep, type WorkflowEdgeInput, type WorkflowTrigger } from "../lib/api";
+import { api, type CreateWorkflowStep, type WorkflowEdgeInput } from "../lib/api";
 import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { WorkflowCanvas } from "./workflow-canvas";
 import { keyEdges, routingFromEdges, submitEdges, SwitchTargets, type SwitchRouting } from "./switch-routing";
+import { TriggersSection, type DraftTrigger } from "./workflow-triggers";
 
 type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting };
 
@@ -19,6 +20,7 @@ export type WorkflowFormValue = {
   description: string | null;
   steps: CreateWorkflowStep[];
   edges?: WorkflowEdgeInput[];
+  triggers?: DraftTrigger[];
 };
 
 // Shared by the create and edit routes — same builder, different mutation.
@@ -29,7 +31,7 @@ export function WorkflowForm({
   pending,
   error,
   onSubmit,
-  triggers,
+  hideTriggers,
 }: {
   initial?: WorkflowFormValue;
   submitLabel: string;
@@ -37,10 +39,11 @@ export function WorkflowForm({
   pending: boolean;
   error: unknown;
   onSubmit: (value: WorkflowFormValue) => void;
-  triggers?: WorkflowTrigger[];
+  hideTriggers?: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [triggerDrafts, setTriggerDrafts] = useState<DraftTrigger[]>(initial?.triggers ?? []);
   const [steps, setSteps] = useState<DraftStep[]>(() => {
     const built: DraftStep[] = initial?.steps.map((step) => ({ ...step, key: nextKey++ })) ?? [];
     if (initial?.edges?.length) routingFromEdges(built, initial.edges);
@@ -127,7 +130,8 @@ export function WorkflowForm({
             onMoveStep={moveStep}
             onAddStep={addStep}
             onRemoveStep={removeStep}
-            triggers={triggers}
+            triggers={triggerDrafts}
+            onTriggersChange={setTriggerDrafts}
           />
         )}
 
@@ -193,6 +197,12 @@ export function WorkflowForm({
         ))}
       </div>
 
+      {!hideTriggers && mode === "form" && (
+        <div className="border-t border-zinc-800 pt-4">
+          <TriggersSection triggers={triggerDrafts} onChange={setTriggerDrafts} />
+        </div>
+      )}
+
       {error != null && <p className="text-sm text-red-400">{String(error)}</p>}
 
       <button
@@ -204,6 +214,7 @@ export function WorkflowForm({
             description: description || null,
             steps: steps.map(({ key: _key, routing: _routing, ...step }) => step),
             edges: submitEdges(steps),
+            triggers: triggerDrafts,
           })
         }
         className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"

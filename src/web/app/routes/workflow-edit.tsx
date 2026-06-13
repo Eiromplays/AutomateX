@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { api } from "../lib/api";
 import { toast } from "../components/toast";
 import { WorkflowForm, type WorkflowFormValue } from "../components/workflow-form";
+import { applyTriggers, triggersFromWorkflow } from "../components/workflow-triggers";
 
 export default function WorkflowEdit() {
   const { id = "" } = useParams();
@@ -16,10 +17,20 @@ export default function WorkflowEdit() {
   });
 
   const update = useMutation({
-    mutationFn: (value: WorkflowFormValue) => api.workflows.update(id, value),
-    onSuccess: (result) => {
+    mutationFn: async (value: WorkflowFormValue) => {
+      const result = await api.workflows.update(id, {
+        name: value.name,
+        description: value.description,
+        steps: value.steps,
+        edges: value.edges,
+      });
+      const secrets = await applyTriggers(id, value.triggers ?? [], triggersFromWorkflow(workflow?.triggers ?? []));
+      return { result, secrets };
+    },
+    onSuccess: ({ result, secrets }) => {
       queryClient.invalidateQueries({ queryKey: ["workflow", id] });
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      secrets.forEach((url) => toast.success(`Webhook URL (copy it now, shown once): ${url}`));
       toast.success(`Saved as v${result.version}.`);
       navigate(`/workflows/${id}`);
     },
@@ -58,8 +69,8 @@ export default function WorkflowEdit() {
               config: JSON.parse(step.configJson) as Record<string, unknown>,
             })),
           edges: workflow.latestVersion.edges,
+          triggers: triggersFromWorkflow(workflow.triggers),
         }}
-        triggers={workflow.triggers}
         submitLabel={`Save as v${workflow.latestVersion.version + 1}`}
         pendingLabel="Saving…"
         pending={update.isPending}
