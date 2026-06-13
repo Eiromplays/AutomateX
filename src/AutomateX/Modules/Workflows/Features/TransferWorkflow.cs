@@ -76,6 +76,7 @@ public static class ImportWorkflow
     public sealed class Endpoint(
         AutomateXDbContext dbContext,
         ActionRegistry actions,
+        AutomateX.Engine.Triggers.TriggerRegistry triggerRegistry,
         WorkspaceAccess access) : Endpoint<JsonObject, Response>
     {
         public override void Configure()
@@ -119,10 +120,22 @@ public static class ImportWorkflow
             var version = workflow.AddVersion(parsed.Steps.ToList(), parsed.Edges.ToList());
             dbContext.Workflows.Add(workflow);
 
-            foreach (var configJson in parsed.CronTriggerConfigs)
+            foreach (var trigger in parsed.Triggers)
             {
-                dbContext.Triggers.Add(Trigger.Create(
-                    workflow.Id, TriggerTypes.Cron, configJson, NextCronOccurrenceOrThrow(configJson)));
+                if (trigger.Type == TriggerTypes.Cron)
+                {
+                    dbContext.Triggers.Add(Trigger.Create(
+                        workflow.Id, TriggerTypes.Cron, trigger.ConfigJson, NextCronOccurrenceOrThrow(trigger.ConfigJson)));
+                }
+                else if (triggerRegistry.Contains(trigger.Type))
+                {
+                    // Plugin triggers (rss, http.poll, …) are driven by the host — no precomputed next-run.
+                    dbContext.Triggers.Add(Trigger.Create(workflow.Id, trigger.Type, trigger.ConfigJson, nextRunAt: null));
+                }
+                else
+                {
+                    ThrowError($"Unknown trigger type '{trigger.Type}'. Install the plugin that provides it, then import again.");
+                }
             }
 
             await dbContext.SaveChangesAsync(ct);

@@ -37,8 +37,10 @@ public static class WorkflowTransfer
             })
             .ToArray());
 
+        // Every trigger travels except the two that can't: webhook (its config holds a
+        // per-trigger secret) and workflow-chains (instance-local workflow ids).
         var triggersArray = new JsonArray(triggers
-            .Where(trigger => trigger.Type == TriggerTypes.Cron)
+            .Where(trigger => trigger.Type is not (TriggerTypes.Webhook or TriggerTypes.Workflow))
             .Select(trigger => (JsonNode)new JsonObject
             {
                 ["type"] = trigger.Type,
@@ -57,12 +59,14 @@ public static class WorkflowTransfer
         };
     }
 
+    public sealed record ImportedTrigger(string Type, string ConfigJson);
+
     public sealed record ParsedImport(
         string Name,
         string? Description,
         IReadOnlyList<StepDefinition> Steps,
         IReadOnlyList<EdgeDefinition> Edges,
-        IReadOnlyList<string> CronTriggerConfigs);
+        IReadOnlyList<ImportedTrigger> Triggers);
 
     public static ParsedImport Parse(JsonObject document)
     {
@@ -113,16 +117,20 @@ public static class WorkflowTransfer
             edges.Add(new EdgeDefinition(from.Value, to.Value, string.IsNullOrWhiteSpace(label) ? null : label));
         }
 
-        List<string> crons = [];
+        // Carry every trigger except the non-portable ones (defensive — export already drops them).
+        List<ImportedTrigger> triggers = [];
         foreach (var node in document["triggers"] as JsonArray ?? [])
         {
-            if ((node?["type"] as JsonValue)?.GetValue<string>() == TriggerTypes.Cron)
+            var type = (node?["type"] as JsonValue)?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(type) || type is TriggerTypes.Webhook or TriggerTypes.Workflow)
             {
-                crons.Add(node?["config"]?.ToJsonString() ?? "{}");
+                continue;
             }
+
+            triggers.Add(new ImportedTrigger(type, node?["config"]?.ToJsonString() ?? "{}"));
         }
 
-        return new ParsedImport(name, description, steps, edges, crons);
+        return new ParsedImport(name, description, steps, edges, triggers);
     }
 
     private static JsonNode ParseOrEmpty(string json)

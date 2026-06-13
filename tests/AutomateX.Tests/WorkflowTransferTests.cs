@@ -20,16 +20,26 @@ public sealed class WorkflowTransferTests
         ("cron", """{"cron":"*/5 * * * *"}"""),
         ("webhook", """{"secretHash":"super-secret"}"""),
         ("workflow", """{"workflowId":"0199c986-0000-7000-8000-000000000000","on":"succeeded"}"""),
+        ("rss", """{"url":"https://example.com/feed.xml"}"""),
     ];
 
     [Fact]
-    public void Export_carries_only_cron_triggers()
+    public void Export_carries_portable_triggers_only()
     {
         var document = WorkflowTransfer.Export("wf", null, Steps, Triggers);
 
         var triggers = (JsonArray)document["triggers"]!;
-        var trigger = Assert.Single(triggers);
-        Assert.Equal("cron", (string)trigger!["type"]!);
+        List<string> types = [];
+        foreach (var trigger in triggers)
+        {
+            types.Add((string)trigger!["type"]!);
+        }
+
+        Assert.Equal(2, triggers.Count); // cron + rss; webhook + workflow are not portable
+        Assert.Contains("cron", types);
+        Assert.Contains("rss", types);
+        Assert.DoesNotContain("webhook", types);
+        Assert.DoesNotContain("workflow", types);
         Assert.DoesNotContain("secret", document.ToJsonString());
     }
 
@@ -61,8 +71,10 @@ public sealed class WorkflowTransferTests
         Assert.True(JsonNode.DeepEquals(
             JsonNode.Parse(Steps[1].ConfigJson),
             JsonNode.Parse(parsed.Steps[1].ConfigJson)));
-        var cron = Assert.Single(parsed.CronTriggerConfigs);
-        Assert.Contains("*/5 * * * *", cron);
+        Assert.Equal(2, parsed.Triggers.Count); // cron + rss
+        Assert.Equal("cron", parsed.Triggers[0].Type);
+        Assert.Contains("*/5 * * * *", parsed.Triggers[0].ConfigJson);
+        Assert.Equal("rss", parsed.Triggers[1].Type);
     }
 
     [Theory]
@@ -96,7 +108,7 @@ public sealed class WorkflowTransferTests
         var step = Assert.Single(parsed.Steps);
         Assert.Null(step.Name);
         Assert.Equal("{}", step.ConfigJson);
-        Assert.Empty(parsed.CronTriggerConfigs);
+        Assert.Empty(parsed.Triggers);
         Assert.Empty(parsed.Edges);
     }
 

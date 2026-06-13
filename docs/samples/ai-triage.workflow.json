@@ -1,0 +1,57 @@
+{
+  "automatex": 1,
+  "name": "ai-triage",
+  "description": "A v3 tour: a cron trigger fetches an upstream status, a switch branches on the result, and the two lanes use the new agentic + MCP actions. HTTP 200 → an llm.agent that pursues a goal using tools from an MCP server; anything else → a direct mcp.call that posts an alert. Shows branching (switch + edges), llm.agent (bounded tool loop over MCP), mcp.call, and connection references. PREREQS: connections named 'openai' (apiKey) and 'tools-mcp' (type 'MCP server' — serverUrl + token); the MCP server should expose a 'send_message' tool (adjust the tool/arguments to match yours); an OpenAI-compatible model (or change model/baseUrl). Hit 'Run now' to try it; the cron also runs it daily at 08:00.",
+  "steps": [
+    {
+      "actionType": "http.request",
+      "name": "Check upstream",
+      "config": {
+        "method": "GET",
+        "url": "https://api.github.com/zen",
+        "headers": { "User-Agent": "AutomateX", "Accept": "application/json" }
+      }
+    },
+    {
+      "actionType": "switch",
+      "name": "Branch on status",
+      "config": {
+        "value": "{{steps.0.output.statusCode}}",
+        "cases": [{ "label": "ok", "equals": "200" }]
+      }
+    },
+    {
+      "actionType": "llm.agent",
+      "name": "Triage with tools (ok lane)",
+      "config": {
+        "model": "gpt-4o-mini",
+        "baseUrl": "https://api.openai.com",
+        "apiKey": "{{connections.openai.apiKey}}",
+        "system": "You are an on-call triage assistant. Use the available tools. Be concise.",
+        "goal": "Upstream is healthy ({{steps.0.output.statusCode}}). Summarize today's activity using the available tools and post a short status update.",
+        "maxIterations": 6,
+        "mcpServers": [
+          { "serverUrl": "{{connections.tools-mcp.serverUrl}}", "token": "{{connections.tools-mcp.token}}" }
+        ]
+      }
+    },
+    {
+      "actionType": "mcp.call",
+      "name": "Alert: upstream down (default lane)",
+      "config": {
+        "serverUrl": "{{connections.tools-mcp.serverUrl}}",
+        "token": "{{connections.tools-mcp.token}}",
+        "tool": "send_message",
+        "arguments": {
+          "text": "⚠️ Upstream check returned HTTP {{steps.0.output.statusCode}} — not 200. Investigate."
+        }
+      }
+    }
+  ],
+  "edges": [
+    { "from": 0, "to": 1, "label": null },
+    { "from": 1, "to": 2, "label": "ok" },
+    { "from": 1, "to": 3, "label": "default" }
+  ],
+  "triggers": [{ "type": "cron", "config": { "cron": "0 8 * * *" } }]
+}
