@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../lib/api";
 import { toast } from "./toast";
+import { Dialog, DialogContent } from "./ui/dialog";
 
 // Renders a form from the JSON Schema the engine exports for each action's config
 // type (GET /api/actions). Strings, numbers and booleans get native inputs; anything
@@ -125,18 +126,9 @@ function ConnectionCreateModal({
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
-      <div
-        className="w-full max-w-md space-y-3 rounded-lg border border-zinc-700 bg-zinc-900 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-zinc-200">New connection</h2>
-          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-200">
-            ✕
-          </button>
-        </div>
-
+    <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
+      <DialogContent title="New connection">
+        <div className="space-y-3">
         <label className="block">
           <span className="mb-1 block text-xs text-zinc-400">Name *</span>
           <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. my-discord" />
@@ -193,8 +185,9 @@ function ConnectionCreateModal({
         >
           {create.isPending ? "Creating…" : "Create connection"}
         </button>
-      </div>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

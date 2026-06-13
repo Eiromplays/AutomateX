@@ -4,6 +4,7 @@ import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { api, getWorkspaceId, setWorkspaceId } from "./lib/api";
 import { Toasts } from "./components/toast";
+import { ConfirmProvider } from "./components/ui/confirm";
 import "./app.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -269,7 +270,9 @@ export default function Root() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Shell />
+      <ConfirmProvider>
+        <Shell />
+      </ConfirmProvider>
     </QueryClientProvider>
   );
 }

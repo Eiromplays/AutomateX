@@ -5,6 +5,7 @@ import { SourceBadge } from "../components/action-source";
 import { StatusBadge } from "../components/status-badge";
 import { CodeBlock } from "../components/code-block";
 import { toast } from "../components/toast";
+import { useConfirm } from "../components/ui/confirm";
 import { useEngineEvents } from "../lib/use-engine-events";
 
 function diffMs(start: string, end: string | null): number | null {
@@ -73,6 +74,7 @@ export default function ExecutionDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
 
   const retry = useMutation({
     mutationFn: () => api.executions.retry(id),
@@ -141,8 +143,8 @@ export default function ExecutionDetail() {
           {(execution.status === "Succeeded" || execution.status === "Failed") && (
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm("Delete this execution and its step history?")) {
+              onClick={async () => {
+                if (await confirm({ title: "Delete execution?", body: "This deletes the execution and its step history.", confirmLabel: "Delete", destructive: true })) {
                   remove.mutate();
                 }
               }}

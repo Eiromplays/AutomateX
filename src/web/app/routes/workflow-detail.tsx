@@ -7,6 +7,7 @@ import { CodeBlock } from "../components/code-block";
 import { WorkflowGraph } from "../components/workflow-graph";
 import { triggerSummary } from "../components/workflow-triggers";
 import { Dialog, DialogContent } from "../components/ui/dialog";
+import { useConfirm } from "../components/ui/confirm";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -36,6 +37,7 @@ export default function WorkflowDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
   const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
@@ -158,8 +160,15 @@ export default function WorkflowDetail() {
               <DropdownMenuItem onSelect={exportWorkflow}>Export</DropdownMenuItem>
               <DropdownMenuItem
                 destructive
-                onSelect={() => {
-                  if (window.confirm(`Delete "${workflow.name}" and its entire execution history?`)) {
+                onSelect={async () => {
+                  if (
+                    await confirm({
+                      title: "Delete workflow?",
+                      body: `Delete "${workflow.name}" and its entire execution history?`,
+                      confirmLabel: "Delete",
+                      destructive: true,
+                    })
+                  ) {
                     removeWorkflow.mutate();
                   }
                 }}
@@ -322,11 +331,13 @@ export default function WorkflowDetail() {
                   <button
                     type="button"
                     disabled={restoreVersion.isPending}
-                    onClick={() => {
+                    onClick={async () => {
                       if (
-                        window.confirm(
-                          `Restore v${version.version}? Its steps become v${workflow.latestVersion.version + 1} — nothing is rewritten.`,
-                        )
+                        await confirm({
+                          title: `Restore v${version.version}?`,
+                          body: `Its steps become v${workflow.latestVersion.version + 1} — nothing is rewritten.`,
+                          confirmLabel: "Restore",
+                        })
                       ) {
                         restoreVersion.mutate(version.version);
                       }
@@ -420,15 +431,33 @@ export default function WorkflowDetail() {
           </Link>
           . Enable/disable, rotate a webhook secret, or delete them here.
         </p>
-        {newWebhook && (
-          <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-            <span className="font-medium text-amber-400">Copy now — shown once: </span>
-            <code className="break-all text-xs">
-              POST {newWebhook.startsWith("http") ? newWebhook : `${window.location.origin}${newWebhook}`}
-            </code>
-          </div>
-        )}
       </section>
+
+      <Dialog open={newWebhook != null} onOpenChange={(open) => { if (!open) setNewWebhook(null); }}>
+        <DialogContent title="Webhook URL">
+          {newWebhook && (() => {
+            const url = `POST ${newWebhook.startsWith("http") ? newWebhook : `${window.location.origin}${newWebhook}`}`;
+            return (
+              <div className="space-y-3">
+                <p className="text-xs text-amber-500/90">⚠ Copy this now — the secret is shown only once. If you lose it, rotate the secret to get a new one.</p>
+                <code className="block break-all rounded-md border border-zinc-800 bg-zinc-950 p-2 text-xs text-zinc-300">{url}</code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(url.replace(/^POST /, "")).then(
+                      () => toast.success("Copied."),
+                      () => toast.error("Copy failed — select and copy manually."),
+                    );
+                  }}
+                  className="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+                >
+                  Copy URL
+                </button>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <WorkflowStateSection workflowId={id} triggers={workflow.triggers} />
     </div>
@@ -453,6 +482,7 @@ function triggerLabel(trigger: WorkflowTrigger | undefined): string {
 // instead of dumping every row. Only shows when there's state.
 function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; triggers: WorkflowTrigger[] }) {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const { data: entries } = useQuery({
     queryKey: ["workflow-state", workflowId],
     queryFn: () => api.workflows.state(workflowId),
@@ -506,8 +536,10 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
         </h2>
         <button
           type="button"
-          onClick={() => {
-            if (window.confirm("Clear all stored state? Feeds will re-process from scratch.")) clear.mutate(undefined);
+          onClick={async () => {
+            if (await confirm({ title: "Clear all state?", body: "Feeds will re-process from scratch.", confirmLabel: "Clear", destructive: true })) {
+              clear.mutate(undefined);
+            }
           }}
           disabled={clear.isPending}
           className="text-xs text-zinc-500 hover:text-red-400 disabled:opacity-50"
@@ -534,9 +566,9 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        if (window.confirm("Reset this feed? Its items will re-process from scratch.")) {
-                          clear.mutate(`trigger:${group.triggerId}:`);
-                        }
+                        confirm({ title: "Reset this feed?", body: "Its items will re-process from scratch.", confirmLabel: "Reset", destructive: true }).then((ok) => {
+                          if (ok) clear.mutate(`trigger:${group.triggerId}:`);
+                        });
                       }}
                       className="hover:text-red-400"
                     >

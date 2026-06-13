@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { api, type ConnectionSummary, type ConnectionTypeInfo } from "../lib/api";
 import { toast } from "../components/toast";
+import { useConfirm } from "../components/ui/confirm";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -65,6 +66,7 @@ function freeRows(existingKeys: string[]): SecretRow[] {
 
 export default function Connections() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState<ConnectionSummary | null>(null);
   const [name, setName] = useState("");
   const [provider, setProvider] = useState("");
@@ -146,11 +148,10 @@ export default function Connections() {
     onError: (error, variables) => {
       const message = String(error);
       if (message.includes("force=true")) {
-        if (window.confirm(`${message}\n\nDelete anyway?`)) {
-          remove.mutate({ ...variables, force: true });
-        } else {
-          remove.reset();
-        }
+        confirm({ title: "Delete anyway?", body: message, confirmLabel: "Delete", destructive: true }).then((ok) => {
+          if (ok) remove.mutate({ ...variables, force: true });
+          else remove.reset();
+        });
         return;
       }
       toast.error(`Delete failed — ${message}`);

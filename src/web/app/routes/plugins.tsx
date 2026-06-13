@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type ActionDescriptor, type PluginInfo } from "../lib/api";
 import { groupBySource, SourceChip, sourceLabel } from "../components/action-source";
 import { toast } from "../components/toast";
+import { useConfirm } from "../components/ui/confirm";
 
 function configFields(raw: string | null): { name: string; required: boolean }[] {
   if (!raw) return [];
@@ -52,6 +53,7 @@ function FieldChips({ fields }: { fields: { name: string; required: boolean }[] 
 
 function PluginManager() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const { data: plugins } = useQuery({ queryKey: ["plugins"], queryFn: api.plugins.list });
   const { data: actions } = useQuery({ queryKey: ["actions"], queryFn: api.actions.list });
   const { data: triggerTypes } = useQuery({ queryKey: ["trigger-types"], queryFn: api.triggers.types, staleTime: 60_000 });
@@ -103,11 +105,10 @@ function PluginManager() {
     onError: (error, variables) => {
       const message = String(error);
       if (message.includes("force=true")) {
-        if (window.confirm(`${message}\n\nDelete anyway?`)) {
-          remove.mutate({ ...variables, force: true });
-        } else {
-          remove.reset();
-        }
+        confirm({ title: "Delete anyway?", body: message, confirmLabel: "Delete", destructive: true }).then((ok) => {
+          if (ok) remove.mutate({ ...variables, force: true });
+          else remove.reset();
+        });
         return;
       }
       toast.error(`Delete failed — ${message}`);
@@ -160,8 +161,15 @@ function PluginManager() {
               {plugins.uploadEnabled && (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm(`Delete plugin "${plugin.name}"? Workflows using its actions will fail.`)) {
+                  onClick={async () => {
+                    if (
+                      await confirm({
+                        title: `Delete plugin "${plugin.name}"?`,
+                        body: "Workflows using its actions will fail.",
+                        confirmLabel: "Delete",
+                        destructive: true,
+                      })
+                    ) {
                       remove.mutate({ scope, name: plugin.name });
                     }
                   }}

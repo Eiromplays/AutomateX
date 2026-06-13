@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
 import { toast } from "../components/toast";
+import { useConfirm } from "../components/ui/confirm";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -11,6 +12,7 @@ const DEFAULT_WORKSPACE_ID = "00000000-0000-0000-0000-000000000001";
 
 export default function WorkspaceSettings() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Editor");
 
@@ -73,8 +75,15 @@ export default function WorkspaceSettings() {
         {current.id !== DEFAULT_WORKSPACE_ID && (
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm(`Delete workspace "${current.name}" and everything in it?`)) {
+            onClick={async () => {
+              if (
+                await confirm({
+                  title: `Delete workspace "${current.name}"?`,
+                  body: "This deletes the workspace and everything in it.",
+                  confirmLabel: "Delete",
+                  destructive: true,
+                })
+              ) {
                 removeWorkspace.mutate();
               }
             }}

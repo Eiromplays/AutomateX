@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { api, type ExecutionSummary } from "../lib/api";
 import { StatusBadge } from "../components/status-badge";
 import { toast } from "../components/toast";
+import { useConfirm } from "../components/ui/confirm";
 import { useEngineEvents } from "../lib/use-engine-events";
 
 // Chains render as trees: root execution first, chained children nested beneath,
@@ -33,6 +34,7 @@ function buildTree(executions: ExecutionSummary[]) {
 
 export default function Executions() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const { data: executions, isLoading } = useQuery({
     queryKey: ["executions"],
     queryFn: api.executions.list,
@@ -134,8 +136,8 @@ export default function Executions() {
           <button
             type="button"
             title="Delete execution"
-            onClick={() => {
-              if (window.confirm("Delete this execution and its step history?")) {
+            onClick={async () => {
+              if (await confirm({ title: "Delete execution?", body: "This deletes the execution and its step history.", confirmLabel: "Delete", destructive: true })) {
                 remove.mutate(execution.id);
               }
             }}
