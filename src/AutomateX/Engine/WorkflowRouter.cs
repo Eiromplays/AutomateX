@@ -10,6 +10,15 @@ public sealed record WorkflowEdgeDef(int From, int To, string? Label);
 // through a not-taken edge (recorded Skipped for the timeline, mirroring the gate).
 public sealed record RoutingDecision(IReadOnlyList<int> Next, IReadOnlyList<int> Skipped);
 
+// A join target's state once a predecessor finishes: Ready (run it), Skip (no live lane reaches
+// it), or Wait (a predecessor is still running — a later lane will trigger it).
+public enum StepReadiness
+{
+    Wait,
+    Ready,
+    Skip,
+}
+
 // Pure graph routing — no DB, no engine state. Given the current step, the version's edges
 // and (for a switch) the label its output chose, decide what runs next and what is skipped.
 public static class WorkflowRouter
@@ -47,6 +56,30 @@ public static class WorkflowRouter
             .ToList();
 
         return new RoutingDecision(next, skipped);
+    }
+
+    // Whether a join target can run yet, given its incoming predecessors' states. The engine
+    // pre-skips not-taken lanes (see Route), so a target's incoming sources are real predecessors:
+    // run once all are terminal and at least one Succeeded; if all are terminal but none Succeeded
+    // (every lane skipped/failed) the target is itself skipped; otherwise wait for a predecessor.
+    public static StepReadiness Readiness(
+        int target,
+        IReadOnlyList<WorkflowEdgeDef> edges,
+        Func<int, bool> isTerminal,
+        Func<int, bool> isSucceeded)
+    {
+        var incoming = edges.Where(e => e.To == target).Select(e => e.From).Distinct().ToList();
+        if (incoming.Count == 0)
+        {
+            return StepReadiness.Wait; // entry steps aren't driven by joins
+        }
+
+        if (incoming.Any(source => !isTerminal(source)))
+        {
+            return StepReadiness.Wait;
+        }
+
+        return incoming.Any(isSucceeded) ? StepReadiness.Ready : StepReadiness.Skip;
     }
 
     private static HashSet<int> Reachable(IEnumerable<int> starts, IReadOnlyList<WorkflowEdgeDef> edges)

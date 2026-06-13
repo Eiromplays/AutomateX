@@ -92,4 +92,43 @@ public sealed class WorkflowRouterTests
         Assert.Empty(decision.Next);
         Assert.Equal([1, 2], decision.Skipped.Order());
     }
+
+    // A diamond/join: 1 and 2 both feed 3.
+    private static readonly WorkflowEdgeDef[] Join = [Edge(0, 1), Edge(0, 2), Edge(1, 3), Edge(2, 3)];
+
+    private static StepReadiness Readiness(int target, IReadOnlyCollection<int> succeeded, IReadOnlyCollection<int> skipped, IReadOnlyCollection<int> running) =>
+        WorkflowRouter.Readiness(
+            target, Join,
+            isTerminal: o => succeeded.Contains(o) || skipped.Contains(o),
+            isSucceeded: o => succeeded.Contains(o));
+
+    [Fact]
+    public void Join_waits_until_all_predecessors_are_terminal()
+    {
+        // 1 done, 2 still running → wait.
+        Assert.Equal(StepReadiness.Wait, Readiness(3, succeeded: [1], skipped: [], running: [2]));
+    }
+
+    [Fact]
+    public void Join_is_ready_once_all_predecessors_finished_with_one_success()
+    {
+        // both lanes ran (parallel) → ready.
+        Assert.Equal(StepReadiness.Ready, Readiness(3, succeeded: [1, 2], skipped: [], running: []));
+        // one lane ran, the other was skipped (conditional diamond) → still ready.
+        Assert.Equal(StepReadiness.Ready, Readiness(3, succeeded: [1], skipped: [2], running: []));
+    }
+
+    [Fact]
+    public void Join_is_skipped_when_every_lane_was_skipped()
+    {
+        Assert.Equal(StepReadiness.Skip, Readiness(3, succeeded: [], skipped: [1, 2], running: []));
+    }
+
+    [Fact]
+    public void Single_predecessor_is_ready_when_it_succeeds()
+    {
+        WorkflowEdgeDef[] linear = [Edge(0, 1)];
+        var ready = WorkflowRouter.Readiness(1, linear, isTerminal: o => o == 0, isSucceeded: o => o == 0);
+        Assert.Equal(StepReadiness.Ready, ready);
+    }
 }
