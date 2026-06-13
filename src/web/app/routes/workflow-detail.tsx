@@ -2,15 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, type WorkflowTrigger } from "../lib/api";
-import { sourceLabel } from "../components/action-source";
-import { SchemaForm, type JsonSchema } from "../components/schema-form";
 import { toast } from "../components/toast";
+import { CodeBlock } from "../components/code-block";
 import { WorkflowGraph } from "../components/workflow-graph";
 import { triggerSummary } from "../components/workflow-triggers";
-
-const inputClass =
-  "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+import { Dialog, DialogContent } from "../components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "../components/ui/dropdown-menu";
 
 function triggerNodeLabel(trigger: WorkflowTrigger): string {
   let config: Record<string, unknown> = {};
@@ -22,20 +24,22 @@ function triggerNodeLabel(trigger: WorkflowTrigger): string {
   return triggerSummary({ key: 0, type: trigger.type, config, enabled: trigger.enabled });
 }
 
+function prettyJson(json: string): string {
+  try {
+    return JSON.stringify(JSON.parse(json), null, 2);
+  } catch {
+    return json;
+  }
+}
+
 export default function WorkflowDetail() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [triggerType, setTriggerType] = useState("cron");
-  const [cron, setCron] = useState("*/5 * * * *");
-  const [chainWorkflowId, setChainWorkflowId] = useState("");
-  const [chainOn, setChainOn] = useState("succeeded");
-  const [pluginTriggerConfig, setPluginTriggerConfig] = useState<Record<string, unknown>>({});
-  const [editingTriggerId, setEditingTriggerId] = useState<string | null>(null);
-  const [editConfig, setEditConfig] = useState<Record<string, unknown>>({});
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
   const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
+  const [runOpen, setRunOpen] = useState(false);
 
   const { data: workflow, isLoading, error } = useQuery({
     queryKey: ["workflow", id],
@@ -49,37 +53,9 @@ export default function WorkflowDetail() {
     staleTime: 60_000,
   });
 
-  const { data: triggerTypes } = useQuery({
-    queryKey: ["trigger-types"],
-    queryFn: api.triggers.types,
-    staleTime: 60_000,
-  });
-
-  const pluginTriggerTypes = (triggerTypes ?? []).filter((t) => t.source !== "builtin");
-  const selectedPluginType = pluginTriggerTypes.find((t) => t.type === triggerType);
-
   const execute = useMutation({
     mutationFn: () => api.workflows.execute(id, payload.trim() || undefined),
     onSuccess: ({ executionId }) => navigate(`/executions/${executionId}`),
-  });
-
-  const addTrigger = useMutation({
-    mutationFn: () =>
-      api.triggers.create(id, {
-        type: triggerType,
-        config:
-          triggerType === "cron"
-            ? { cron }
-            : triggerType === "workflow"
-              ? { workflowId: chainWorkflowId, on: chainOn }
-              : triggerType === "webhook"
-                ? {}
-                : pluginTriggerConfig,
-      }),
-    onSuccess: (created) => {
-      setNewWebhook(created.webhookUrl);
-      queryClient.invalidateQueries({ queryKey: ["workflow", id] });
-    },
   });
 
   const removeTrigger = useMutation({
@@ -97,28 +73,26 @@ export default function WorkflowDetail() {
   });
 
   const updateTrigger = useMutation({
-    mutationFn: (body: { id: string; config?: Record<string, unknown>; enabled?: boolean }) =>
-      api.triggers.update(body.id, { config: body.config, enabled: body.enabled }),
+    mutationFn: (body: { id: string; enabled: boolean }) => api.triggers.update(body.id, { enabled: body.enabled }),
     onSuccess: (_, body) => {
       queryClient.invalidateQueries({ queryKey: ["workflow", id] });
-      if (body.config) {
-        setEditingTriggerId(null);
-        toast.success("Trigger updated.");
-      } else {
-        toast.success(body.enabled ? "Trigger enabled." : "Trigger disabled.");
-      }
+      toast.success(body.enabled ? "Trigger enabled." : "Trigger disabled.");
     },
     onError: (error) => toast.error(`Trigger update failed — ${String(error)}`),
   });
 
-  // Open the inline editor with the trigger's current config prefilled.
-  const startEdit = (trigger: { id: string; configJson: string }) => {
+  const exportWorkflow = async () => {
     try {
-      setEditConfig(JSON.parse(trigger.configJson) as Record<string, unknown>);
-    } catch {
-      setEditConfig({});
+      const doc = await api.workflows.export(id);
+      const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
+      const anchor = document.createElement("a");
+      anchor.href = URL.createObjectURL(blob);
+      anchor.download = `${workflow?.name ?? "workflow"}.workflow.json`;
+      anchor.click();
+      URL.revokeObjectURL(anchor.href);
+    } catch (exportError) {
+      toast.error(`Export failed — ${String(exportError)}`);
     }
-    setEditingTriggerId(trigger.id);
   };
 
   const removeWorkflow = useMutation({
@@ -160,66 +134,86 @@ export default function WorkflowDetail() {
           <h1 className="text-lg font-semibold">{workflow.name}</h1>
           {workflow.description && <p className="text-sm text-zinc-500">{workflow.description}</p>}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm(`Delete "${workflow.name}" and its entire execution history?`)) {
-                removeWorkflow.mutate();
-              }
-            }}
-            disabled={removeWorkflow.isPending}
-            className="text-sm text-zinc-500 hover:text-red-400 disabled:opacity-50"
+            onClick={() => setRunOpen(true)}
+            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
           >
-            Delete
+            Run now
           </button>
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                const doc = await api.workflows.export(id);
-                const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
-                const anchor = document.createElement("a");
-                anchor.href = URL.createObjectURL(blob);
-                anchor.download = `${workflow.name}.workflow.json`;
-                anchor.click();
-                URL.revokeObjectURL(anchor.href);
-              } catch (exportError) {
-                toast.error(`Export failed — ${String(exportError)}`);
-              }
-            }}
-            className="text-sm text-zinc-500 hover:text-zinc-200"
-          >
-            Export
-          </button>
-          <Link
-            to={`/workflows/${id}/edit`}
-            className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
-          >
-            Edit
-          </Link>
-          <button
-            type="button"
-            onClick={() => execute.mutate()}
-            disabled={execute.isPending}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {execute.isPending ? "Starting…" : "Run now"}
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="More actions"
+                className="rounded-md border border-zinc-700 px-2.5 py-1.5 text-sm text-zinc-300 hover:bg-zinc-900"
+              >
+                ⋯
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onSelect={() => navigate(`/workflows/${id}/edit`)}>Edit</DropdownMenuItem>
+              <DropdownMenuItem onSelect={exportWorkflow}>Export</DropdownMenuItem>
+              <DropdownMenuItem
+                destructive
+                onSelect={() => {
+                  if (window.confirm(`Delete "${workflow.name}" and its entire execution history?`)) {
+                    removeWorkflow.mutate();
+                  }
+                }}
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {removeWorkflow.error && <p className="text-sm text-red-400">{String(removeWorkflow.error)}</p>}
 
-      <div>
-        <textarea
-          className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 font-mono text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
-          rows={2}
-          placeholder='Optional JSON payload for Run now — available in steps as {{trigger.payload}}'
-          value={payload}
-          onChange={(e) => setPayload(e.target.value)}
-        />
-        {execute.error && <p className="mt-1 text-sm text-red-400">{String(execute.error)}</p>}
-      </div>
+      <Dialog open={runOpen} onOpenChange={setRunOpen}>
+        <DialogContent title="Run now">
+          <p className="mb-2 text-xs text-zinc-500">
+            Optional JSON payload — available in steps as <code className="text-zinc-400">{"{{trigger.payload}}"}</code>.
+          </p>
+          <textarea
+            className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 font-mono text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+            rows={4}
+            placeholder='{ }'
+            value={payload}
+            onChange={(e) => setPayload(e.target.value)}
+          />
+          {execute.error && <p className="mt-1 text-sm text-red-400">{String(execute.error)}</p>}
+          <button
+            type="button"
+            onClick={() => execute.mutate()}
+            disabled={execute.isPending}
+            className="mt-3 w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {execute.isPending ? "Starting…" : "Run"}
+          </button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={selectedStepOrder != null} onOpenChange={(open) => { if (!open) setSelectedStepOrder(null); }}>
+        <DialogContent
+          title={(() => {
+            const step = workflow.latestVersion.steps.find((s) => s.order === selectedStepOrder);
+            return step ? `#${step.order + 1} ${step.name ?? step.actionType}` : "Step";
+          })()}
+        >
+          {(() => {
+            const step = workflow.latestVersion.steps.find((s) => s.order === selectedStepOrder);
+            if (!step) return null;
+            return (
+              <>
+                <div className="mb-2 text-xs text-zinc-500">{step.actionType}</div>
+                <CodeBlock text={prettyJson(step.configJson)} />
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {(workflow.runsAfter.length > 0 || workflow.feeds.length > 0) && (
         <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
@@ -346,17 +340,6 @@ export default function WorkflowDetail() {
                   >
                     {trigger.enabled ? "Disable" : "Enable"}
                   </button>
-                  {trigger.type !== "webhook" && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        editingTriggerId === trigger.id ? setEditingTriggerId(null) : startEdit(trigger)
-                      }
-                      className="text-xs text-zinc-500 hover:text-zinc-100"
-                    >
-                      {editingTriggerId === trigger.id ? "Close" : "Edit"}
-                    </button>
-                  )}
                   {trigger.type === "webhook" && (
                     <button
                       type="button"
@@ -383,34 +366,6 @@ export default function WorkflowDetail() {
                   ⚠ {trigger.lastError}
                 </p>
               )}
-              {editingTriggerId === trigger.id && (
-                <div className="mt-3 border-t border-zinc-800 pt-3">
-                  <TriggerConfigEditor
-                    type={trigger.type}
-                    config={editConfig}
-                    onChange={setEditConfig}
-                    workflows={allWorkflows}
-                    triggerTypes={triggerTypes}
-                  />
-                  <div className="mt-2 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={updateTrigger.isPending}
-                      onClick={() => updateTrigger.mutate({ id: trigger.id, config: editConfig })}
-                      className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingTriggerId(null)}
-                      className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
             </li>
           ))}
           {workflow.triggers.length === 0 && (
@@ -418,88 +373,13 @@ export default function WorkflowDetail() {
           )}
         </ul>
 
-        <div className="flex items-center gap-2">
-          <select
-            className={inputClass}
-            value={triggerType}
-            onChange={(e) => {
-              setTriggerType(e.target.value);
-              setPluginTriggerConfig({});
-            }}
-          >
-            <optgroup label="Built-in">
-              <option value="cron">cron</option>
-              <option value="webhook">webhook</option>
-              <option value="workflow">workflow (chain)</option>
-            </optgroup>
-            {Object.entries(
-              pluginTriggerTypes.reduce<Record<string, typeof pluginTriggerTypes>>((acc, t) => {
-                (acc[t.source] ??= []).push(t);
-                return acc;
-              }, {}),
-            ).map(([source, items]) => (
-              <optgroup key={source} label={sourceLabel(source)}>
-                {items.map((t) => (
-                  <option key={t.type} value={t.type}>
-                    {t.displayName} ({t.type})
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-          {triggerType === "workflow" && (
-            <>
-              <span className="text-xs text-zinc-500">when</span>
-              <select
-                className={inputClass}
-                value={chainWorkflowId}
-                onChange={(e) => setChainWorkflowId(e.target.value)}
-              >
-                <option value="">choose workflow…</option>
-                {allWorkflows?.map((candidate) => (
-                  <option key={candidate.id} value={candidate.id}>
-                    {candidate.name}
-                  </option>
-                ))}
-              </select>
-              <select className={inputClass} value={chainOn} onChange={(e) => setChainOn(e.target.value)}>
-                <option value="succeeded">succeeds</option>
-                <option value="failed">fails</option>
-                <option value="any">finishes (any)</option>
-              </select>
-            </>
-          )}
-          {triggerType === "cron" && (
-            <input
-              className={`${inputClass} font-mono`}
-              value={cron}
-              onChange={(e) => setCron(e.target.value)}
-              placeholder="*/5 * * * *"
-            />
-          )}
-          <button
-            type="button"
-            onClick={() => addTrigger.mutate()}
-            disabled={addTrigger.isPending || (triggerType === "workflow" && !chainWorkflowId)}
-            className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900 disabled:opacity-50"
-          >
-            Add trigger
-          </button>
-        </div>
-        {selectedPluginType && (
-          <div className="mt-3 max-w-md rounded-lg border border-zinc-800 p-3">
-            <SchemaForm
-              schema={
-                selectedPluginType.configSchema
-                  ? (JSON.parse(selectedPluginType.configSchema) as JsonSchema)
-                  : null
-              }
-              value={pluginTriggerConfig}
-              onChange={setPluginTriggerConfig}
-            />
-          </div>
-        )}
-        {addTrigger.error && <p className="mt-2 text-sm text-red-400">{String(addTrigger.error)}</p>}
+        <p className="text-xs text-zinc-600">
+          Add or change triggers in the{" "}
+          <Link to={`/workflows/${id}/edit`} className="text-emerald-400 hover:underline">
+            builder
+          </Link>
+          . Enable/disable, rotate a webhook secret, or delete them here.
+        </p>
         {newWebhook && (
           <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
             <span className="font-medium text-amber-400">Copy now — shown once: </span>
@@ -755,72 +635,3 @@ function ChainSummary({
 const onLabel = (on: string) =>
   on === "failed" ? "on failure" : on === "any" ? "on any finish" : "on success";
 
-// Inline config editor for an existing trigger — same controls as the add row,
-// keyed by trigger type (webhook isn't editable, so it never reaches here).
-function TriggerConfigEditor({
-  type,
-  config,
-  onChange,
-  workflows,
-  triggerTypes,
-}: {
-  type: string;
-  config: Record<string, unknown>;
-  onChange: (config: Record<string, unknown>) => void;
-  workflows: { id: string; name: string }[] | undefined;
-  triggerTypes: { type: string; configSchema: string | null }[] | undefined;
-}) {
-  if (type === "cron") {
-    return (
-      <label className="block">
-        <span className="mb-1 block text-xs text-zinc-400">cron expression</span>
-        <input
-          className={`${inputClass} w-full font-mono`}
-          value={String(config.cron ?? "")}
-          onChange={(e) => onChange({ ...config, cron: e.target.value })}
-          placeholder="*/5 * * * *"
-        />
-      </label>
-    );
-  }
-
-  if (type === "workflow") {
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-zinc-500">when</span>
-        <select
-          className={inputClass}
-          value={String(config.workflowId ?? "")}
-          onChange={(e) => onChange({ ...config, workflowId: e.target.value })}
-        >
-          <option value="">choose workflow…</option>
-          {workflows?.map((w) => (
-            <option key={w.id} value={w.id}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className={inputClass}
-          value={String(config.on ?? "succeeded")}
-          onChange={(e) => onChange({ ...config, on: e.target.value })}
-        >
-          <option value="succeeded">succeeds</option>
-          <option value="failed">fails</option>
-          <option value="any">finishes (any)</option>
-        </select>
-      </div>
-    );
-  }
-
-  const schema = triggerTypes?.find((t) => t.type === type)?.configSchema ?? null;
-  return (
-    <div className="max-w-md">
-      <SchemaForm
-        schema={schema ? (JSON.parse(schema) as JsonSchema) : null}
-        value={config}
-        onChange={onChange}
-      />
-    </div>
-  );
-}

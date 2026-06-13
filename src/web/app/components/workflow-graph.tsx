@@ -8,8 +8,8 @@ export type GraphTrigger = { key: number; label: string };
 // number = step key; string = a trigger node id ("trigger:<key>").
 export type GraphSelection = number | string | null;
 
-const COLUMN = 240;
-const ROW = 110;
+const COLUMN = 300;
+const ROW = 120;
 
 type StepNodeData = { index: number; label: string; actionType: string; selected: boolean; unreachable: boolean };
 
