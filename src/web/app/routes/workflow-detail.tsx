@@ -2,8 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, type WorkflowTrigger } from "../lib/api";
-import { DriftWarning, SourceBadge, sourceLabel } from "../components/action-source";
-import { CodeBlock } from "../components/code-block";
+import { sourceLabel } from "../components/action-source";
 import { SchemaForm, type JsonSchema } from "../components/schema-form";
 import { toast } from "../components/toast";
 import { WorkflowGraph } from "../components/workflow-graph";
@@ -260,31 +259,10 @@ export default function WorkflowDetail() {
             onSelect={(sel) => setSelectedStepOrder(typeof sel === "number" ? sel : null)}
             height="20rem"
           />
-          <p className="mt-1 text-[11px] text-zinc-600">Triggers feed the first step; branches show their labels. Click a step to highlight it below.</p>
+          <p className="mt-1 text-[11px] text-zinc-600">
+            Triggers feed the first step; branches show their labels. Edit steps &amp; config in the builder.
+          </p>
         </div>
-        <ol className="space-y-2">
-          {[...workflow.latestVersion.steps]
-            .sort((a, b) => a.order - b.order)
-            .map((step) => (
-            <li
-              key={step.id}
-              className={`rounded-lg border px-4 py-3 ${
-                step.order === selectedStepOrder ? "border-emerald-500" : "border-zinc-800"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-zinc-500">#{step.order + 1}</span>
-                <span className="text-sm font-medium">{step.name ?? step.actionType}</span>
-                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
-                  {step.actionType}
-                </span>
-                <SourceBadge actionType={step.actionType} />
-              </div>
-              <CodeBlock text={JSON.stringify(JSON.parse(step.configJson), null, 2)} />
-              <DriftWarning actionType={step.actionType} configJson={step.configJson} />
-            </li>
-          ))}
-        </ol>
       </section>
 
       {workflow.versions.length > 1 && (
