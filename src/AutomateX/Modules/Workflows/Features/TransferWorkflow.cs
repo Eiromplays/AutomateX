@@ -65,7 +65,8 @@ public static class ExportWorkflow
                     workflow.Description,
                     steps,
                     triggers.Select(x => (x.Type, x.ConfigJson)).ToList(),
-                    edges),
+                    edges,
+                    latest.ContinueOnFailure),
                 ct);
         }
     }
@@ -117,7 +118,7 @@ public static class ImportWorkflow
             }
 
             var workflow = Workflow.Create(parsed.Name, parsed.Description, ws);
-            var version = workflow.AddVersion(parsed.Steps.ToList(), parsed.Edges.ToList());
+            var version = workflow.AddVersion(parsed.Steps.ToList(), parsed.Edges.ToList(), parsed.ContinueOnFailure);
             dbContext.Workflows.Add(workflow);
 
             foreach (var trigger in parsed.Triggers)

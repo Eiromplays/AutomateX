@@ -17,7 +17,8 @@ public static class WorkflowTransfer
         string? description,
         IReadOnlyList<StepDefinition> steps,
         IReadOnlyList<(string Type, string ConfigJson)> triggers,
-        IReadOnlyList<EdgeDefinition>? edges = null)
+        IReadOnlyList<EdgeDefinition>? edges = null,
+        bool continueOnFailure = false)
     {
         var stepsArray = new JsonArray(steps
             .Select(step => (JsonNode)new JsonObject
@@ -53,6 +54,7 @@ public static class WorkflowTransfer
             ["automatex"] = FormatVersion,
             ["name"] = name,
             ["description"] = description,
+            ["continueOnFailure"] = continueOnFailure,
             ["steps"] = stepsArray,
             ["edges"] = edgesArray,
             ["triggers"] = triggersArray,
@@ -64,6 +66,7 @@ public static class WorkflowTransfer
     public sealed record ParsedImport(
         string Name,
         string? Description,
+        bool ContinueOnFailure,
         IReadOnlyList<StepDefinition> Steps,
         IReadOnlyList<EdgeDefinition> Edges,
         IReadOnlyList<ImportedTrigger> Triggers);
@@ -83,6 +86,7 @@ public static class WorkflowTransfer
         }
 
         var description = document["description"] is JsonValue desc ? desc.GetValue<string>() : null;
+        var continueOnFailure = document["continueOnFailure"] is JsonValue cof && cof.TryGetValue<bool>(out var cofValue) && cofValue;
 
         List<StepDefinition> steps = [];
         foreach (var node in document["steps"] as JsonArray ?? [])
@@ -130,7 +134,7 @@ public static class WorkflowTransfer
             triggers.Add(new ImportedTrigger(type, node?["config"]?.ToJsonString() ?? "{}"));
         }
 
-        return new ParsedImport(name, description, steps, edges, triggers);
+        return new ParsedImport(name, description, continueOnFailure, steps, edges, triggers);
     }
 
     private static JsonNode ParseOrEmpty(string json)

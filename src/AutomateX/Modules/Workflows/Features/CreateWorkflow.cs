@@ -41,7 +41,8 @@ public static class CreateWorkflow
                 req.Steps
                     .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
                     .ToList(),
-                edges);
+                edges,
+                req.ContinueOnFailure);
 
             dbContext.Workflows.Add(workflow);
             await dbContext.SaveChangesAsync(ct);
@@ -50,7 +51,9 @@ public static class CreateWorkflow
         }
     }
 
-    public sealed record Request(string Name, string? Description, List<StepRequest> Steps, List<EdgeRequest>? Edges = null);
+    public sealed record Request(
+        string Name, string? Description, List<StepRequest> Steps, List<EdgeRequest>? Edges = null,
+        bool ContinueOnFailure = false);
 
     public sealed record StepRequest(string ActionType, string? Name, JsonElement Config);
 

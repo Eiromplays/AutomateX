@@ -23,6 +23,7 @@ export default function WorkflowEdit() {
         description: value.description,
         steps: value.steps,
         edges: value.edges,
+        continueOnFailure: value.continueOnFailure,
       });
       const secrets = await applyTriggers(id, value.triggers ?? [], triggersFromWorkflow(workflow?.triggers ?? []));
       return { result, secrets };
@@ -70,6 +71,7 @@ export default function WorkflowEdit() {
             })),
           edges: workflow.latestVersion.edges,
           triggers: triggersFromWorkflow(workflow.triggers),
+          continueOnFailure: workflow.latestVersion.continueOnFailure,
         }}
         submitLabel={`Save as v${workflow.latestVersion.version + 1}`}
         pendingLabel="Saving…"

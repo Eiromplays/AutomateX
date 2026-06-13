@@ -100,6 +100,7 @@ export type WorkflowDetail = {
     id: string;
     version: number;
     createdAt: string;
+    continueOnFailure: boolean;
     steps: WorkflowStep[];
     edges: WorkflowEdgeInput[];
   };
@@ -367,7 +368,7 @@ export const api = {
   workflows: {
     list: () => request<WorkflowSummary[]>("/workflows"),
     get: (id: string) => request<WorkflowDetail>(`/workflows/${id}`),
-    create: (body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[] }) =>
+    create: (body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[]; continueOnFailure?: boolean }) =>
       request<{ id: string; versionId: string; version: number }>("/workflows", {
         method: "POST",
         body: JSON.stringify(body),
@@ -375,7 +376,7 @@ export const api = {
     // Appends an immutable new version — past executions keep the version they ran.
     update: (
       id: string,
-      body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[] },
+      body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[]; continueOnFailure?: boolean },
     ) =>
       request<{ id: string; versionId: string; version: number }>(`/workflows/${id}`, {
         method: "PUT",

@@ -52,7 +52,8 @@ public static class UpdateWorkflow
                 req.Steps
                     .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
                     .ToList(),
-                edges);
+                edges,
+                req.ContinueOnFailure);
 
             // Explicit Add — see ExecuteStepHandler: discovered children with client-set keys track as Modified.
             dbContext.WorkflowVersions.Add(version);
@@ -65,7 +66,7 @@ public static class UpdateWorkflow
 
     public sealed record Request(
         Guid Id, string Name, string? Description, List<CreateWorkflow.StepRequest> Steps,
-        List<CreateWorkflow.EdgeRequest>? Edges = null);
+        List<CreateWorkflow.EdgeRequest>? Edges = null, bool ContinueOnFailure = false);
 
     public sealed record Response(Guid Id, Guid VersionId, int Version);
 }

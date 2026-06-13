@@ -21,6 +21,7 @@ export type WorkflowFormValue = {
   steps: CreateWorkflowStep[];
   edges?: WorkflowEdgeInput[];
   triggers?: DraftTrigger[];
+  continueOnFailure: boolean;
 };
 
 // Shared by the create and edit routes — same builder, different mutation.
@@ -43,6 +44,7 @@ export function WorkflowForm({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [continueOnFailure, setContinueOnFailure] = useState(initial?.continueOnFailure ?? false);
   const [triggerDrafts, setTriggerDrafts] = useState<DraftTrigger[]>(initial?.triggers ?? []);
   const [steps, setSteps] = useState<DraftStep[]>(() => {
     const built: DraftStep[] = initial?.steps.map((step) => ({ ...step, key: nextKey++ })) ?? [];
@@ -94,6 +96,22 @@ export function WorkflowForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+      </label>
+
+      <label className="flex items-start gap-2">
+        <input
+          type="checkbox"
+          className="mt-0.5 accent-emerald-500"
+          checked={continueOnFailure}
+          onChange={(e) => setContinueOnFailure(e.target.checked)}
+        />
+        <span>
+          <span className="block text-sm text-zinc-300">Continue on step failure</span>
+          <span className="block text-[11px] text-zinc-500">
+            On by default a failed step fails the whole run. Enable to let independent parallel
+            lanes finish; the run still ends Failed.
+          </span>
+        </span>
       </label>
 
       <div className="space-y-3">
@@ -215,6 +233,7 @@ export function WorkflowForm({
             steps: steps.map(({ key: _key, routing: _routing, ...step }) => step),
             edges: submitEdges(steps),
             triggers: triggerDrafts,
+            continueOnFailure,
           })
         }
         className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"

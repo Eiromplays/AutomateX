@@ -110,6 +110,18 @@ public sealed class WorkflowTransferTests
         Assert.Equal("{}", step.ConfigJson);
         Assert.Empty(parsed.Triggers);
         Assert.Empty(parsed.Edges);
+        Assert.False(parsed.ContinueOnFailure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Round_trip_preserves_continue_on_failure(bool continueOnFailure)
+    {
+        var document = WorkflowTransfer.Export("wf", "desc", Steps, Triggers, edges: null, continueOnFailure);
+
+        Assert.Equal(continueOnFailure, (bool)document["continueOnFailure"]!);
+        Assert.Equal(continueOnFailure, WorkflowTransfer.Parse(document).ContinueOnFailure);
     }
 
     [Fact]

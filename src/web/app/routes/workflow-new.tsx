@@ -9,6 +9,7 @@ type ImportDoc = {
   automatex?: number;
   name?: string;
   description?: string | null;
+  continueOnFailure?: boolean;
   steps?: { actionType?: string; name?: string | null; config?: Record<string, unknown> }[];
   edges?: { from: number; to: number; label: string | null }[];
   triggers?: { type?: string; config?: Record<string, unknown> }[];
@@ -29,6 +30,7 @@ export default function WorkflowNew() {
         description: value.description,
         steps: value.steps,
         edges: value.edges,
+        continueOnFailure: value.continueOnFailure,
       });
       const secrets = await applyTriggers(created.id, value.triggers ?? [], []);
       return { created, secrets };
@@ -51,6 +53,7 @@ export default function WorkflowNew() {
         })),
         edges: importDoc.edges ?? [],
         triggers: importedDraftTriggers(importDoc.triggers ?? []),
+        continueOnFailure: importDoc.continueOnFailure ?? false,
       }
     : undefined;
 

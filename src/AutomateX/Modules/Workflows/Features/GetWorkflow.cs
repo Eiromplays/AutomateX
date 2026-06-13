@@ -43,6 +43,7 @@ public static class GetWorkflow
                             v.Id,
                             v.Version,
                             v.CreatedAt,
+                            v.ContinueOnFailure,
                             v.Steps
                                 .OrderBy(s => s.Order)
                                 .Select(s => new StepResponse(s.Id, s.Order, s.Name, s.ActionType, s.ConfigJson))
@@ -151,7 +152,7 @@ public static class GetWorkflow
     public sealed record ChainLink(Guid WorkflowId, string Name, string On);
 
     public sealed record VersionResponse(
-        Guid Id, int Version, DateTimeOffset CreatedAt, List<StepResponse> Steps, List<EdgeResponse> Edges);
+        Guid Id, int Version, DateTimeOffset CreatedAt, bool ContinueOnFailure, List<StepResponse> Steps, List<EdgeResponse> Edges);
 
     public sealed record VersionSummary(Guid Id, int Version, DateTimeOffset CreatedAt, int StepCount);
 
