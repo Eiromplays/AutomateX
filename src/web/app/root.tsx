@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { api, getWorkspaceId, setWorkspaceId } from "./lib/api";
-import { Toasts } from "./components/toast";
-import { ConfirmProvider } from "./components/ui/confirm";
+import { Toasts, toast } from "./components/toast";
+import { ConfirmProvider, usePrompt } from "./components/ui/confirm";
 import "./app.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -31,13 +31,20 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   isActive ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100";
 
 function ApiKeyButton() {
+  const prompt = usePrompt();
   return (
     <button
       type="button"
       title="Sign in with API key"
       className="text-zinc-600 hover:text-zinc-100"
       onClick={async () => {
-        const key = window.prompt("API key (leave blank to sign out):");
+        const key = await prompt({
+          title: "Sign in with API key",
+          label: "Leave blank to sign out.",
+          placeholder: "API key",
+          password: true,
+          confirmLabel: "Sign in",
+        });
         if (key === null) return;
         try {
           if (key) {
@@ -47,7 +54,7 @@ function ApiKeyButton() {
           }
           window.location.reload();
         } catch {
-          window.alert("Invalid API key.");
+          toast.error("Invalid API key.");
         }
       }}
     >
@@ -146,6 +153,7 @@ function NewWorkspaceBanner() {
 }
 
 function WorkspaceSwitcher() {
+  const prompt = usePrompt();
   const { data: workspaces } = useQuery({
     queryKey: ["workspaces"],
     queryFn: api.workspaces.list,
@@ -162,7 +170,7 @@ function WorkspaceSwitcher() {
       value={current}
       onChange={async (e) => {
         if (e.target.value === "__new__") {
-          const name = window.prompt("New workspace name:");
+          const name = await prompt({ title: "New workspace", placeholder: "Workspace name", confirmLabel: "Create" });
           if (!name) return;
           const created = await api.workspaces.create(name);
           setWorkspaceId(created.id);
