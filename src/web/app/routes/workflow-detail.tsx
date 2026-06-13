@@ -5,6 +5,7 @@ import { api, type WorkflowTrigger } from "../lib/api";
 import { toast } from "../components/toast";
 import { CodeBlock } from "../components/code-block";
 import { WorkflowGraph } from "../components/workflow-graph";
+import { backboneEdges } from "../components/switch-routing";
 import { triggerSummary } from "../components/workflow-triggers";
 import { Dialog, DialogContent } from "../components/ui/dialog";
 import { useConfirm } from "../components/ui/confirm";
@@ -289,7 +290,13 @@ export default function WorkflowDetail() {
               .sort((a, b) => a.order - b.order)
               .map((s) => ({ key: s.order, label: s.name ?? s.actionType, actionType: s.actionType }))}
             triggers={workflow.triggers.map((t, i) => ({ key: i, label: triggerNodeLabel(t) }))}
-            stepEdges={workflow.latestVersion.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))}
+            stepEdges={
+              workflow.latestVersion.edges.length > 0
+                ? workflow.latestVersion.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))
+                : backboneEdges(
+                    [...workflow.latestVersion.steps].sort((a, b) => a.order - b.order).map((s) => s.order),
+                  )
+            }
             selection={selectedTriggerIndex != null ? `trigger:${selectedTriggerIndex}` : selectedStepOrder}
             onSelect={(sel) => {
               if (typeof sel === "number") {

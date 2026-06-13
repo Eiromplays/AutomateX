@@ -114,6 +114,16 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
   return edges;
 }
 
+// The implicit order backbone (i → i+1). The engine runs an edgeless workflow this way, so the
+// read-only detail graph draws it when no branch edges were persisted.
+export function backboneEdges(stepKeys: number[]): KeyEdge[] {
+  const edges: KeyEdge[] = [];
+  for (let i = 0; i < stepKeys.length - 1; i++) {
+    edges.push({ sourceKey: stepKeys[i], targetKey: stepKeys[i + 1], label: null });
+  }
+  return edges;
+}
+
 // Edges to submit: order-based, or empty when the workflow is still linear.
 export function submitEdges(steps: RoutingStep[]): WorkflowEdgeInput[] {
   if (!isBranched(steps)) return [];

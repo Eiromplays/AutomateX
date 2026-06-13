@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  backboneEdges,
   isBranched,
   keyEdges,
   routingFromEdges,
@@ -125,6 +126,21 @@ describe("switch lane backbone", () => {
     const loaded = reload(build());
     routingFromEdges(loaded, original);
     expect(submitEdges(loaded)).toEqual(original);
+  });
+});
+
+describe("backboneEdges", () => {
+  it("chains step keys in order for the read-only graph", () => {
+    expect(backboneEdges([0, 1, 2, 3])).toEqual([
+      { sourceKey: 0, targetKey: 1, label: null },
+      { sourceKey: 1, targetKey: 2, label: null },
+      { sourceKey: 2, targetKey: 3, label: null },
+    ]);
+  });
+
+  it("is empty for zero or one step", () => {
+    expect(backboneEdges([])).toEqual([]);
+    expect(backboneEdges([7])).toEqual([]);
   });
 });
 
