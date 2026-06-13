@@ -42,7 +42,8 @@ public static class RunWorkflowHandler
         }
 
         var execution = Execution.Start(
-            message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload, workspaceId);
+            message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload, workspaceId,
+            version.ContinueOnFailure);
         dbContext.Executions.Add(execution);
 
         var firstStep = version.Steps.OrderBy(x => x.Order).FirstOrDefault();

@@ -29,10 +29,13 @@ public sealed class Workflow
         CreatedAt = DateTimeOffset.UtcNow,
     };
 
-    public WorkflowVersion AddVersion(IReadOnlyList<StepDefinition> steps, IReadOnlyList<EdgeDefinition>? edges = null)
+    public WorkflowVersion AddVersion(
+        IReadOnlyList<StepDefinition> steps,
+        IReadOnlyList<EdgeDefinition>? edges = null,
+        bool continueOnFailure = false)
     {
         var nextVersion = Versions.Count == 0 ? 1 : Versions.Max(x => x.Version) + 1;
-        var version = WorkflowVersion.Create(Id, nextVersion, steps, edges);
+        var version = WorkflowVersion.Create(Id, nextVersion, steps, edges, continueOnFailure);
         Versions.Add(version);
         return version;
     }
@@ -56,7 +59,8 @@ public sealed class Workflow
                 .ToList(),
             target.Edges
                 .Select(x => new EdgeDefinition(x.FromOrder, x.ToOrder, x.Label))
-                .ToList());
+                .ToList(),
+            target.ContinueOnFailure);
     }
 
     public void Rename(string name, string? description)

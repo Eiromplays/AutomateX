@@ -66,7 +66,8 @@ public static class WorkflowRouter
         int target,
         IReadOnlyList<WorkflowEdgeDef> edges,
         Func<int, bool> isTerminal,
-        Func<int, bool> isSucceeded)
+        Func<int, bool> isSucceeded,
+        Func<int, bool> isFailed)
     {
         var incoming = edges.Where(e => e.To == target).Select(e => e.From).Distinct().ToList();
         if (incoming.Count == 0)
@@ -77,6 +78,12 @@ public static class WorkflowRouter
         if (incoming.Any(source => !isTerminal(source)))
         {
             return StepReadiness.Wait;
+        }
+
+        // A failed dependency blocks this step (continue-on-failure): it's skipped, not run.
+        if (incoming.Any(isFailed))
+        {
+            return StepReadiness.Skip;
         }
 
         return incoming.Any(isSucceeded) ? StepReadiness.Ready : StepReadiness.Skip;

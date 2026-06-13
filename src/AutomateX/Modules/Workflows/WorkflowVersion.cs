@@ -14,12 +14,20 @@ public sealed class WorkflowVersion
 
     public DateTimeOffset CreatedAt { get; private set; }
 
+    // When true, a failed step in one parallel lane doesn't halt the run — other lanes finish and
+    // the execution then settles Failed. When false (default), the first failure halts everything.
+    public bool ContinueOnFailure { get; private set; }
+
     public List<WorkflowStep> Steps { get; } = [];
 
     public List<WorkflowEdge> Edges { get; } = [];
 
     internal static WorkflowVersion Create(
-        Guid workflowId, int version, IReadOnlyList<StepDefinition> steps, IReadOnlyList<EdgeDefinition>? edges = null)
+        Guid workflowId,
+        int version,
+        IReadOnlyList<StepDefinition> steps,
+        IReadOnlyList<EdgeDefinition>? edges = null,
+        bool continueOnFailure = false)
     {
         var workflowVersion = new WorkflowVersion
         {
@@ -27,6 +35,7 @@ public sealed class WorkflowVersion
             WorkflowId = workflowId,
             Version = version,
             CreatedAt = DateTimeOffset.UtcNow,
+            ContinueOnFailure = continueOnFailure,
         };
 
         for (var order = 0; order < steps.Count; order++)

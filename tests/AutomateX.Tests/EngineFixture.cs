@@ -46,6 +46,15 @@ public sealed class TestActionExecutor : IActionExecutor
     }
 }
 
+// Always throws — used to fail one lane on demand in parallel/continue-on-failure tests.
+public sealed class FailingActionExecutor : IActionExecutor
+{
+    public string ActionType => "test.fail";
+
+    public Task<string?> ExecuteAsync(string configJson, ActionInvocation invocation, CancellationToken cancellationToken = default) =>
+        throw new InvalidOperationException("test.fail always fails");
+}
+
 // Records every engine event; optionally throws on ExecutionStarted (after recording)
 // to encode the rule that listener failures never affect engine flow.
 public sealed class RecordingEventListener :
@@ -131,6 +140,7 @@ public sealed class EngineFixture : IAsyncLifetime
             options.TriggerSyncInterval = TimeSpan.FromMilliseconds(500);
         });
         builder.Services.AddSingleton<IActionExecutor>(ProbeAction);
+        builder.Services.AddSingleton<IActionExecutor>(new FailingActionExecutor());
         builder.Services.AddSingleton<IEngineEventListener>(EventListener);
         // Trigger listeners defined in this assembly (e.g. test.tick) become live trigger types.
         builder.Services.AddSingleton<AutomateX.Engine.Triggers.ITriggerSource>(sp =>

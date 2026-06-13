@@ -24,6 +24,9 @@ public sealed class Execution
 
     public ExecutionStatus Status { get; private set; }
 
+    // Denormalized from the version: whether a lane failure halts the run or lets others finish.
+    public bool ContinueOnFailure { get; private set; }
+
     public DateTimeOffset StartedAt { get; private set; }
 
     public DateTimeOffset? CompletedAt { get; private set; }
@@ -36,7 +39,8 @@ public sealed class Execution
         Guid workflowVersionId,
         string triggeredBy,
         string? triggerPayload = null,
-        Guid? workspaceId = null) => new()
+        Guid? workspaceId = null,
+        bool continueOnFailure = false) => new()
     {
         Id = id,
         WorkspaceId = workspaceId ?? Workspace.DefaultId,
@@ -45,6 +49,7 @@ public sealed class Execution
         TriggeredBy = triggeredBy,
         TriggerPayload = triggerPayload,
         Status = ExecutionStatus.Running,
+        ContinueOnFailure = continueOnFailure,
         StartedAt = DateTimeOffset.UtcNow,
     };
 

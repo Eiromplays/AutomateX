@@ -96,11 +96,17 @@ public sealed class WorkflowRouterTests
     // A diamond/join: 1 and 2 both feed 3.
     private static readonly WorkflowEdgeDef[] Join = [Edge(0, 1), Edge(0, 2), Edge(1, 3), Edge(2, 3)];
 
-    private static StepReadiness Readiness(int target, IReadOnlyCollection<int> succeeded, IReadOnlyCollection<int> skipped, IReadOnlyCollection<int> running) =>
+    private static StepReadiness Readiness(
+        int target,
+        IReadOnlyCollection<int> succeeded,
+        IReadOnlyCollection<int> skipped,
+        IReadOnlyCollection<int> running,
+        IReadOnlyCollection<int>? failed = null) =>
         WorkflowRouter.Readiness(
             target, Join,
-            isTerminal: o => succeeded.Contains(o) || skipped.Contains(o),
-            isSucceeded: o => succeeded.Contains(o));
+            isTerminal: o => succeeded.Contains(o) || skipped.Contains(o) || (failed?.Contains(o) ?? false),
+            isSucceeded: o => succeeded.Contains(o),
+            isFailed: o => failed?.Contains(o) ?? false);
 
     [Fact]
     public void Join_waits_until_all_predecessors_are_terminal()
@@ -125,10 +131,17 @@ public sealed class WorkflowRouterTests
     }
 
     [Fact]
+    public void Join_with_a_failed_predecessor_is_skipped()
+    {
+        // continue-on-failure: a lane failed, so a join depending on it can't run.
+        Assert.Equal(StepReadiness.Skip, Readiness(3, succeeded: [1], skipped: [], running: [], failed: [2]));
+    }
+
+    [Fact]
     public void Single_predecessor_is_ready_when_it_succeeds()
     {
         WorkflowEdgeDef[] linear = [Edge(0, 1)];
-        var ready = WorkflowRouter.Readiness(1, linear, isTerminal: o => o == 0, isSucceeded: o => o == 0);
+        var ready = WorkflowRouter.Readiness(1, linear, isTerminal: o => o == 0, isSucceeded: o => o == 0, isFailed: _ => false);
         Assert.Equal(StepReadiness.Ready, ready);
     }
 }

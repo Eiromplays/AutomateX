@@ -112,39 +112,53 @@ public static class ExecuteStepHandler
             var error = SecretMasker.MaskSecrets(ex.Message, secretSink) ?? ex.Message;
 
             stepExecution.RecordFailure(error);
-            var willRetry = stepExecution.Attempts < options.MaxStepAttempts;
 
-            List<RunWorkflow> failureChains = [];
-            if (!willRetry)
+            if (stepExecution.Attempts < options.MaxStepAttempts)
             {
-                stepExecution.Fail(error);
-                execution.Fail();
-                failureChains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await eventBus.PublishAsync(
+                    new StepFailed(execution.Id, message.StepOrder, step.ActionType, error, stepExecution.Attempts, WillRetry: true),
+                    cancellationToken);
+
+                var delays = options.StepRetryDelays;
+                var delay = delays.Length > 0
+                    ? delays[Math.Min(stepExecution.Attempts - 1, delays.Length - 1)]
+                    : TimeSpan.FromSeconds(5);
+                logger.LogWarning(
+                    "Step {StepOrder} of execution {ExecutionId} failed (attempt {Attempts}/{MaxAttempts}), retrying in {Delay}: {Error}",
+                    message.StepOrder, execution.Id, stepExecution.Attempts, options.MaxStepAttempts, delay, error);
+
+                return new ExecuteStep(message.ExecutionId, message.StepOrder).DelayedFor(delay);
             }
 
+            // Out of retries — this step has failed for good.
+            stepExecution.Fail(error);
+
+            // Continue-on-failure: only this lane dies; other lanes finish and the execution
+            // settles Failed once nothing is running (handled by AdvanceExecution).
+            if (execution.ContinueOnFailure)
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await eventBus.PublishAsync(
+                    new StepFailed(execution.Id, message.StepOrder, step.ActionType, error, stepExecution.Attempts, WillRetry: false),
+                    cancellationToken);
+                logger.LogWarning(
+                    "Execution {ExecutionId} step {StepOrder} failed; other lanes continue", execution.Id, message.StepOrder);
+                return new AdvanceExecution(execution.Id, message.StepOrder);
+            }
+
+            // Halt: the first failure fails the whole execution; other lanes are abandoned.
+            execution.Fail();
+            var failureChains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
             await dbContext.SaveChangesAsync(cancellationToken);
             await eventBus.PublishAsync(
-                new StepFailed(execution.Id, message.StepOrder, step.ActionType, error, stepExecution.Attempts, willRetry),
+                new StepFailed(execution.Id, message.StepOrder, step.ActionType, error, stepExecution.Attempts, WillRetry: false),
                 cancellationToken);
-
-            if (!willRetry)
-            {
-                logger.LogError(ex,
-                    "Execution {ExecutionId} failed at step {StepOrder} after {Attempts} attempts",
-                    execution.Id, message.StepOrder, stepExecution.Attempts);
-                await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
-                return Cascade(failureChains);
-            }
-
-            var delays = options.StepRetryDelays;
-            var delay = delays.Length > 0
-                ? delays[Math.Min(stepExecution.Attempts - 1, delays.Length - 1)]
-                : TimeSpan.FromSeconds(5);
-            logger.LogWarning(
-                "Step {StepOrder} of execution {ExecutionId} failed (attempt {Attempts}/{MaxAttempts}), retrying in {Delay}: {Error}",
-                message.StepOrder, execution.Id, stepExecution.Attempts, options.MaxStepAttempts, delay, error);
-
-            return new ExecuteStep(message.ExecutionId, message.StepOrder).DelayedFor(delay);
+            logger.LogError(ex,
+                "Execution {ExecutionId} failed at step {StepOrder} after {Attempts} attempts",
+                execution.Id, message.StepOrder, stepExecution.Attempts);
+            await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
+            return Cascade(failureChains);
         }
 
         // Connection secrets are masked in everything persisted or published.

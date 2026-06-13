@@ -43,8 +43,11 @@ public static class AdvanceExecutionHandler
 
         var outgoing = new OutgoingMessages();
 
+        // Route from the finished step whether it succeeded or failed: a Succeeded step dispatches
+        // its ready successors; a Failed step (continue-on-failure) propagates skips to the
+        // successors that depended on it, so downstream joins resolve instead of orphaning.
         var finished = execution.Steps.FirstOrDefault(x => x.StepOrder == message.FromOrder);
-        if (finished is { Status: ExecutionStatus.Succeeded })
+        if (finished is { Status: ExecutionStatus.Succeeded or ExecutionStatus.Failed })
         {
             foreach (var order in await DispatchFromAsync(
                 dbContext, execution, finished.StepOrder, finished.ActionType, finished.Output, edges, cancellationToken))
@@ -53,24 +56,55 @@ public static class AdvanceExecutionHandler
             }
         }
 
-        // Complete exactly once — only while still Running and with no step Running (the freshly
-        // claimed successors above are Running, so a dispatch keeps the execution open).
-        var completed = await dbContext.Executions
+        // Settle exactly once, only with no step Running (the freshly claimed successors above are
+        // Running, so a dispatch keeps the execution open). A failed step (continue-on-failure mode)
+        // makes the final status Failed; otherwise Succeeded. The status read sits just before the
+        // guarded UPDATE — benign, since a failing step emits its own AdvanceExecution.
+        var anyRunning = await dbContext.StepExecutions
+            .AnyAsync(s => s.ExecutionId == message.ExecutionId && s.Status == ExecutionStatus.Running, cancellationToken);
+        if (anyRunning)
+        {
+            return outgoing;
+        }
+
+        var anyFailed = await dbContext.StepExecutions
+            .AnyAsync(s => s.ExecutionId == message.ExecutionId && s.Status == ExecutionStatus.Failed, cancellationToken);
+        var finalStatus = anyFailed ? ExecutionStatus.Failed : ExecutionStatus.Succeeded;
+
+        var settled = await dbContext.Executions
             .Where(x => x.Id == message.ExecutionId
                 && x.Status == ExecutionStatus.Running
                 && !dbContext.StepExecutions.Any(s => s.ExecutionId == message.ExecutionId && s.Status == ExecutionStatus.Running))
             .ExecuteUpdateAsync(
                 setters => setters
-                    .SetProperty(x => x.Status, ExecutionStatus.Succeeded)
+                    .SetProperty(x => x.Status, finalStatus)
                     .SetProperty(x => x.CompletedAt, DateTimeOffset.UtcNow),
                 cancellationToken);
 
-        if (completed > 0)
+        if (settled > 0)
         {
-            execution.Complete(); // reflect on the tracked instance for chain-trigger collection
+            // Reflect on the tracked instance so chain-trigger collection reads the final status.
+            if (finalStatus == ExecutionStatus.Succeeded)
+            {
+                execution.Complete();
+            }
+            else
+            {
+                execution.Fail();
+            }
+
             outgoing.AddRange(await WorkflowChaining.CollectAsync(dbContext, engineOptions.Value, execution, logger, cancellationToken));
-            await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
-            logger.LogInformation("Execution {ExecutionId} completed (all lanes finished)", execution.Id);
+
+            if (finalStatus == ExecutionStatus.Succeeded)
+            {
+                await eventBus.PublishAsync(new ExecutionCompleted(execution.Id, execution.WorkflowId), cancellationToken);
+            }
+            else
+            {
+                await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
+            }
+
+            logger.LogInformation("Execution {ExecutionId} settled {Status} (all lanes finished)", execution.Id, finalStatus);
         }
 
         return outgoing;
@@ -107,24 +141,63 @@ public static class AdvanceExecutionHandler
             }
         }
 
-        var statuses = await dbContext.StepExecutions
+        // A local overlay over the committed statuses: claims made in this pass are reflected here
+        // so a propagated skip is visible to the next target's readiness check.
+        var local = await dbContext.StepExecutions
             .AsNoTracking()
             .Where(x => x.ExecutionId == execution.Id)
             .Select(x => new { x.StepOrder, x.Status })
             .ToDictionaryAsync(x => x.StepOrder, x => x.Status, cancellationToken);
 
+        foreach (var skipOrder in decision.Skipped)
+        {
+            local[skipOrder] = ExecutionStatus.Skipped;
+        }
+
         bool Terminal(int order) =>
-            statuses.TryGetValue(order, out var s) && s is ExecutionStatus.Succeeded or ExecutionStatus.Skipped or ExecutionStatus.Failed;
-        bool Succeeded(int order) => statuses.TryGetValue(order, out var s) && s == ExecutionStatus.Succeeded;
+            local.TryGetValue(order, out var s) && s is ExecutionStatus.Succeeded or ExecutionStatus.Skipped or ExecutionStatus.Failed;
+        bool Succeeded(int order) => local.TryGetValue(order, out var s) && s == ExecutionStatus.Succeeded;
+        bool Failed(int order) => local.TryGetValue(order, out var s) && s == ExecutionStatus.Failed;
 
         List<int> dispatched = [];
-        foreach (var target in decision.Next)
+        Queue<int> queue = new(decision.Next);
+        HashSet<int> seen = [];
+
+        while (queue.Count > 0)
         {
-            if (WorkflowRouter.Readiness(target, edges, Terminal, Succeeded) == StepReadiness.Ready
-                && actionByOrder.TryGetValue(target, out var action)
-                && await ClaimAsync(dbContext, execution.Id, target, action, ExecutionStatus.Running, cancellationToken))
+            var target = queue.Dequeue();
+            if (!seen.Add(target) || !actionByOrder.TryGetValue(target, out var action))
             {
-                dispatched.Add(target);
+                continue;
+            }
+
+            switch (WorkflowRouter.Readiness(target, edges, Terminal, Succeeded, Failed))
+            {
+                case StepReadiness.Ready:
+                    if (await ClaimAsync(dbContext, execution.Id, target, action, ExecutionStatus.Running, cancellationToken))
+                    {
+                        local[target] = ExecutionStatus.Running;
+                        dispatched.Add(target);
+                    }
+
+                    break;
+
+                case StepReadiness.Skip:
+                    await ClaimAsync(dbContext, execution.Id, target, action, ExecutionStatus.Skipped, cancellationToken);
+                    local[target] = ExecutionStatus.Skipped;
+                    // A skipped node may free its own successors (a downstream join, or further skips).
+                    foreach (var edge in edges)
+                    {
+                        if (edge.From == target)
+                        {
+                            queue.Enqueue(edge.To);
+                        }
+                    }
+
+                    break;
+
+                case StepReadiness.Wait:
+                    break;
             }
         }
 
