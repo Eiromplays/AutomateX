@@ -6,10 +6,22 @@ import { DriftWarning, SourceBadge, sourceLabel } from "../components/action-sou
 import { CodeBlock } from "../components/code-block";
 import { SchemaForm, type JsonSchema } from "../components/schema-form";
 import { toast } from "../components/toast";
+import { WorkflowGraph } from "../components/workflow-graph";
+import { triggerSummary } from "../components/workflow-triggers";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
   "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+
+function triggerNodeLabel(trigger: WorkflowTrigger): string {
+  let config: Record<string, unknown> = {};
+  try {
+    config = JSON.parse(trigger.configJson) as Record<string, unknown>;
+  } catch {
+    config = {};
+  }
+  return triggerSummary({ key: 0, type: trigger.type, config, enabled: trigger.enabled });
+}
 
 export default function WorkflowDetail() {
   const { id = "" } = useParams();
@@ -24,6 +36,7 @@ export default function WorkflowDetail() {
   const [editConfig, setEditConfig] = useState<Record<string, unknown>>({});
   const [payload, setPayload] = useState("");
   const [newWebhook, setNewWebhook] = useState<string | null>(null);
+  const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
 
   const { data: workflow, isLoading, error } = useQuery({
     queryKey: ["workflow", id],
@@ -234,11 +247,31 @@ export default function WorkflowDetail() {
 
       <section>
         <h2 className="mb-3 text-sm font-medium text-zinc-300">
-          Steps <span className="text-zinc-500">(v{workflow.latestVersion.version})</span>
+          Overview <span className="text-zinc-500">(v{workflow.latestVersion.version})</span>
         </h2>
+        <div className="mb-4">
+          <WorkflowGraph
+            steps={[...workflow.latestVersion.steps]
+              .sort((a, b) => a.order - b.order)
+              .map((s) => ({ key: s.order, label: s.name ?? s.actionType, actionType: s.actionType }))}
+            triggers={workflow.triggers.map((t, i) => ({ key: i, label: triggerNodeLabel(t) }))}
+            stepEdges={workflow.latestVersion.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))}
+            selection={selectedStepOrder}
+            onSelect={(sel) => setSelectedStepOrder(typeof sel === "number" ? sel : null)}
+            height="20rem"
+          />
+          <p className="mt-1 text-[11px] text-zinc-600">Triggers feed the first step; branches show their labels. Click a step to highlight it below.</p>
+        </div>
         <ol className="space-y-2">
-          {workflow.latestVersion.steps.map((step) => (
-            <li key={step.id} className="rounded-lg border border-zinc-800 px-4 py-3">
+          {[...workflow.latestVersion.steps]
+            .sort((a, b) => a.order - b.order)
+            .map((step) => (
+            <li
+              key={step.id}
+              className={`rounded-lg border px-4 py-3 ${
+                step.order === selectedStepOrder ? "border-emerald-500" : "border-zinc-800"
+              }`}
+            >
               <div className="flex items-center gap-3">
                 <span className="text-xs text-zinc-500">#{step.order + 1}</span>
                 <span className="text-sm font-medium">{step.name ?? step.actionType}</span>
