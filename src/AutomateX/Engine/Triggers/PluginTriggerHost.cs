@@ -195,7 +195,8 @@ public sealed class PluginTriggerHost(
         var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
         var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
 
-        await bus.PublishAsync(new RunWorkflow(Guid.CreateVersion7(), row.WorkflowId, row.Type, payload, row.EntryStepOrder));
+        await bus.PublishAsync(new RunWorkflow(
+            Guid.CreateVersion7(), row.WorkflowId, $"{row.Type}:{row.Id}", payload, row.EntryStepOrder));
         // A fire means the listener is healthy — stamp last-fired and clear any prior error.
         await dbContext.Triggers
             .Where(x => x.Id == row.Id)

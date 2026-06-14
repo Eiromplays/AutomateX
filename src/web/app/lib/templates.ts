@@ -268,7 +268,15 @@ export const templates: WorkflowTemplate[] = [
         },
       ],
       triggers: [
-        { type: "http.poll", config: { url: "https://api.github.com/repos/Eiromplays/AutomateX/releases", pollSeconds: 300 } },
+        {
+          type: "http.poll",
+          config: {
+            url: "https://api.github.com/repos/Eiromplays/AutomateX/releases",
+            pollSeconds: 300,
+            // For a private repo add: "Authorization": "Bearer {{connections.github.token}}"
+            headers: { Accept: "application/vnd.github+json" },
+          },
+        },
       ],
     },
   },
