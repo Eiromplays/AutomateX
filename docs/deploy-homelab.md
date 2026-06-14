@@ -116,11 +116,22 @@ trailing slash.
 
 ## Plugins
 
-Drop `<Name>/<Name>.dll` into `~/automatex/plugins/` (volume-mounted) and restart the API:
+Plugins live in the `automatex-plugins` **named volume** (not a host folder), so uploads through the
+UI/API work without any host-permission setup — the `plugin-init` one-shot chowns the volume to the
+API's non-root user (uid 1654) before the API starts. Set `Engine__AllowPluginUpload=true` in `.env`
+to enable upload (uploaded plugins run in-process with full host trust, so turn it off when done).
+
+To drop a `<Name>/<Name>.dll` in by hand instead, copy it into the running container and restart:
 
 ```bash
+docker compose -f docker-compose.prod.yml cp ./AutomateX.Plugins.Ssh api:/app/plugins/
 docker compose -f docker-compose.prod.yml restart api
 ```
+
+> Why a named volume? Under Docker's userns-remap (common with Docker inside an unprivileged
+> Proxmox LXC) a host bind mount's `1654` owner maps to `nobody` inside the container, so the app
+> user can't write to it — uploads fail with `Access to the path '/app/plugins/...' is denied`. The
+> named volume + `plugin-init` chown sidesteps that entirely.
 
 ## Backups
 

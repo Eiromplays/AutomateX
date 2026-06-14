@@ -25,6 +25,15 @@ services:
       timeout: 3s
       retries: 10
 
+  # One-shot: a fresh named volume is owned by root, but the API runs as the non-root app user
+  # (uid 1654), so it couldn't write uploaded plugins. This chowns the volume once, then exits.
+  plugin-init:
+    image: alpine:3
+    command: ["chown", "-R", "1654:1654", "/app/plugins"]
+    volumes:
+      - automatex-plugins:/app/plugins
+    restart: "no"
+
   api:
     image: ghcr.io/eiromplays/automatex-api:latest
     restart: unless-stopped
@@ -40,11 +49,15 @@ services:
       Auth__Authority: ${OIDC_AUTHORITY}
       Auth__ClientId: ${OIDC_CLIENT_ID}
       Auth__ClientSecret: ${OIDC_CLIENT_SECRET}
+      # In-process, full host trust — leave false unless you're actively uploading plugins.
+      Engine__AllowPluginUpload: ${ALLOW_PLUGIN_UPLOAD:-false}
     volumes:
-      - ./plugins:/app/plugins
+      - automatex-plugins:/app/plugins
     depends_on:
       postgres:
         condition: service_healthy
+      plugin-init:
+        condition: service_completed_successfully
 
   web:
     image: ghcr.io/eiromplays/automatex-web:latest
@@ -58,3 +71,4 @@ services:
 
 volumes:
   automatex-postgres-data:
+  automatex-plugins:
