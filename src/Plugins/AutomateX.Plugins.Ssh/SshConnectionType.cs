@@ -7,8 +7,8 @@ public sealed class SshConnectionType : IConnectionType
 {
     public IReadOnlyList<ConnectionField> Fields { get; } =
     [
-        new("privateKey", "Private key",
-            HelpText: "PEM/OpenSSH private key contents. Prefer a key over a password."),
+        new("privateKey", "Private key", Required: false,
+            HelpText: "PEM/OpenSSH private key contents. Preferred over a password — one of the two is required."),
         new("password", "Password", Required: false,
             HelpText: "Alternative to a private key — one of the two is required."),
         new("privateKeyPassphrase", "Key passphrase", Required: false,
