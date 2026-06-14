@@ -195,4 +195,33 @@ export const templates: WorkflowTemplate[] = [
       ],
     },
   },
+  {
+    id: "nightly-backup",
+    name: "Nightly database backup",
+    description:
+      "Dumps the AutomateX Postgres DB on the host every night and deletes dumps older than 14 days. Add an 'ssh' connection (host, username, privateKey) to the deploy host; adjust the compose path and retention. See docs/recipes/backups.md.",
+    category: "Maintenance",
+    doc: {
+      automatex: 1,
+      name: "nightly-backup",
+      description: "pg_dump + gzip on the host, nightly, with rotation.",
+      steps: [
+        {
+          actionType: "ssh.command",
+          name: "Dump + rotate",
+          config: {
+            host: "{{connections.ssh.host}}",
+            username: "{{connections.ssh.username}}",
+            privateKey: "{{connections.ssh.privateKey}}",
+            command:
+              "mkdir -p ~/automatex/backups && " +
+              "docker compose -f ~/automatex/docker-compose.prod.yml exec -T postgres " +
+              "pg_dump -U automatex automatex | gzip > ~/automatex/backups/automatex-$(date +%F).sql.gz && " +
+              "find ~/automatex/backups -name 'automatex-*.sql.gz' -mtime +14 -delete",
+          },
+        },
+      ],
+      triggers: [{ type: "cron", config: { cron: "0 3 * * *" } }],
+    },
+  },
 ];

@@ -14,6 +14,7 @@ const KNOWN_ACTIONS = new Set([
   "pushover.send",
   "email.send",
   "mcp.call",
+  "ssh.command",
 ]);
 
 describe("starter templates", () => {
