@@ -73,6 +73,8 @@ open http://localhost:8080                          # UI (8081 = direct API acce
 
 Version tags (`v*`) publish images to GHCR via Actions — swap the compose `image:`/`build:` entries for `ghcr.io/eiromplays/automatex-api:latest` and `ghcr.io/eiromplays/automatex-web:latest` to skip local builds entirely.
 
+**Running it 24/7 on a server?** Use `docker-compose.prod.yml` + `.env.example` (GHCR images, `restart: unless-stopped`, secrets in `.env`). The full walkthrough — Proxmox host, Tailscale Serve for automatic HTTPS, OIDC, updates and backups — is in [docs/deploy-homelab.md](docs/deploy-homelab.md).
+
 - Plugins: drop `<Name>/<Name>.dll` into `./plugins` (volume-mounted) and restart the api — see `plugins/README.md`.
 - Auth: set `Auth__ApiKey` in compose to gate `/api` + `/hubs`; enter the key via the ⚿ button in the UI header.
 - Database: migrations apply on startup; the volume `automatex-postgres-data` holds state.

@@ -1,0 +1,60 @@
+# Production self-host — GHCR images, restart-on-boot, secrets from .env.
+#
+#   cp .env.example .env        # then fill it in
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Update to a newer published version later:
+#   docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
+#
+# Reach it over Tailscale with automatic HTTPS (no ports exposed to the internet):
+#   tailscale serve --bg 8080
+#   → https://<host>.<tailnet>.ts.net   (use this as PUBLIC_BASE_URL + the OIDC redirect host)
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: automatex
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: automatex
+    volumes:
+      - automatex-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U automatex"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: ghcr.io/eiromplays/automatex-api:latest
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__automatex: Host=postgres;Database=automatex;Username=automatex;Password=${POSTGRES_PASSWORD}
+      # Required for connection secrets (AES). Losing this makes stored secrets unrecoverable.
+      # Generate with: openssl rand -base64 32
+      Encryption__Key: "${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}"
+      # Public https origin (Tailscale ts.net host) used for webhook URLs + OIDC redirects.
+      Engine__PublicBaseUrl: ${PUBLIC_BASE_URL}
+      # OIDC browser login (an API key, if also set, still works for scripts).
+      Auth__Authority: ${OIDC_AUTHORITY}
+      Auth__ClientId: ${OIDC_CLIENT_ID}
+      Auth__ClientSecret: ${OIDC_CLIENT_SECRET}
+    volumes:
+      - ./plugins:/app/plugins
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/eiromplays/automatex-web:latest
+    restart: unless-stopped
+    depends_on:
+      - api
+    # Caddy reverse-proxies /api + /hubs to the api service internally, so the API needs no
+    # published port. Only this one is exposed; point Tailscale Serve at it.
+    ports:
+      - "8080:80"
+
+volumes:
+  automatex-postgres-data:
