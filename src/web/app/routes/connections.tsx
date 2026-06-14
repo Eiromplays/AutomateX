@@ -417,16 +417,16 @@ export default function Connections() {
             ),
           )}
 
-          {!selectedType && (
-            <button
-              type="button"
-              disabled={rows.some((r) => !r.existing && !r.fixed && !r.name)}
-              onClick={() => setRows((current) => [...current, emptyRow()])}
-              className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900 disabled:opacity-50"
-            >
-              Add field
-            </button>
-          )}
+          {/* Typed connections can carry extra custom keys too (the store is a free-form KV);
+              the type's fields are just suggestions. This makes that doable in the UI, not only the API. */}
+          <button
+            type="button"
+            disabled={rows.some((r) => !r.existing && !r.fixed && !r.name)}
+            onClick={() => setRows((current) => [...current, emptyRow()])}
+            className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900 disabled:opacity-50"
+          >
+            {selectedType ? "Add custom field" : "Add field"}
+          </button>
         </div>
 
         <div className="flex gap-2">
