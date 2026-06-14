@@ -354,19 +354,31 @@ export default function Connections() {
                     </a>
                   )}
                 </span>
-                <input
-                  className={`${inputClass} w-full`}
-                  type={row.secret ? "password" : "text"}
-                  placeholder={editing && row.existing ? "unchanged" : row.helpText ?? ""}
-                  value={row.value}
-                  onChange={(e) => updateRow(row.key, { value: e.target.value })}
-                />
+                {row.secret ? (
+                  // Textarea, not a single-line input: a one-line field strips newlines on paste,
+                  // which corrupts multi-line secrets like SSH private keys (SSH.NET then rejects them).
+                  <textarea
+                    className={`${inputClass} w-full resize-y font-mono`}
+                    rows={2}
+                    placeholder={editing && row.existing ? "unchanged" : row.helpText ?? ""}
+                    value={row.value}
+                    onChange={(e) => updateRow(row.key, { value: e.target.value })}
+                  />
+                ) : (
+                  <input
+                    className={`${inputClass} w-full`}
+                    type="text"
+                    placeholder={editing && row.existing ? "unchanged" : row.helpText ?? ""}
+                    value={row.value}
+                    onChange={(e) => updateRow(row.key, { value: e.target.value })}
+                  />
+                )}
                 {row.helpText && !(editing && row.existing) && (
                   <span className="mt-1 block text-[11px] text-zinc-600">{row.helpText}</span>
                 )}
               </label>
             ) : (
-              <div key={row.key} className="flex items-center gap-2">
+              <div key={row.key} className="flex items-start gap-2">
                 <input
                   className={`${inputClass} flex-1`}
                   placeholder="field (e.g. token)"
@@ -374,10 +386,10 @@ export default function Connections() {
                   disabled={row.existing}
                   onChange={(e) => updateRow(row.key, { name: e.target.value })}
                 />
-                <input
-                  className={`${inputClass} flex-1 ${row.removed ? "line-through opacity-40" : ""}`}
-                  type="password"
-                  placeholder={row.existing ? "unchanged" : "secret value"}
+                <textarea
+                  className={`${inputClass} flex-1 resize-y font-mono ${row.removed ? "line-through opacity-40" : ""}`}
+                  rows={1}
+                  placeholder={row.existing ? "unchanged" : "secret value (or paste a key)"}
                   value={row.value}
                   disabled={row.removed}
                   onChange={(e) => updateRow(row.key, { value: e.target.value })}
