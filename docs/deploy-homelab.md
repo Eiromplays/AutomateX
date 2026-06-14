@@ -102,6 +102,18 @@ are in GHCR. Point that repo secret at an AutomateX webhook whose workflow SSHes
 and runs `docker compose -f docker-compose.prod.yml pull && up -d` — then tagging a release deploys
 itself. See [recipes/self-deploy.md](recipes/self-deploy.md).
 
+## Troubleshooting
+
+**OIDC redirect comes back as `http://` (login bounces).** The API builds the redirect URI from the
+request scheme it sees. Behind a TLS-terminating front (Tailscale Serve → Caddy on `:80` → API),
+the proxy must pass `X-Forwarded-Proto: https` *and* Caddy must trust it — the bundled `Caddyfile`
+sets `trusted_proxies static private_ranges` for this. If you front the stack with your own proxy,
+ensure it forwards `X-Forwarded-Proto`/`X-Forwarded-Host` and that the API trusts it.
+
+**Login still bounces.** `PUBLIC_BASE_URL`, the OIDC redirect URI registered at the provider
+(`<url>/signin-oidc`), and the hostname in the browser must be byte-for-byte identical — https, no
+trailing slash.
+
 ## Plugins
 
 Drop `<Name>/<Name>.dll` into `~/automatex/plugins/` (volume-mounted) and restart the API:
