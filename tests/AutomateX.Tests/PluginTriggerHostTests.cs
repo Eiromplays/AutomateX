@@ -49,8 +49,9 @@ public sealed class PluginTriggerHostTests(EngineFixture fixture) : IClassFixtur
             {
                 await using var scope = fixture.Host.Services.CreateAsyncScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+                var triggeredBy = $"test.tick:{triggerId}";
                 var execution = await dbContext.Executions.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.WorkflowId == workflowId && x.TriggeredBy == "test.tick");
+                    .FirstOrDefaultAsync(x => x.WorkflowId == workflowId && x.TriggeredBy == triggeredBy);
 
                 if (execution is not null)
                 {
@@ -108,8 +109,9 @@ public sealed class PluginTriggerHostTests(EngineFixture fixture) : IClassFixtur
             {
                 await using var scope = fixture.Host.Services.CreateAsyncScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+                var triggeredBy = $"test.echoConfig:{triggerId}";
                 var execution = await dbContext.Executions.AsNoTracking()
-                    .FirstOrDefaultAsync(x => x.WorkflowId == workflowId && x.TriggeredBy == "test.echoConfig");
+                    .FirstOrDefaultAsync(x => x.WorkflowId == workflowId && x.TriggeredBy == triggeredBy);
 
                 if (execution is not null)
                 {
