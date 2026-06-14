@@ -44,6 +44,17 @@ nohup sh -c 'sleep 5 && cd /opt/automatex && docker compose pull && docker compo
 echo "update scheduled"
 ```
 
+For the [homelab setup](../deploy-homelab.md) (GHCR images via `docker-compose.prod.yml` in
+`~/automatex`), the inner command is:
+
+```sh
+cd ~/automatex && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
+```
+
+The release pipeline already fires `AUTOMATEX_DEPLOY_WEBHOOK` after the images publish (with a
+`{"version": "..."}` body), so once that secret holds your webhook's capability URL, tagging a
+release deploys itself — and the version badge flips to the new version once it restarts.
+
 Grab the host key fingerprint for pinning: `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`
 (the `SHA256:…` token).
 
