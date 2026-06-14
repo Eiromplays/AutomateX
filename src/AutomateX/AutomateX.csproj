@@ -23,6 +23,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="AutomateX.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj" />
     <ProjectReference Include="..\AutomateX.ServiceDefaults\AutomateX.ServiceDefaults.csproj" />
   </ItemGroup>
