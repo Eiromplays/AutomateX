@@ -139,6 +139,34 @@ public sealed class FeedTriggerTests
         Assert.Contains("snapshot-one", payload);
     }
 
+    [Fact]
+    public async Task Http_poll_sends_configured_headers()
+    {
+        var handler = new ScriptedHandler("snapshot-one");
+        var config = HttpConfig() with
+        {
+            FireOnFirstPoll = true,
+            Headers = new Dictionary<string, string> { ["Authorization"] = "Bearer tok", ["Accept"] = "application/json" },
+        };
+
+        await RunHttpPollAsync(handler, config, stopAfterFires: 1);
+
+        Assert.Equal("Bearer tok", handler.LastRequest!.Headers.GetValues("Authorization").Single());
+        Assert.Equal("application/json", handler.LastRequest!.Headers.GetValues("Accept").Single());
+    }
+
+    [Fact]
+    public async Task Http_poll_ignores_non_2xx_responses()
+    {
+        // Each call returns a distinct body, so without the 2xx gate the changing 404s would fire.
+        var handler = new StatusHandler(HttpStatusCode.NotFound, HttpStatusCode.NotFound, HttpStatusCode.NotFound);
+
+        var fired = await RunHttpPollAsync(
+            handler, HttpConfig() with { FireOnFirstPoll = true }, stopAfterFires: 1, timeout: TimeSpan.FromSeconds(2));
+
+        Assert.Empty(fired);
+    }
+
     // --- helpers -----------------------------------------------------------
 
     private static RssTriggerConfig RssConfig() => new(Url: "https://feed.example/rss", PollSeconds: 0);
@@ -152,14 +180,14 @@ public sealed class FeedTriggerTests
             config, handler, stopAfterFires, state, timeout);
 
     private static Task<List<string?>> RunHttpPollAsync(
-        ScriptedHandler handler, HttpPollTriggerConfig config, int stopAfterFires,
+        HttpMessageHandler handler, HttpPollTriggerConfig config, int stopAfterFires,
         ITriggerState? state = null, TimeSpan? timeout = null) =>
         RunAsync((cfg, ctx, ct) => new HttpPollTrigger().RunAsync((HttpPollTriggerConfig)cfg, ctx, ct),
             config, handler, stopAfterFires, state, timeout);
 
     private static async Task<List<string?>> RunAsync(
         Func<object, TriggerContext, CancellationToken, Task> run,
-        object config, ScriptedHandler handler, int stopAfterFires, ITriggerState? state, TimeSpan? timeout)
+        object config, HttpMessageHandler handler, int stopAfterFires, ITriggerState? state, TimeSpan? timeout)
     {
         List<string?> fired = [];
         using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(10));
@@ -186,7 +214,7 @@ public sealed class FeedTriggerTests
     }
 
     private static TriggerContext Context(
-        ITriggerState state, ScriptedHandler handler, Func<string?, Task> fire, out HttpClient http)
+        ITriggerState state, HttpMessageHandler handler, Func<string?, Task> fire, out HttpClient http)
     {
         http = new HttpClient(handler);
         return new TriggerContext
@@ -204,9 +232,12 @@ public sealed class FeedTriggerTests
     {
         private readonly Queue<string> _responses = new(responses);
 
+        public HttpRequestMessage? LastRequest { get; private set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            LastRequest = request;
             if (_responses.Count == 0)
             {
                 // Script exhausted: park until the test cancels.
@@ -214,6 +245,24 @@ public sealed class FeedTriggerTests
             }
 
             return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(_responses.Dequeue()) };
+        }
+    }
+
+    // Returns the scripted status codes (then parks) — for the 2xx-only rule. Each call gets a
+    // distinct body, so a non-2xx would fire if the trigger didn't gate on status.
+    private sealed class StatusHandler(params HttpStatusCode[] statuses) : HttpMessageHandler
+    {
+        private readonly Queue<HttpStatusCode> _statuses = new(statuses);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (_statuses.Count == 0)
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+
+            return new HttpResponseMessage(_statuses.Dequeue()) { Content = new StringContent(Guid.NewGuid().ToString()) };
         }
     }
 

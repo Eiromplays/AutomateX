@@ -6,14 +6,19 @@ using AutomateX.Plugin.Sdk;
 namespace AutomateX.Plugins.Feed;
 
 // PollSeconds is the delay between polls (0 = continuous; for real endpoints use >= 60).
+// Headers are sent on every request — e.g. { "Authorization": "Bearer {{connections.gh.token}}" }
+// for a private API, or a custom Accept.
 public sealed record HttpPollTriggerConfig(
     string Url,
     int PollSeconds = 300,
-    bool FireOnFirstPoll = false);
+    bool FireOnFirstPoll = false,
+    Dictionary<string, string>? Headers = null);
 
 [Trigger("http.poll", "HTTP poll",
-    Description = "Polls a URL and fires when the response body changes (dedup by content hash). "
-        + "The first poll is a silent baseline unless fireOnFirstPoll is set. Payload: statusCode, body.")]
+    Description = "Polls a URL and fires when a successful (2xx) response body changes (dedup by content "
+        + "hash). Non-2xx responses are ignored — they never fire and never reset the baseline, so a "
+        + "flapping error page can't trigger. Optional headers (e.g. Authorization). The first poll is a "
+        + "silent baseline unless fireOnFirstPoll is set. Payload: statusCode, body.")]
 public sealed class HttpPollTrigger : ITriggerListener<HttpPollTriggerConfig>
 {
     public async Task RunAsync(HttpPollTriggerConfig config, TriggerContext context, CancellationToken cancellationToken)
@@ -28,19 +33,32 @@ public sealed class HttpPollTrigger : ITriggerListener<HttpPollTriggerConfig>
             using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             requestCts.CancelAfter(TimeSpan.FromSeconds(30));
 
-            using var response = await context.Http.GetAsync(config.Url, requestCts.Token);
-            var body = await response.Content.ReadAsStringAsync(requestCts.Token);
-            var hash = Hash(body);
-
-            var previous = await context.State.GetAsync("hash", cancellationToken);
-            if (previous != hash)
+            using var request = new HttpRequestMessage(HttpMethod.Get, config.Url);
+            foreach (var (name, value) in config.Headers ?? [])
             {
-                if (previous is not null || config.FireOnFirstPoll)
-                {
-                    await context.FireAsync(Payload((int)response.StatusCode, body));
-                }
+                request.Headers.TryAddWithoutValidation(name, value);
+            }
 
-                await context.State.SetAsync("hash", hash, cancellationToken: cancellationToken);
+            using var response = await context.Http.SendAsync(request, requestCts.Token);
+
+            // Only a successful response counts as content. A non-2xx (auth error, rate limit, 404)
+            // is skipped entirely: it never fires and never overwrites the baseline, so error-page
+            // churn can't masquerade as "the watched thing changed".
+            if (response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync(requestCts.Token);
+                var hash = Hash(body);
+
+                var previous = await context.State.GetAsync("hash", cancellationToken);
+                if (previous != hash)
+                {
+                    if (previous is not null || config.FireOnFirstPoll)
+                    {
+                        await context.FireAsync(Payload((int)response.StatusCode, body));
+                    }
+
+                    await context.State.SetAsync("hash", hash, cancellationToken: cancellationToken);
+                }
             }
 
             await Task.Delay(TimeSpan.FromSeconds(config.PollSeconds), cancellationToken);
