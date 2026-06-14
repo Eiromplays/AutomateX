@@ -1,15 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { api, type ExecutionDetail as ExecutionDetailData, type ExecutionStep } from "../lib/api";
+import { api, type ExecutionDetail as ExecutionDetailData, type ExecutionStep, type WorkflowTrigger } from "../lib/api";
 import { SourceBadge } from "../components/action-source";
 import { StatusBadge } from "../components/status-badge";
 import { CodeBlock } from "../components/code-block";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { useEngineEvents } from "../lib/use-engine-events";
-import { WorkflowGraph } from "../components/workflow-graph";
+import { WorkflowGraph, type GraphTrigger } from "../components/workflow-graph";
 import { backboneEdges } from "../components/switch-routing";
+import { triggerSummary } from "../components/workflow-triggers";
 import { Dialog, DialogContent } from "../components/ui/dialog";
 
 function diffMs(start: string, end: string | null): number | null {
@@ -28,6 +29,56 @@ function prettyJson(text: string): string {
   } catch {
     return text;
   }
+}
+
+// triggeredBy is "<type>:<triggerId>" for cron/webhook/rss/http.poll, or a bare word for
+// manual/scheduled/workflow, or "retry:<executionId>".
+function parseTriggeredBy(triggeredBy: string): { type: string; id?: string } {
+  const i = triggeredBy.indexOf(":");
+  return i === -1 ? { type: triggeredBy } : { type: triggeredBy.slice(0, i), id: triggeredBy.slice(i + 1) };
+}
+
+function triggerLabel(t: WorkflowTrigger): string {
+  let config: Record<string, unknown> = {};
+  try {
+    config = JSON.parse(t.configJson) as Record<string, unknown>;
+  } catch {
+    config = {};
+  }
+  return triggerSummary({ key: 0, type: t.type, config, enabled: t.enabled });
+}
+
+// The specific trigger that started this run, if it still exists on the workflow.
+function firingTrigger(triggeredBy: string, triggers: WorkflowTrigger[]): WorkflowTrigger | undefined {
+  const { id } = parseTriggeredBy(triggeredBy);
+  return id ? triggers.find((t) => t.id === id) : undefined;
+}
+
+// Human label for the "Triggered by" field — disambiguates between same-type triggers by config.
+function describeTriggeredBy(triggeredBy: string, triggers: WorkflowTrigger[]): string {
+  if (triggeredBy === "manual") return "Manual run";
+  if (triggeredBy === "scheduled") return "Scheduled action";
+  if (triggeredBy === "workflow") return "Workflow chain";
+  if (triggeredBy.startsWith("retry:")) return "Retry";
+  const { type } = parseTriggeredBy(triggeredBy);
+  const t = firingTrigger(triggeredBy, triggers);
+  return t ? `${type} · ${triggerLabel(t)}` : type;
+}
+
+// The single trigger node to draw in the run graph — the trigger that fired, edged into the step it
+// started the run at (its entry step, or the first step). Falls back to a generic label for
+// manual/scheduled/chained/retry runs that have no trigger row.
+function triggerNodes(execution: ExecutionDetailData, triggers: WorkflowTrigger[]): GraphTrigger[] {
+  if (execution.workflowSteps.length === 0) return [];
+  const firstOrder = [...execution.workflowSteps].sort((a, b) => a.order - b.order)[0].order;
+  const firing = firingTrigger(execution.triggeredBy, triggers);
+  return [
+    {
+      key: 0,
+      label: firing ? triggerLabel(firing) : describeTriggeredBy(execution.triggeredBy, triggers),
+      entryStepKey: firing?.entryStepOrder ?? firstOrder,
+    },
+  ];
 }
 
 const STEP_COLOR: Record<string, string> = {
@@ -106,6 +157,13 @@ export default function ExecutionDetail() {
     retry: false,
   });
 
+  // The workflow's current triggers — to name which trigger fired and draw it in the graph.
+  const { data: workflow } = useQuery({
+    queryKey: ["workflow", execution?.workflowId],
+    queryFn: () => api.workflows.get(execution!.workflowId),
+    enabled: !!execution,
+  });
+
   useEngineEvents((engineEvent) => {
     if (engineEvent.payload.executionId === id) {
       queryClient.invalidateQueries({ queryKey: ["execution", id] });
@@ -174,7 +232,7 @@ export default function ExecutionDetail() {
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
           <dt className="text-xs text-zinc-500">Triggered by</dt>
-          <dd>{execution.triggeredBy}</dd>
+          <dd>{describeTriggeredBy(execution.triggeredBy, workflow?.triggers ?? [])}</dd>
         </div>
         <div>
           <dt className="text-xs text-zinc-500">Started</dt>
@@ -197,7 +255,12 @@ export default function ExecutionDetail() {
         </div>
       )}
 
-      <ExecutionGraph execution={execution} selection={selectedStepOrder} onSelect={setSelectedStepOrder} />
+      <ExecutionGraph
+        execution={execution}
+        triggers={triggerNodes(execution, workflow?.triggers ?? [])}
+        selection={selectedStepOrder}
+        onSelect={setSelectedStepOrder}
+      />
 
       {execution.triggerPayload && (
         <details className="rounded-lg border border-zinc-800">
@@ -275,10 +338,12 @@ function StepDialog({
 // skipped / running, or untinted when it never ran). Linear runs fall back to the order backbone.
 function ExecutionGraph({
   execution,
+  triggers,
   selection,
   onSelect,
 }: {
   execution: ExecutionDetailData;
+  triggers: GraphTrigger[];
   selection: number | null;
   onSelect: (order: number | null) => void;
 }) {
@@ -301,7 +366,7 @@ function ExecutionGraph({
       <div className="text-xs text-zinc-500">Run graph</div>
       <WorkflowGraph
         steps={graphSteps}
-        triggers={[]}
+        triggers={triggers}
         stepEdges={stepEdges}
         selection={selection}
         onSelect={(sel) => onSelect(typeof sel === "number" ? sel : null)}

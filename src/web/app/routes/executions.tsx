@@ -125,7 +125,7 @@ export default function Executions() {
                 </span>
               )
             ) : (
-              <span className="text-xs text-zinc-500">{execution.triggeredBy}</span>
+              <span className="text-xs text-zinc-500">{execution.triggeredBy.split(":")[0]}</span>
             )}
           </div>
           <span className="text-xs text-zinc-500">
