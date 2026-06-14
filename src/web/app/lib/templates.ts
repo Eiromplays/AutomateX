@@ -224,4 +224,47 @@ export const templates: WorkflowTemplate[] = [
       triggers: [{ type: "cron", config: { cron: "0 3 * * *" } }],
     },
   },
+  {
+    id: "self-deploy",
+    name: "Self-deploy on new release",
+    description:
+      "Polls GitHub for new AutomateX releases and runs `docker compose pull && up -d` on the host over SSH, then notifies. Needs the Feed plugin (http.poll trigger), an 'ssh' connection, and Pushover — edit host/username/paths. Pull model: no public webhook needed. See docs/recipes/self-deploy.md.",
+    category: "Maintenance",
+    doc: {
+      automatex: 1,
+      name: "self-deploy",
+      description: "Auto-update when a new release is published.",
+      steps: [
+        {
+          actionType: "ssh.command",
+          name: "Pull + restart",
+          config: {
+            host: "host.docker.internal",
+            username: "youruser",
+            privateKey: "{{connections.ssh.privateKey}}",
+            // Detached on purpose: the SSH call returns immediately so this execution finishes
+            // before `up -d` restarts the API (which is running this very workflow).
+            command:
+              "nohup sh -c 'sleep 5 && cd ~/automatex && " +
+              "docker compose -f docker-compose.prod.yml pull && " +
+              "docker compose -f docker-compose.prod.yml up -d' >> ~/automatex/deploy.log 2>&1 & echo scheduled",
+          },
+        },
+        {
+          actionType: "pushover.send",
+          name: "Notify",
+          config: {
+            appToken: "{{connections.pushover.appToken}}",
+            userKey: "{{connections.pushover.userKey}}",
+            title: "AutomateX updating",
+            message: "A new release was published — pulling and restarting.",
+            priority: 0,
+          },
+        },
+      ],
+      triggers: [
+        { type: "http.poll", config: { url: "https://api.github.com/repos/Eiromplays/AutomateX/releases", pollSeconds: 300 } },
+      ],
+    },
+  },
 ];

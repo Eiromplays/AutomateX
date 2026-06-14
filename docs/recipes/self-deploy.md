@@ -127,6 +127,18 @@ Alternative: a GitHub repo webhook (Settings → Webhooks → the capability URL
 events) — richer payloads (`{{trigger.payload.workflow_run.conclusion}}`), no workflow edit, but
 you'll want to ignore non-`completed` deliveries.
 
+## Pull variant — no public ingress (best for Tailscale-only)
+
+The push webhook above needs to be reachable from GitHub's cloud, so behind Tailscale it requires
+`tailscale funnel` (public). If you'd rather expose nothing, flip it around: let AutomateX **poll**
+GitHub for new releases and deploy itself — outbound only, fully private.
+
+Import the **Self-deploy on new release** template (Templates → Use template). It comes with an
+`http.poll` trigger on `https://api.github.com/repos/<owner>/<repo>/releases` and the same detached
+`ssh.command` + a notify step — just add the `ssh` connection and edit host/username/paths. Needs the
+Feed plugin (for `http.poll`). The poll fires when a new release appears (content-hash dedup), so it
+catches pre-releases too, unlike the "latest" endpoint.
+
 ## Security posture
 
 The deploy credential is encrypted at rest (AES-256-GCM), write-only through the API, masked
