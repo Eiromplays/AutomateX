@@ -62,7 +62,8 @@ function describeTriggeredBy(triggeredBy: string, triggers: WorkflowTrigger[]): 
   if (triggeredBy.startsWith("retry:")) return "Retry";
   const { type } = parseTriggeredBy(triggeredBy);
   const t = firingTrigger(triggeredBy, triggers);
-  return t ? `${type} · ${triggerLabel(t)}` : type;
+  // triggerLabel already embeds the type (e.g. "http.poll · <url>"), so don't prefix it again.
+  return t ? triggerLabel(t) : type;
 }
 
 // The single trigger node to draw in the run graph — the trigger that fired, edged into the step it
