@@ -1,3 +1,13 @@
+# Trust X-Forwarded-* from upstream proxies on private/loopback addresses (Tailscale Serve, a LAN
+# reverse proxy, the Docker bridge). Without this Caddy overwrites X-Forwarded-Proto with its own
+# :80 listener scheme, so a TLS-terminating front (Tailscale → https) would look like http to the
+# API and OIDC would build http:// redirect URIs.
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
 :80 {
 	handle /api/* {
 		reverse_proxy api:8080
