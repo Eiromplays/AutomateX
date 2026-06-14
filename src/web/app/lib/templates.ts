@@ -236,6 +236,11 @@ export const templates: WorkflowTemplate[] = [
       description: "Auto-update when a new release is published.",
       steps: [
         {
+          actionType: "gate",
+          name: "Only on HTTP 200",
+          config: { value: "{{trigger.payload.statusCode}}", equals: "200" },
+        },
+        {
           actionType: "ssh.command",
           name: "Pull + restart",
           config: {
