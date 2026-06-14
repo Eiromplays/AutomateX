@@ -7,7 +7,9 @@ type TemplateDoc = {
   automatex: number;
   name: string;
   description: string;
+  continueOnFailure?: boolean;
   steps: { actionType: string; name?: string; config: Record<string, unknown> }[];
+  edges?: { from: number; to: number; label: string | null }[];
   triggers?: { type: string; config: Record<string, unknown> }[];
 };
 
@@ -139,6 +141,57 @@ export const templates: WorkflowTemplate[] = [
           name: "Notify",
           config: { webhookUrl: "{{connections.discord.webhookUrl}}", content: "🤖 {{steps.1.output.text}}" },
         },
+      ],
+    },
+  },
+  {
+    id: "branching-watchdog",
+    name: "Branching uptime watchdog",
+    description:
+      "Showcases branching: probe a URL, switch on the status, and on failure fan out into two parallel lanes (page + log) that rejoin — with continue-on-failure so the page fires even if logging breaks. Add a 'pushover' connection and edit the URL.",
+    category: "Monitoring",
+    doc: {
+      automatex: 1,
+      name: "branching-watchdog",
+      description: "Parallel alert lanes on failure, joined at the end.",
+      continueOnFailure: true,
+      steps: [
+        { actionType: "http.request", name: "Probe", config: { method: "GET", url: "https://example.com", failOnErrorStatus: false } },
+        { actionType: "switch", name: "Healthy?", config: { value: "{{steps.0.output.statusCode}}", cases: [{ label: "up", equals: "200" }] } },
+        {
+          actionType: "pushover.send",
+          name: "Heartbeat OK",
+          config: { appToken: "{{connections.pushover.appToken}}", userKey: "{{connections.pushover.userKey}}", title: "API healthy", message: "Returned {{steps.0.output.statusCode}}.", priority: -1 },
+        },
+        {
+          actionType: "http.request",
+          name: "Diagnose",
+          config: { method: "POST", url: "https://httpbin.org/post", contentType: "application/json", body: "{\"status\":\"{{steps.0.output.statusCode}}\"}" },
+        },
+        {
+          actionType: "pushover.send",
+          name: "Page on-call",
+          config: { appToken: "{{connections.pushover.appToken}}", userKey: "{{connections.pushover.userKey}}", title: "API DOWN ({{steps.0.output.statusCode}})", message: "Probe failed — paging.", priority: 1 },
+        },
+        {
+          actionType: "http.request",
+          name: "Log incident",
+          config: { method: "POST", url: "https://httpbin.org/post", contentType: "application/json", body: "{\"status\":\"{{steps.0.output.statusCode}}\"}", failOnErrorStatus: true },
+        },
+        {
+          actionType: "pushover.send",
+          name: "Incident recorded",
+          config: { appToken: "{{connections.pushover.appToken}}", userKey: "{{connections.pushover.userKey}}", title: "Incident logged", message: "Paged and logged for {{steps.0.output.statusCode}}.", priority: 0 },
+        },
+      ],
+      edges: [
+        { from: 0, to: 1, label: null },
+        { from: 1, to: 2, label: "up" },
+        { from: 1, to: 3, label: "default" },
+        { from: 3, to: 4, label: null },
+        { from: 3, to: 5, label: null },
+        { from: 4, to: 6, label: null },
+        { from: 5, to: 6, label: null },
       ],
     },
   },

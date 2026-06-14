@@ -156,6 +156,8 @@ export type ExecutionDetail = Omit<ExecutionSummary, "workflowName"> & {
   steps: ExecutionStep[];
   chained: ChainedExecution[];
   retries: ChainedExecution[];
+  workflowSteps: { order: number; name: string | null; actionType: string }[];
+  edges: WorkflowEdgeInput[];
 };
 
 export type CreateWorkflowStep = {

@@ -60,6 +60,19 @@ public static class GetExecution
                 return;
             }
 
+            // The exact version that ran (not "latest") — so the inspector graph shows the real
+            // lanes, with every step as a node even if it was skipped or never reached.
+            var version = await dbContext.WorkflowVersions
+                .AsNoTracking()
+                .Where(v => v.Id == execution.WorkflowVersionId)
+                .Select(v => new
+                {
+                    Steps = v.Steps.OrderBy(s => s.Order)
+                        .Select(s => new VersionStepResponse(s.Order, s.Name, s.ActionType)).ToList(),
+                    Edges = v.Edges.Select(e => new EdgeResponse(e.FromOrder, e.ToOrder, e.Label)).ToList(),
+                })
+                .FirstOrDefaultAsync(ct);
+
             // Downstream lineage: executions this one chained into. Workflow-triggered
             // executions carry source.executionId in their payload; hobby-scale scan.
             var candidates = await dbContext.Executions
@@ -85,7 +98,15 @@ public static class GetExecution
                 .Select(x => new ChainedResponse(x.Id, x.WorkflowId, x.Status.ToString()))
                 .ToListAsync(ct);
 
-            await Send.OkAsync(execution with { Chained = chained, Retries = retries }, ct);
+            await Send.OkAsync(
+                execution with
+                {
+                    Chained = chained,
+                    Retries = retries,
+                    WorkflowSteps = version?.Steps ?? [],
+                    Edges = version?.Edges ?? [],
+                },
+                ct);
         }
     }
 
@@ -103,9 +124,18 @@ public static class GetExecution
         public List<ChainedResponse> Chained { get; init; } = [];
 
         public List<ChainedResponse> Retries { get; init; } = [];
+
+        // The ran version's full topology, for the inspector graph.
+        public List<VersionStepResponse> WorkflowSteps { get; init; } = [];
+
+        public List<EdgeResponse> Edges { get; init; } = [];
     }
 
     public sealed record ChainedResponse(Guid ExecutionId, Guid WorkflowId, string Status);
+
+    public sealed record VersionStepResponse(int Order, string? Name, string ActionType);
+
+    public sealed record EdgeResponse(int From, int To, string? Label);
 
     public sealed record StepResponse(
         Guid Id,

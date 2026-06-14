@@ -7,6 +7,8 @@ import { CodeBlock } from "../components/code-block";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { useEngineEvents } from "../lib/use-engine-events";
+import { WorkflowGraph } from "../components/workflow-graph";
+import { backboneEdges } from "../components/switch-routing";
 
 function diffMs(start: string, end: string | null): number | null {
   if (!end) return null;
@@ -189,6 +191,8 @@ export default function ExecutionDetail() {
         </div>
       )}
 
+      <ExecutionGraph execution={execution} />
+
       {execution.triggerPayload && (
         <details className="rounded-lg border border-zinc-800">
           <summary className="cursor-pointer px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">
@@ -233,6 +237,31 @@ export default function ExecutionDetail() {
         })}
         {execution.steps.length === 0 && <li className="text-sm text-zinc-500">No steps recorded.</li>}
       </ol>
+    </div>
+  );
+}
+
+// The ran version's DAG, each node tinted by how that step actually went (succeeded / failed /
+// skipped / running, or untinted when it never ran). Linear runs fall back to the order backbone.
+function ExecutionGraph({ execution }: { execution: ExecutionDetailData }) {
+  if (execution.workflowSteps.length === 0) return null;
+
+  const statusByOrder = new Map(execution.steps.map((s) => [s.stepOrder, s.status]));
+  const graphSteps = execution.workflowSteps.map((s) => ({
+    key: s.order,
+    label: s.name ?? s.actionType,
+    actionType: s.actionType,
+    status: statusByOrder.get(s.order),
+  }));
+  const stepEdges =
+    execution.edges.length > 0
+      ? execution.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))
+      : backboneEdges(execution.workflowSteps.map((s) => s.order));
+
+  return (
+    <div className="space-y-1">
+      <div className="text-xs text-zinc-500">Run graph</div>
+      <WorkflowGraph steps={graphSteps} triggers={[]} stepEdges={stepEdges} height="18rem" />
     </div>
   );
 }

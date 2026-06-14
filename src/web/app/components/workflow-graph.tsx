@@ -3,7 +3,8 @@ import { ReactFlow, Background, Controls, Handle, Position, type Node, type Edge
 import "@xyflow/react/dist/style.css";
 import { type KeyEdge } from "./switch-routing";
 
-export type GraphStep = { key: number; label: string; actionType: string };
+// status (optional) tints the node for the execution inspector: succeeded/failed/skipped/running.
+export type GraphStep = { key: number; label: string; actionType: string; status?: string };
 // entryStepKey = the step this trigger feeds; undefined falls back to the first step.
 export type GraphTrigger = { key: number; label: string; entryStepKey?: number };
 // number = step key; string = a trigger node id ("trigger:<key>").
@@ -12,15 +13,33 @@ export type GraphSelection = number | string | null;
 const COLUMN = 300;
 const ROW = 120;
 
-type StepNodeData = { index: number; label: string; actionType: string; selected: boolean; unreachable: boolean };
+type StepNodeData = {
+  index: number;
+  label: string;
+  actionType: string;
+  selected: boolean;
+  unreachable: boolean;
+  status?: string;
+};
+
+// Execution-status tint (inspector graph). Selection still wins when both apply.
+const STATUS_CLASS: Record<string, string> = {
+  Succeeded: "border-green-500/70 bg-green-500/10",
+  Failed: "border-red-500/70 bg-red-500/10",
+  Skipped: "border-zinc-700 bg-zinc-900 opacity-50",
+  Running: "border-amber-500/70 bg-amber-500/10",
+};
 
 function StepNode(props: NodeProps) {
   const data = props.data as StepNodeData;
+  const base = data.selected
+    ? "border-emerald-500 bg-zinc-800"
+    : (data.status && STATUS_CLASS[data.status]) ?? "border-zinc-700 bg-zinc-900";
   return (
     <div
-      className={`min-w-44 rounded-lg border px-3 py-2 text-left ${
-        data.selected ? "border-emerald-500 bg-zinc-800" : "border-zinc-700 bg-zinc-900"
-      } ${data.unreachable ? "border-dashed opacity-50" : ""}`}
+      className={`min-w-44 rounded-lg border px-3 py-2 text-left ${base} ${
+        data.unreachable ? "border-dashed opacity-50" : ""
+      }`}
     >
       <Handle type="target" position={Position.Top} className="!bg-zinc-600" />
       <div className="flex items-center gap-2">
@@ -132,6 +151,7 @@ export function WorkflowGraph({
         actionType: s.actionType,
         selected: s.key === selection,
         unreachable: unreachable.has(s.key),
+        status: s.status,
       },
     }));
     return [...triggerNodes, ...stepNodes];
