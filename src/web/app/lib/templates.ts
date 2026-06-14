@@ -262,7 +262,7 @@ export const templates: WorkflowTemplate[] = [
             appToken: "{{connections.pushover.appToken}}",
             userKey: "{{connections.pushover.userKey}}",
             title: "AutomateX updating",
-            message: "A new release was published — pulling and restarting.",
+            message: "Deploying {{trigger.payload.json.0.tag_name}} — pulling and restarting.",
             priority: 0,
           },
         },

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Plugins.Feed;
@@ -18,7 +19,8 @@ public sealed record HttpPollTriggerConfig(
     Description = "Polls a URL and fires when a successful (2xx) response body changes (dedup by content "
         + "hash). Non-2xx responses are ignored — they never fire and never reset the baseline, so a "
         + "flapping error page can't trigger. Optional headers (e.g. Authorization). The first poll is a "
-        + "silent baseline unless fireOnFirstPoll is set. Payload: statusCode, body.")]
+        + "silent baseline unless fireOnFirstPoll is set. Payload: statusCode, body, and json (the parsed "
+        + "body when it's JSON) — template it as {{trigger.payload.json.<path>}}.")]
 public sealed class HttpPollTrigger : ITriggerListener<HttpPollTriggerConfig>
 {
     public async Task RunAsync(HttpPollTriggerConfig config, TriggerContext context, CancellationToken cancellationToken)
@@ -68,6 +70,21 @@ public sealed class HttpPollTrigger : ITriggerListener<HttpPollTriggerConfig>
     private static string Hash(string body) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body)));
 
-    private static string Payload(int statusCode, string body) =>
-        JsonSerializer.Serialize(new { statusCode, body });
+    // Payload exposes the raw body and, when it parses as JSON, the parsed tree under `json` —
+    // so steps can template into it: {{trigger.payload.json.tag_name}} or, for an array response,
+    // {{trigger.payload.json.0.tag_name}}. Non-JSON bodies leave json null.
+    private static string Payload(int statusCode, string body)
+    {
+        JsonNode? json = null;
+        try
+        {
+            json = JsonNode.Parse(body);
+        }
+        catch (JsonException)
+        {
+            // Body isn't JSON — only the raw string is available.
+        }
+
+        return JsonSerializer.Serialize(new { statusCode, body, json });
+    }
 }

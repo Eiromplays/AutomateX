@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Xml;
 using AutomateX.Plugin.Sdk;
 using AutomateX.Plugins.Feed;
@@ -153,6 +154,29 @@ public sealed class FeedTriggerTests
 
         Assert.Equal("Bearer tok", handler.LastRequest!.Headers.GetValues("Authorization").Single());
         Assert.Equal("application/json", handler.LastRequest!.Headers.GetValues("Accept").Single());
+    }
+
+    [Fact]
+    public async Task Http_poll_exposes_the_parsed_json_body()
+    {
+        // An array response (like GitHub /releases) — steps reach the newest via json.0.<field>.
+        var handler = new ScriptedHandler("""[{"tag_name":"v9.9.9"}]""");
+
+        var fired = await RunHttpPollAsync(handler, HttpConfig() with { FireOnFirstPoll = true }, stopAfterFires: 1);
+
+        var payload = JsonDocument.Parse(Assert.Single(fired)!).RootElement;
+        Assert.Equal("v9.9.9", payload.GetProperty("json")[0].GetProperty("tag_name").GetString());
+    }
+
+    [Fact]
+    public async Task Http_poll_leaves_json_null_for_non_json_bodies()
+    {
+        var handler = new ScriptedHandler("just text");
+
+        var fired = await RunHttpPollAsync(handler, HttpConfig() with { FireOnFirstPoll = true }, stopAfterFires: 1);
+
+        var payload = JsonDocument.Parse(Assert.Single(fired)!).RootElement;
+        Assert.Equal(JsonValueKind.Null, payload.GetProperty("json").ValueKind);
     }
 
     [Fact]
