@@ -74,7 +74,8 @@ public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOption
     private static bool IsProtected(PathString path) =>
         (path.StartsWithSegments("/api")
             && !path.StartsWithSegments("/api/auth")
-            && !path.StartsWithSegments("/api/webhooks"))
+            && !path.StartsWithSegments("/api/webhooks")
+            && !path.StartsWithSegments("/api/version"))
         || path.StartsWithSegments("/hubs");
 
     internal static bool FixedTimeEquals(string provided, string configured) =>

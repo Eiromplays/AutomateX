@@ -454,4 +454,7 @@ export const api = {
     get: (days?: number) =>
       request<ExecutionStats>(`/stats${days ? `?days=${days}` : ""}`),
   },
+  meta: {
+    version: () => request<{ version: string }>("/version"),
+  },
 };

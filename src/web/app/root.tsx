@@ -268,9 +268,23 @@ function Shell() {
       </header>
       {!gated && <NewWorkspaceBanner />}
       {gated ? <SignInGate /> : <Outlet />}
+      <footer className="mt-10 border-t border-zinc-800 pt-3 text-center text-xs text-zinc-600">
+        <VersionBadge />
+      </footer>
       <Toasts />
     </div>
   );
+}
+
+// The running build, served by the API (baked at publish). Anonymous + gate-exempt, so it shows
+// on the sign-in screen too — a quick visual "what's deployed", handy after a self-update.
+function VersionBadge() {
+  const { data } = useQuery({
+    queryKey: ["version"],
+    queryFn: api.meta.version,
+    staleTime: 5 * 60_000,
+  });
+  return <span>AutomateX{data?.version ? ` v${data.version}` : ""}</span>;
 }
 
 export default function Root() {

@@ -38,6 +38,7 @@ jobs:
         run: >
           dotnet publish src/AutomateX
           -t:PublishContainer
+          -p:Version="${VERSION}"
           -p:ContainerRegistry=ghcr.io
           -p:ContainerRepository="${OWNER}/automatex-api"
           -p:ContainerImageTags="\"${VERSION};latest\""
