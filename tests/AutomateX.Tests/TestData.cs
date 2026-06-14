@@ -29,13 +29,14 @@ internal static class TestData
         return workflow.Id;
     }
 
-    public static async Task<Guid> ExecuteAsync(IHost host, Guid workflowId, string? payload = null)
+    public static async Task<Guid> ExecuteAsync(
+        IHost host, Guid workflowId, string? payload = null, int? entryOrder = null)
     {
         var executionId = Guid.CreateVersion7();
 
         await using var scope = host.Services.CreateAsyncScope();
         var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
-        await bus.PublishAsync(new RunWorkflow(executionId, workflowId, "test", payload));
+        await bus.PublishAsync(new RunWorkflow(executionId, workflowId, "test", payload, entryOrder));
 
         return executionId;
     }

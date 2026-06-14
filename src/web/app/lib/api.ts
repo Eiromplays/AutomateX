@@ -71,6 +71,7 @@ export type WorkflowTrigger = {
   id: string;
   type: string;
   enabled: boolean;
+  entryStepOrder: number | null;
   nextRunAt: string | null;
   lastFiredAt: string | null;
   lastError: string | null;
@@ -414,7 +415,7 @@ export const api = {
   },
   triggers: {
     types: () => request<TriggerTypeInfo[]>("/trigger-types"),
-    create: (workflowId: string, body: { type: string; config: Record<string, unknown> }) =>
+    create: (workflowId: string, body: { type: string; config: Record<string, unknown>; entryStepOrder?: number | null }) =>
       request<{
         id: string;
         type: string;
@@ -428,7 +429,10 @@ export const api = {
         `/triggers/${id}/rotate-secret`,
         { method: "POST" },
       ),
-    update: (id: string, body: { config?: Record<string, unknown>; enabled?: boolean }) =>
+    update: (
+      id: string,
+      body: { config?: Record<string, unknown>; enabled?: boolean; entryStepOrder?: number | null },
+    ) =>
       request<{ id: string; type: string; enabled: boolean; nextRunAt: string | null }>(
         `/triggers/${id}`,
         { method: "PUT", body: JSON.stringify(body) },

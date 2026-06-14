@@ -124,7 +124,7 @@ public static class WorkflowChaining
 
             trigger.MarkFired(trigger.NextRunAt);
             messages.Add(new RunWorkflow(
-                Guid.CreateVersion7(), trigger.WorkflowId, TriggerType, BuildPayload(execution, depth)));
+                Guid.CreateVersion7(), trigger.WorkflowId, TriggerType, BuildPayload(execution, depth), trigger.EntryStepOrder));
         }
 
         return messages;

@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AutomateX.Engine;
 
-public sealed record RunWorkflow(Guid ExecutionId, Guid WorkflowId, string TriggeredBy, string? Payload = null);
+// EntryOrder lets a trigger start the run at a specific step instead of the first. null (and any
+// out-of-range value) falls back to the first step by order — so existing fires are unchanged.
+public sealed record RunWorkflow(Guid ExecutionId, Guid WorkflowId, string TriggeredBy, string? Payload = null, int? EntryOrder = null);
 
 public static class RunWorkflowHandler
 {
@@ -46,8 +48,14 @@ public static class RunWorkflowHandler
             version.ContinueOnFailure);
         dbContext.Executions.Add(execution);
 
-        var firstStep = version.Steps.OrderBy(x => x.Order).FirstOrDefault();
-        if (firstStep is null)
+        // Entry step: the trigger's chosen order if it exists, else the first by order. An invalid
+        // order never throws — it degrades to the first step.
+        var entryStep = (message.EntryOrder is { } order
+            ? version.Steps.FirstOrDefault(x => x.Order == order)
+            : null)
+            ?? version.Steps.OrderBy(x => x.Order).FirstOrDefault();
+
+        if (entryStep is null)
         {
             execution.Complete();
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -58,6 +66,6 @@ public static class RunWorkflowHandler
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventBus.PublishAsync(new ExecutionStarted(execution.Id, execution.WorkflowId, message.TriggeredBy), cancellationToken);
-        return new ExecuteStep(execution.Id, firstStep.Order);
+        return new ExecuteStep(execution.Id, entryStep.Order);
     }
 }

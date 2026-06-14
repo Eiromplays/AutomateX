@@ -23,6 +23,7 @@ export function WorkflowCanvas({
   onRemoveStep,
   triggers,
   onTriggersChange,
+  stepLabels,
 }: {
   steps: DraftStep[];
   stepEdges: KeyEdge[];
@@ -34,6 +35,7 @@ export function WorkflowCanvas({
   onRemoveStep: (key: number) => void;
   triggers: DraftTrigger[];
   onTriggersChange: (triggers: DraftTrigger[]) => void;
+  stepLabels: string[];
 }) {
   const [selection, setSelection] = useState<GraphSelection>(steps[0]?.key ?? null);
 
@@ -46,7 +48,11 @@ export function WorkflowCanvas({
   };
 
   const graphSteps = steps.map((s) => ({ key: s.key, label: s.name || displayName(s.actionType), actionType: s.actionType }));
-  const graphTriggers = triggers.map((t) => ({ key: t.key, label: triggerSummary(t) }));
+  const graphTriggers = triggers.map((t) => ({
+    key: t.key,
+    label: triggerSummary(t),
+    entryStepKey: t.entryStepOrder != null ? steps[t.entryStepOrder]?.key : undefined,
+  }));
 
   const selectedStep = typeof selection === "number" ? steps.find((s) => s.key === selection) ?? null : null;
   const selectedIndex = selectedStep ? steps.findIndex((s) => s.key === selectedStep.key) : -1;
@@ -94,6 +100,7 @@ export function WorkflowCanvas({
                 onTriggersChange(triggers.filter((t) => t.key !== selectedTrigger.key));
                 setSelection(null);
               }}
+              stepLabels={stepLabels}
             />
             <p className="text-[11px] text-zinc-600">Fires this workflow. Changes apply when you save.</p>
           </div>

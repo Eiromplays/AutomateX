@@ -52,7 +52,7 @@ public static class FireWebhookTrigger
             }
 
             var executionId = Guid.CreateVersion7();
-            await bus.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"webhook:{trigger.Id}", payload));
+            await bus.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"webhook:{trigger.Id}", payload, trigger.EntryStepOrder));
 
             trigger.MarkFired(nextRunAt: null);
             await dbContext.SaveChangesAsync(ct);

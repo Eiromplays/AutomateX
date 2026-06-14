@@ -77,6 +77,24 @@ public static class UpdateTrigger
                 trigger.Reconfigure(configJson, nextRunAt);
             }
 
+            // Tri-state: absent = leave unchanged; JSON null = reset to the default (first step);
+            // a number = set that entry step (validated against the latest version).
+            if (req.EntryStepOrder is { } entryElement)
+            {
+                if (entryElement.ValueKind is not (JsonValueKind.Null or JsonValueKind.Number))
+                {
+                    ThrowError("entryStepOrder must be a step index or null.");
+                }
+
+                int? newEntry = entryElement.ValueKind == JsonValueKind.Number ? entryElement.GetInt32() : null;
+                if (newEntry is { } e)
+                {
+                    await TriggerEntry.ValidateOrThrowAsync(dbContext, trigger.WorkflowId, e, m => ThrowError(m), ct);
+                }
+
+                trigger.SetEntryStep(newEntry);
+            }
+
             await dbContext.SaveChangesAsync(ct);
             await Send.OkAsync(new Response(trigger.Id, trigger.Type, trigger.Enabled, trigger.NextRunAt), ct);
         }
@@ -137,7 +155,7 @@ public static class UpdateTrigger
         }
     }
 
-    public sealed record Request(JsonElement? Config, bool? Enabled);
+    public sealed record Request(JsonElement? Config, bool? Enabled, JsonElement? EntryStepOrder = null);
 
     public sealed record Response(Guid Id, string Type, bool Enabled, DateTimeOffset? NextRunAt);
 }

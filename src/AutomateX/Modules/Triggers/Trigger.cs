@@ -28,6 +28,9 @@ public sealed class Trigger
 
     public string Type { get; private set; } = null!;
 
+    // The step order this trigger starts the run at; null = the first step by order (default).
+    public int? EntryStepOrder { get; private set; }
+
     public string ConfigJson { get; private set; } = null!;
 
     public bool Enabled { get; private set; }
@@ -44,11 +47,13 @@ public sealed class Trigger
 
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public static Trigger Create(Guid workflowId, string type, string configJson, DateTimeOffset? nextRunAt) => new()
+    public static Trigger Create(
+        Guid workflowId, string type, string configJson, DateTimeOffset? nextRunAt, int? entryStepOrder = null) => new()
     {
         Id = Guid.CreateVersion7(),
         WorkflowId = workflowId,
         Type = type,
+        EntryStepOrder = entryStepOrder,
         ConfigJson = configJson,
         Enabled = true,
         NextRunAt = nextRunAt,
@@ -69,6 +74,11 @@ public sealed class Trigger
     public void SetEnabled(bool enabled)
     {
         Enabled = enabled;
+    }
+
+    public void SetEntryStep(int? entryStepOrder)
+    {
+        EntryStepOrder = entryStepOrder;
     }
 
     public void MarkFired(DateTimeOffset? nextRunAt)

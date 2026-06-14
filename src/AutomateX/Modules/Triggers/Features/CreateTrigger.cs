@@ -37,6 +37,11 @@ public static class CreateTrigger
                 return;
             }
 
+            if (req.EntryStepOrder is { } entry)
+            {
+                await TriggerEntry.ValidateOrThrowAsync(dbContext, req.WorkflowId, entry, m => ThrowError(m), ct);
+            }
+
             var configJson = req.Config is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) } config
                 ? config.GetRawText()
                 : "{}";
@@ -67,7 +72,7 @@ public static class CreateTrigger
                     break; // plugin trigger: config is the listener's business; the host validates at start
             }
 
-            var trigger = Trigger.Create(req.WorkflowId, req.Type, configJson, nextRunAt);
+            var trigger = Trigger.Create(req.WorkflowId, req.Type, configJson, nextRunAt, req.EntryStepOrder);
             dbContext.Triggers.Add(trigger);
             await dbContext.SaveChangesAsync(ct);
 
@@ -141,7 +146,7 @@ public static class CreateTrigger
         }
     }
 
-    public sealed record Request(Guid WorkflowId, string Type, JsonElement? Config);
+    public sealed record Request(Guid WorkflowId, string Type, JsonElement? Config, int? EntryStepOrder = null);
 
     public sealed record Response(
         Guid Id,

@@ -56,7 +56,7 @@ public sealed class CronScheduler(
         foreach (var trigger in due)
         {
             var executionId = Guid.CreateVersion7();
-            await outbox.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"cron:{trigger.Id}"));
+            await outbox.PublishAsync(new RunWorkflow(executionId, trigger.WorkflowId, $"cron:{trigger.Id}", EntryOrder: trigger.EntryStepOrder));
             trigger.MarkFired(ComputeNextRunAt(trigger));
         }
 

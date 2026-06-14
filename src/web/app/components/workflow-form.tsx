@@ -59,6 +59,10 @@ export function WorkflowForm({
     return raw ? (JSON.parse(raw) as JsonSchema) : null;
   };
 
+  // Labels in workflow order (index = step order) for the trigger "starts at step" picker.
+  const displayName = (actionType: string) => actions?.find((a) => a.type === actionType)?.displayName ?? actionType;
+  const stepLabels = steps.map((s, i) => `#${i + 1} ${s.name || displayName(s.actionType)}`);
+
   const updateStep = (key: number, patch: Partial<DraftStep>) =>
     setSteps((current) => current.map((s) => (s.key === key ? { ...s, ...patch } : s)));
 
@@ -150,6 +154,7 @@ export function WorkflowForm({
             onRemoveStep={removeStep}
             triggers={triggerDrafts}
             onTriggersChange={setTriggerDrafts}
+            stepLabels={stepLabels}
           />
         )}
 
@@ -223,7 +228,7 @@ export function WorkflowForm({
 
       {!hideTriggers && mode === "form" && (
         <div className="border-t border-zinc-800 pt-4">
-          <TriggersSection triggers={triggerDrafts} onChange={setTriggerDrafts} />
+          <TriggersSection triggers={triggerDrafts} onChange={setTriggerDrafts} stepLabels={stepLabels} />
         </div>
       )}
 

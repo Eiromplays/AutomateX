@@ -69,7 +69,7 @@ public static class GetWorkflow
                 .AsNoTracking()
                 .Where(x => x.WorkflowId == id)
                 .Select(x => new TriggerResponse(
-                    x.Id, x.Type, x.Enabled, x.NextRunAt, x.LastFiredAt, x.LastError, x.LastErrorAt, x.ConfigJson))
+                    x.Id, x.Type, x.Enabled, x.EntryStepOrder, x.NextRunAt, x.LastFiredAt, x.LastError, x.LastErrorAt, x.ConfigJson))
                 .ToListAsync(ct);
 
             var (runsAfter, feeds) = await ChainLinksAsync(id, ws, ct);
@@ -161,6 +161,6 @@ public static class GetWorkflow
     public sealed record EdgeResponse(int From, int To, string? Label);
 
     public sealed record TriggerResponse(
-        Guid Id, string Type, bool Enabled, DateTimeOffset? NextRunAt, DateTimeOffset? LastFiredAt,
+        Guid Id, string Type, bool Enabled, int? EntryStepOrder, DateTimeOffset? NextRunAt, DateTimeOffset? LastFiredAt,
         string? LastError, DateTimeOffset? LastErrorAt, string ConfigJson);
 }

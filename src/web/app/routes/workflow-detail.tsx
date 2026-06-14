@@ -289,7 +289,11 @@ export default function WorkflowDetail() {
             steps={[...workflow.latestVersion.steps]
               .sort((a, b) => a.order - b.order)
               .map((s) => ({ key: s.order, label: s.name ?? s.actionType, actionType: s.actionType }))}
-            triggers={workflow.triggers.map((t, i) => ({ key: i, label: triggerNodeLabel(t) }))}
+            triggers={workflow.triggers.map((t, i) => ({
+              key: i,
+              label: triggerNodeLabel(t),
+              entryStepKey: t.entryStepOrder ?? undefined,
+            }))}
             stepEdges={
               workflow.latestVersion.edges.length > 0
                 ? workflow.latestVersion.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))

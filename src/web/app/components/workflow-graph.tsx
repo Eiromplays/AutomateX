@@ -4,7 +4,8 @@ import "@xyflow/react/dist/style.css";
 import { type KeyEdge } from "./switch-routing";
 
 export type GraphStep = { key: number; label: string; actionType: string };
-export type GraphTrigger = { key: number; label: string };
+// entryStepKey = the step this trigger feeds; undefined falls back to the first step.
+export type GraphTrigger = { key: number; label: string; entryStepKey?: number };
 // number = step key; string = a trigger node id ("trigger:<key>").
 export type GraphSelection = number | string | null;
 
@@ -111,12 +112,16 @@ export function WorkflowGraph({
 
   const nodes = useMemo<Node[]>(() => {
     const entryX = steps[0] ? positions.get(steps[0].key)?.x ?? 0 : 0;
-    const triggerNodes: Node[] = triggers.map((t, i) => ({
-      id: `trigger:${t.key}`,
-      type: "trigger",
-      position: { x: entryX + i * COLUMN, y: 0 },
-      data: { label: t.label, selected: selection === `trigger:${t.key}` },
-    }));
+    const triggerNodes: Node[] = triggers.map((t, i) => {
+      // Sit a trigger over the step it feeds (falls back to the entry column).
+      const targetX = t.entryStepKey != null ? positions.get(t.entryStepKey)?.x : undefined;
+      return {
+        id: `trigger:${t.key}`,
+        type: "trigger",
+        position: { x: targetX ?? entryX + i * COLUMN, y: 0 },
+        data: { label: t.label, selected: selection === `trigger:${t.key}` },
+      };
+    });
     const stepNodes: Node[] = steps.map((s, i) => ({
       id: String(s.key),
       type: "step",
@@ -136,8 +141,11 @@ export function WorkflowGraph({
     const list: Edge[] = [];
     const firstId = steps[0] ? String(steps[0].key) : null;
     if (firstId) {
+      const stepKeys = new Set(steps.map((s) => s.key));
       for (const t of triggers) {
-        list.push({ id: `e-trigger-${t.key}-${firstId}`, source: `trigger:${t.key}`, target: firstId });
+        // Edge into the step the trigger feeds, or the first step when unset / stale.
+        const target = t.entryStepKey != null && stepKeys.has(t.entryStepKey) ? String(t.entryStepKey) : firstId;
+        list.push({ id: `e-trigger-${t.key}-${target}`, source: `trigger:${t.key}`, target });
       }
     }
     for (const edge of stepEdges) {

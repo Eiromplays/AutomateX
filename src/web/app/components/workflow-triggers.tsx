@@ -9,6 +9,8 @@ export type DraftTrigger = {
   type: string;
   config: Record<string, unknown>;
   enabled: boolean;
+  // Step order this trigger starts the run at; null/undefined = the first step (default).
+  entryStepOrder?: number | null;
 };
 
 let nextTriggerKey = 1;
@@ -46,7 +48,7 @@ export function triggersFromWorkflow(triggers: WorkflowTrigger[]): DraftTrigger[
     } catch {
       config = {};
     }
-    return { key: nextTriggerKey++, id: t.id, type: t.type, config, enabled: t.enabled };
+    return { key: nextTriggerKey++, id: t.id, type: t.type, config, enabled: t.enabled, entryStepOrder: t.entryStepOrder };
   });
 }
 
@@ -80,7 +82,11 @@ export async function applyTriggers(
 
   for (const draft of drafts) {
     if (!draft.id) {
-      const created = await api.triggers.create(workflowId, { type: draft.type, config: draft.config });
+      const created = await api.triggers.create(workflowId, {
+        type: draft.type,
+        config: draft.config,
+        entryStepOrder: draft.entryStepOrder ?? null,
+      });
       if (created.webhookUrl) secrets.push(created.webhookUrl);
       continue;
     }
@@ -88,13 +94,16 @@ export async function applyTriggers(
     const original = before.find((b) => b.id === draft.id);
     if (!original) continue;
 
-    // Webhook config is immutable (holds the secret); only its enabled flag can change.
+    // Webhook config is immutable (holds the secret); only its enabled flag / entry can change.
     const configChanged = draft.type !== "webhook" && JSON.stringify(original.config) !== JSON.stringify(draft.config);
     const enabledChanged = original.enabled !== draft.enabled;
-    if (configChanged) {
-      await api.triggers.update(draft.id, { config: draft.config, enabled: draft.enabled });
-    } else if (enabledChanged) {
-      await api.triggers.update(draft.id, { enabled: draft.enabled });
+    const entryChanged = (original.entryStepOrder ?? null) !== (draft.entryStepOrder ?? null);
+    if (configChanged || enabledChanged || entryChanged) {
+      await api.triggers.update(draft.id, {
+        ...(configChanged ? { config: draft.config } : {}),
+        enabled: draft.enabled,
+        ...(entryChanged ? { entryStepOrder: draft.entryStepOrder ?? null } : {}),
+      });
     }
   }
 
@@ -106,10 +115,13 @@ export function TriggerEditor({
   draft,
   onChange,
   onRemove,
+  stepLabels = [],
 }: {
   draft: DraftTrigger;
   onChange: (draft: DraftTrigger) => void;
   onRemove: () => void;
+  // Step labels in workflow order (index = step order); enables the "starts at step" picker.
+  stepLabels?: string[];
 }) {
   const { data: triggerTypes } = useQuery({ queryKey: ["trigger-types"], queryFn: api.triggers.types, staleTime: 60_000 });
   const { data: workflows } = useQuery({ queryKey: ["workflows"], queryFn: api.workflows.list, staleTime: 60_000 });
@@ -197,6 +209,24 @@ export function TriggerEditor({
       ) : (
         <SchemaForm schema={schemaFor(draft.type)} value={draft.config} onChange={setConfig} />
       )}
+
+      {stepLabels.length > 1 && (
+        <label className="flex items-center gap-2 text-xs text-zinc-400">
+          <span className="shrink-0">Starts at</span>
+          <select
+            className={inputClass}
+            value={draft.entryStepOrder ?? ""}
+            onChange={(e) => set({ entryStepOrder: e.target.value === "" ? null : Number(e.target.value) })}
+          >
+            <option value="">First step (default)</option>
+            {stepLabels.map((label, order) => (
+              <option key={order} value={order}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
     </div>
   );
 }
@@ -205,9 +235,11 @@ export function TriggerEditor({
 export function TriggersSection({
   triggers,
   onChange,
+  stepLabels = [],
 }: {
   triggers: DraftTrigger[];
   onChange: (triggers: DraftTrigger[]) => void;
+  stepLabels?: string[];
 }) {
   const update = (key: number, draft: DraftTrigger) => onChange(triggers.map((t) => (t.key === key ? draft : t)));
   const remove = (key: number) => onChange(triggers.filter((t) => t.key !== key));
@@ -232,7 +264,12 @@ export function TriggersSection({
 
       {triggers.map((trigger) => (
         <div key={trigger.key} className="rounded-lg border border-zinc-800 p-3">
-          <TriggerEditor draft={trigger} onChange={(d) => update(trigger.key, d)} onRemove={() => remove(trigger.key)} />
+          <TriggerEditor
+            draft={trigger}
+            onChange={(d) => update(trigger.key, d)}
+            onRemove={() => remove(trigger.key)}
+            stepLabels={stepLabels}
+          />
         </div>
       ))}
     </div>

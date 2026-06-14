@@ -60,7 +60,7 @@ public sealed class PluginTriggerHost(
     private async Task SyncAsync(CancellationToken stoppingToken)
     {
         var types = registry.Types;
-        List<(Guid Id, string Type, string ConfigJson, Guid WorkflowId)> wanted = [];
+        List<(Guid Id, string Type, string ConfigJson, Guid WorkflowId, int? EntryStepOrder)> wanted = [];
 
         if (types.Count > 0)
         {
@@ -69,9 +69,9 @@ public sealed class PluginTriggerHost(
             wanted = (await dbContext.Triggers
                     .AsNoTracking()
                     .Where(x => x.Enabled && types.Contains(x.Type))
-                    .Select(x => new { x.Id, x.Type, x.ConfigJson, x.WorkflowId })
+                    .Select(x => new { x.Id, x.Type, x.ConfigJson, x.WorkflowId, x.EntryStepOrder })
                     .ToListAsync(stoppingToken))
-                .Select(x => (x.Id, x.Type, x.ConfigJson, x.WorkflowId))
+                .Select(x => (x.Id, x.Type, x.ConfigJson, x.WorkflowId, x.EntryStepOrder))
                 .ToList();
         }
 
@@ -106,7 +106,7 @@ public sealed class PluginTriggerHost(
     }
 
     private async Task RunListenerLoopAsync(
-        (Guid Id, string Type, string ConfigJson, Guid WorkflowId) row, CancellationToken cancellationToken)
+        (Guid Id, string Type, string ConfigJson, Guid WorkflowId, int? EntryStepOrder) row, CancellationToken cancellationToken)
     {
         var failures = 0;
         while (!cancellationToken.IsCancellationRequested)
@@ -187,7 +187,7 @@ public sealed class PluginTriggerHost(
     }
 
     private async Task FireAsync(
-        (Guid Id, string Type, string ConfigJson, Guid WorkflowId) row,
+        (Guid Id, string Type, string ConfigJson, Guid WorkflowId, int? EntryStepOrder) row,
         string? payload,
         CancellationToken cancellationToken)
     {
@@ -195,7 +195,7 @@ public sealed class PluginTriggerHost(
         var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
         var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
 
-        await bus.PublishAsync(new RunWorkflow(Guid.CreateVersion7(), row.WorkflowId, row.Type, payload));
+        await bus.PublishAsync(new RunWorkflow(Guid.CreateVersion7(), row.WorkflowId, row.Type, payload, row.EntryStepOrder));
         // A fire means the listener is healthy — stamp last-fired and clear any prior error.
         await dbContext.Triggers
             .Where(x => x.Id == row.Id)
