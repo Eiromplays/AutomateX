@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api, type ExecutionDetail as ExecutionDetailData, type ExecutionStep } from "../lib/api";
 import { SourceBadge } from "../components/action-source";
@@ -9,6 +10,7 @@ import { useConfirm } from "../components/ui/confirm";
 import { useEngineEvents } from "../lib/use-engine-events";
 import { WorkflowGraph } from "../components/workflow-graph";
 import { backboneEdges } from "../components/switch-routing";
+import { Dialog, DialogContent } from "../components/ui/dialog";
 
 function diffMs(start: string, end: string | null): number | null {
   if (!end) return null;
@@ -77,6 +79,7 @@ export default function ExecutionDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const [selectedStepOrder, setSelectedStepOrder] = useState<number | null>(null);
 
   const retry = useMutation({
     mutationFn: () => api.executions.retry(id),
@@ -127,6 +130,9 @@ export default function ExecutionDetail() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-semibold">Execution</h1>
+          {execution.workflowVersion != null && (
+            <span className="text-sm text-zinc-500">v{execution.workflowVersion}</span>
+          )}
           <StatusBadge status={execution.status} />
           <span className="text-xs font-normal text-emerald-400">● live</span>
         </div>
@@ -191,7 +197,7 @@ export default function ExecutionDetail() {
         </div>
       )}
 
-      <ExecutionGraph execution={execution} />
+      <ExecutionGraph execution={execution} selection={selectedStepOrder} onSelect={setSelectedStepOrder} />
 
       {execution.triggerPayload && (
         <details className="rounded-lg border border-zinc-800">
@@ -204,46 +210,78 @@ export default function ExecutionDetail() {
         </details>
       )}
 
-      <ol className="space-y-3">
-        {execution.steps.map((step) => {
-          const gate = gateInfo(step);
-          return (
-            <li key={step.id} className="rounded-lg border border-zinc-800 p-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-zinc-500">#{step.stepOrder + 1}</span>
-                <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">{step.actionType}</span>
-                <SourceBadge actionType={step.actionType} />
-                <StatusBadge status={step.status} />
-                <span className="text-xs text-zinc-500">
-                  {step.attempts} attempt{step.attempts === 1 ? "" : "s"}
-                  {step.failedAttempts > 0 && ` (${step.failedAttempts} failed)`}
-                </span>
-                <span className="ml-auto text-xs text-zinc-500">{fmtMs(diffMs(step.startedAt, step.completedAt))}</span>
-              </div>
-              {gate ? (
-                <div
-                  className={`mt-2 inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs ${
-                    gate.open ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"
-                  }`}
-                >
-                  {gate.open ? "⛩ Gate open — workflow continued" : `⛩ Gate closed — ${gate.reason}`}
-                </div>
-              ) : (
-                step.output && <CodeBlock text={prettyJson(step.output)} />
-              )}
-              {step.error && <CodeBlock text={step.error} tone="error" />}
-            </li>
-          );
-        })}
-        {execution.steps.length === 0 && <li className="text-sm text-zinc-500">No steps recorded.</li>}
-      </ol>
+      <p className="text-xs text-zinc-600">Click a step in the graph to inspect its output, errors and timing.</p>
+
+      <StepDialog execution={execution} order={selectedStepOrder} onClose={() => setSelectedStepOrder(null)} />
     </div>
+  );
+}
+
+// Per-step inspector, opened by clicking a graph node. A node with no run row (never reached)
+// shows that instead of details.
+function StepDialog({
+  execution,
+  order,
+  onClose,
+}: {
+  execution: ExecutionDetailData;
+  order: number | null;
+  onClose: () => void;
+}) {
+  const step = order != null ? execution.steps.find((s) => s.stepOrder === order) ?? null : null;
+  const versionStep = order != null ? execution.workflowSteps.find((s) => s.order === order) ?? null : null;
+  const title = versionStep
+    ? `#${versionStep.order + 1} ${versionStep.name ?? versionStep.actionType}`
+    : "Step";
+  const gate = step ? gateInfo(step) : null;
+
+  return (
+    <Dialog open={order != null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent title={title}>
+        {!step ? (
+          <p className="text-sm text-zinc-500">This step did not run in this execution.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">{step.actionType}</span>
+              <SourceBadge actionType={step.actionType} />
+              <StatusBadge status={step.status} />
+              <span className="text-xs text-zinc-500">
+                {step.attempts} attempt{step.attempts === 1 ? "" : "s"}
+                {step.failedAttempts > 0 && ` (${step.failedAttempts} failed)`}
+              </span>
+              <span className="text-xs text-zinc-500">{fmtMs(diffMs(step.startedAt, step.completedAt))}</span>
+            </div>
+            {gate ? (
+              <div
+                className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs ${
+                  gate.open ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"
+                }`}
+              >
+                {gate.open ? "⛩ Gate open — workflow continued" : `⛩ Gate closed — ${gate.reason}`}
+              </div>
+            ) : (
+              step.output && <CodeBlock text={prettyJson(step.output)} />
+            )}
+            {step.error && <CodeBlock text={step.error} tone="error" />}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
 // The ran version's DAG, each node tinted by how that step actually went (succeeded / failed /
 // skipped / running, or untinted when it never ran). Linear runs fall back to the order backbone.
-function ExecutionGraph({ execution }: { execution: ExecutionDetailData }) {
+function ExecutionGraph({
+  execution,
+  selection,
+  onSelect,
+}: {
+  execution: ExecutionDetailData;
+  selection: number | null;
+  onSelect: (order: number | null) => void;
+}) {
   if (execution.workflowSteps.length === 0) return null;
 
   const statusByOrder = new Map(execution.steps.map((s) => [s.stepOrder, s.status]));
@@ -261,7 +299,14 @@ function ExecutionGraph({ execution }: { execution: ExecutionDetailData }) {
   return (
     <div className="space-y-1">
       <div className="text-xs text-zinc-500">Run graph</div>
-      <WorkflowGraph steps={graphSteps} triggers={[]} stepEdges={stepEdges} height="18rem" />
+      <WorkflowGraph
+        steps={graphSteps}
+        triggers={[]}
+        stepEdges={stepEdges}
+        selection={selection}
+        onSelect={(sel) => onSelect(typeof sel === "number" ? sel : null)}
+        height="18rem"
+      />
     </div>
   );
 }

@@ -14,3 +14,6 @@ src/web/build/
 src/web/.react-router/
 plugins/*/
 TestResults/
+
+# Local env / secrets for self-host
+.env

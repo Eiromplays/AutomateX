@@ -67,6 +67,7 @@ public static class GetExecution
                 .Where(v => v.Id == execution.WorkflowVersionId)
                 .Select(v => new
                 {
+                    v.Version,
                     Steps = v.Steps.OrderBy(s => s.Order)
                         .Select(s => new VersionStepResponse(s.Order, s.Name, s.ActionType)).ToList(),
                     Edges = v.Edges.Select(e => new EdgeResponse(e.FromOrder, e.ToOrder, e.Label)).ToList(),
@@ -103,6 +104,7 @@ public static class GetExecution
                 {
                     Chained = chained,
                     Retries = retries,
+                    WorkflowVersion = version?.Version,
                     WorkflowSteps = version?.Steps ?? [],
                     Edges = version?.Edges ?? [],
                 },
@@ -125,7 +127,9 @@ public static class GetExecution
 
         public List<ChainedResponse> Retries { get; init; } = [];
 
-        // The ran version's full topology, for the inspector graph.
+        // The ran version's number and full topology, for the inspector.
+        public int? WorkflowVersion { get; init; }
+
         public List<VersionStepResponse> WorkflowSteps { get; init; } = [];
 
         public List<EdgeResponse> Edges { get; init; } = [];
