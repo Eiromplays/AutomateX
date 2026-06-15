@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../lib/api";
+import { ConnectionForm } from "./connection-form";
 import { fieldKind, type JsonSchema } from "./schema-fields";
-import { toast } from "./toast";
 import { Dialog, DialogContent } from "./ui/dialog";
 
 // Renders a form from the JSON Schema the engine exports for each action's config
@@ -85,108 +85,18 @@ function ConnectionCreateModal({
   onClose: () => void;
   onInsert: (token: string) => void;
 }) {
-  const queryClient = useQueryClient();
-  const { data: types } = useQuery({ queryKey: ["connection-types"], queryFn: api.connections.types });
-  const [name, setName] = useState("");
-  const [typeKey, setTypeKey] = useState("");
-  const [values, setValues] = useState<Record<string, string>>({});
-
-  const selectedType = types?.find((t) => t.type === typeKey) ?? null;
-
-  const create = useMutation({
-    mutationFn: () =>
-      api.connections.create({
-        name,
-        provider: typeKey || null,
-        secrets: Object.fromEntries(Object.entries(values).filter(([, v]) => v !== "")),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["connections"] });
-      toast.success(`Connection "${name}" created.`);
-      // Drop a reference to the first field in so the user isn't left re-selecting it.
-      const firstKey = selectedType?.fields[0]?.key;
-      if (firstKey) onInsert(`{{connections.${name}.${firstKey}}}`);
-      onClose();
-    },
-    onError: (error) => toast.error(`Create failed — ${String(error)}`),
-  });
-
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
       <DialogContent title="New connection">
-        <div className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-400">Name *</span>
-          <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. my-discord" />
-        </label>
-
-        <label className="block">
-          <span className="mb-1 block text-xs text-zinc-400">Type *</span>
-          <select
-            className={inputClass}
-            value={typeKey}
-            onChange={(e) => {
-              setTypeKey(e.target.value);
-              setValues({});
-            }}
-          >
-            <option value="">Select a type…</option>
-            {types?.map((t) => (
-              <option key={t.type} value={t.type}>
-                {t.displayName}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        {selectedType?.fields.map((field) => (
-          <label key={field.key} className="block">
-            <span className="mb-1 flex items-center gap-1 text-xs text-zinc-400">
-              {field.label}
-              {field.required && <span className="text-emerald-400">*</span>}
-            </span>
-            {field.secret ? (
-              // Textarea, not a single-line input: a one-line field strips newlines on paste,
-              // which corrupts multi-line secrets like SSH private keys (SSH.NET then rejects them).
-              // Mirrors the Connections page.
-              <textarea
-                className={`${inputClass} w-full resize-y font-mono`}
-                rows={2}
-                placeholder={field.helpText ?? "secret value (or paste a key)"}
-                value={values[field.key] ?? ""}
-                onChange={(e) => setValues((current) => ({ ...current, [field.key]: e.target.value }))}
-              />
-            ) : (
-              <input
-                type="text"
-                className={inputClass}
-                value={values[field.key] ?? ""}
-                onChange={(e) => setValues((current) => ({ ...current, [field.key]: e.target.value }))}
-              />
-            )}
-            {field.helpText && !field.secret && (
-              <span className="mt-0.5 block text-[11px] text-zinc-600">{field.helpText}</span>
-            )}
-          </label>
-        ))}
-
-        <p className="text-[11px] text-zinc-600">
-          Need a custom (free-form) connection? Use the{" "}
-          <a href="/connections" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">
-            Connections page
-          </a>
-          .
-        </p>
-
-        <button
-          type="button"
-          disabled={!name || !typeKey || create.isPending}
-          onClick={() => create.mutate()}
-          className="w-full rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-        >
-          {create.isPending ? "Creating…" : "Create connection"}
-        </button>
-        </div>
+        {/* Same form as the Connections page (ConnectionForm), so typed + free-form + custom
+            fields all work here. On save we drop a reference to the first field and close. */}
+        <ConnectionForm
+          onSaved={(saved, firstKey) => {
+            if (firstKey) onInsert(`{{connections.${saved.name}.${firstKey}}}`);
+            onClose();
+          }}
+          onCancel={onClose}
+        />
       </DialogContent>
     </Dialog>
   );
