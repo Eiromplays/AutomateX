@@ -1,7 +1,4 @@
 using System.Reflection;
-using System.Text.Json;
-using System.Text.Json.Nodes;
-using System.Text.Json.Schema;
 using AutomateX.Engine.Plugins;
 using AutomateX.Plugin.Sdk;
 
@@ -40,21 +37,9 @@ public static class ActionDiscovery
                     attribute.DisplayName,
                     attribute.Description,
                     source,
-                    SchemaOrNull(configType),
-                    SchemaOrNull(resultType)),
+                    SchemaExport.ForType(configType),
+                    SchemaExport.ForType(resultType)),
                 executor);
-        }
-    }
-
-    private static JsonNode? SchemaOrNull(Type type)
-    {
-        try
-        {
-            return JsonSerializerOptions.Web.GetJsonSchemaAsNode(type);
-        }
-        catch (NotSupportedException)
-        {
-            return null;
         }
     }
 }

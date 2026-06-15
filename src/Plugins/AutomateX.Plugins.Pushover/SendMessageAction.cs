@@ -7,7 +7,7 @@ namespace AutomateX.Plugins.Pushover;
 public sealed record PushoverSendConfig(
     string AppToken,
     string UserKey,
-    string Message,
+    [property: Multiline] string Message,
     string? Title = null,
     int? Priority = null);
 

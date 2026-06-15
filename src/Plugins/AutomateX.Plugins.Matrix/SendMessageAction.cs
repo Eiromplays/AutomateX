@@ -9,8 +9,8 @@ public sealed record MatrixSendConfig(
     string HomeserverUrl,
     string AccessToken,
     string RoomId,
-    string Message,
-    string? Html = null,
+    [property: Multiline] string Message,
+    [property: Multiline] string? Html = null,
     string MsgType = "m.text");
 
 public sealed record MatrixSendResult(string EventId, string RoomId);

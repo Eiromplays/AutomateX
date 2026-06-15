@@ -5,7 +5,7 @@ namespace AutomateX.Plugins.Discord;
 
 public sealed record DiscordSendConfig(
     string WebhookUrl,
-    string Content,
+    [property: Multiline] string Content,
     string? Username = null);
 
 public sealed record DiscordSendResult(int StatusCode);

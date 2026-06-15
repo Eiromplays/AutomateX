@@ -8,9 +8,9 @@ namespace AutomateX.Plugins.Llm;
 
 public sealed record LlmPromptConfig(
     string Model,
-    string Prompt,
+    [property: Multiline] string Prompt,
     string? ApiKey = null,
-    string? System = null,
+    [property: Multiline] string? System = null,
     string BaseUrl = "https://api.openai.com",
     double? Temperature = null,
     int? MaxTokens = null);

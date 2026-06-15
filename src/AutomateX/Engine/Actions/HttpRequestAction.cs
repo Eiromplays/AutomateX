@@ -6,7 +6,7 @@ namespace AutomateX.Engine.Actions;
 public sealed record HttpRequestConfig(
     string Method,
     string Url,
-    string? Body = null,
+    [property: Multiline] string? Body = null,
     Dictionary<string, string>? Headers = null,
     string? ContentType = null,
     int? TimeoutSeconds = null,

@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using AutomateX.Engine.Actions;
 using AutomateX.Plugin.Sdk;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,20 @@ public sealed class TestEchoAction : IAction<TestEchoConfig, TestEchoResult>
         ActionContext context,
         CancellationToken cancellationToken = default)
         => Task.FromResult(new TestEchoResult($"echo:{config.Message}"));
+}
+
+public sealed record TestMultilineConfig([property: Multiline] string Body, string Subject);
+
+public sealed record TestMultilineResult(string Ok);
+
+[Action("test.multiline", "Test Multiline", Description = "Multiline schema test.")]
+public sealed class TestMultilineAction : IAction<TestMultilineConfig, TestMultilineResult>
+{
+    public Task<TestMultilineResult> ExecuteAsync(
+        TestMultilineConfig config,
+        ActionContext context,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(new TestMultilineResult("ok"));
 }
 
 public sealed class ActionDiscoveryTests
@@ -55,5 +70,19 @@ public sealed class ActionDiscoveryTests
 
         Assert.NotNull(output);
         Assert.Contains("echo:hi", output);
+    }
+
+    [Fact]
+    public async Task Multiline_attribute_stamps_format_on_the_property_schema()
+    {
+        await using var services = BuildServices();
+
+        var actions = ActionDiscovery.FromAssembly(typeof(TestMultilineAction).Assembly, "test", services).ToList();
+        var probe = Assert.Single(actions, x => x.Descriptor.Type == "test.multiline");
+
+        var properties = JsonNode.Parse(probe.Descriptor.ConfigSchema!.ToJsonString())!["properties"]!;
+        // [Multiline] -> format:"multiline" (camelCased by the Web naming policy); plain strings carry no format.
+        Assert.Equal("multiline", properties["body"]!["format"]!.GetValue<string>());
+        Assert.Null(properties["subject"]!["format"]);
     }
 }

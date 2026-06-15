@@ -8,7 +8,7 @@ namespace AutomateX.Plugins.Ssh;
 public sealed record SshCommandConfig(
     string Host,
     string Username,
-    string Command,
+    [property: Multiline] string Command,
     int Port = 22,
     string? Password = null,
     string? PrivateKey = null,

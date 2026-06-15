@@ -14,7 +14,7 @@ public sealed record EmailSendConfig(
     string From,
     string To,
     string Subject,
-    string Body,
+    [property: Multiline] string Body,
     bool IsHtml = false,
     bool UseStartTls = true);
 

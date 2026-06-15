@@ -1,19 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../lib/api";
+import { fieldKind, type JsonSchema } from "./schema-fields";
 import { toast } from "./toast";
 import { Dialog, DialogContent } from "./ui/dialog";
 
 // Renders a form from the JSON Schema the engine exports for each action's config
 // type (GET /api/actions). Strings, numbers and booleans get native inputs; anything
-// deeper falls back to a raw JSON textarea.
-export type JsonSchema = {
-  type?: string | string[];
-  format?: string;
-  properties?: Record<string, JsonSchema>;
-  required?: string[];
-  default?: unknown;
-};
+// deeper falls back to a raw JSON textarea. Field-to-control mapping lives in
+// ./schema-fields (fieldKind) so it can be unit-tested in isolation.
+export type { JsonSchema } from "./schema-fields";
 
 type SchemaFormProps = {
   schema: JsonSchema | null;
@@ -23,16 +19,6 @@ type SchemaFormProps = {
   // editor for a field instead of the generic JSON fallback.
   actionType?: string;
 };
-
-type FieldKind = "number" | "boolean" | "text" | "json";
-
-function kindOf(schema: JsonSchema): FieldKind {
-  const types = [schema.type ?? []].flat();
-  if (types.includes("integer") || types.includes("number")) return "number";
-  if (types.includes("boolean")) return "boolean";
-  if (types.includes("object") || types.includes("array")) return "json";
-  return "text";
-}
 
 const inputClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -610,7 +596,7 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
             </div>
           );
         }
-        const kind = kindOf(property);
+        const kind = fieldKind(property);
         return (
           <label key={key} className="block">
             <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
@@ -649,6 +635,18 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
                   }
                 }}
               />
+            ) : kind === "multiline" ? (
+              <div className="relative">
+                <textarea
+                  className={`${inputClass} pr-8`}
+                  rows={3}
+                  value={value[key] === undefined ? "" : String(value[key])}
+                  onChange={(e) => set(key, e.target.value === "" ? undefined : e.target.value)}
+                />
+                <div className="absolute right-1.5 top-1.5 flex items-center">
+                  <ConnectionInserter onInsert={(token) => append(key, token)} />
+                </div>
+              </div>
             ) : (
               <div className="relative">
                 <input

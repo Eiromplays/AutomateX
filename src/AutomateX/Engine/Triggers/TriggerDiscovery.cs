@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Schema;
 using AutomateX.Engine.Actions;
 using AutomateX.Engine.Plugins;
 using AutomateX.Plugin.Sdk;
@@ -62,24 +61,12 @@ public static class TriggerDiscovery
                     attribute.DisplayName,
                     attribute.Description,
                     source,
-                    SchemaOrNull(configType)),
+                    SchemaExport.ForType(configType)),
                 () => (ITriggerRunner)Activator.CreateInstance(
                     typeof(SdkTriggerRunner<>).MakeGenericType(configType),
                     ActivatorUtilities.CreateInstance(services, listenerType),
                     triggerType,
                     contextFactory)!);
-        }
-    }
-
-    private static JsonNode? SchemaOrNull(Type type)
-    {
-        try
-        {
-            return JsonSerializerOptions.Web.GetJsonSchemaAsNode(type);
-        }
-        catch (NotSupportedException)
-        {
-            return null;
         }
     }
 }
