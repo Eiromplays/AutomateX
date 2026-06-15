@@ -145,13 +145,28 @@ function ConnectionCreateModal({
               {field.label}
               {field.required && <span className="text-emerald-400">*</span>}
             </span>
-            <input
-              type={field.secret ? "password" : "text"}
-              className={inputClass}
-              value={values[field.key] ?? ""}
-              onChange={(e) => setValues((current) => ({ ...current, [field.key]: e.target.value }))}
-            />
-            {field.helpText && <span className="mt-0.5 block text-[11px] text-zinc-600">{field.helpText}</span>}
+            {field.secret ? (
+              // Textarea, not a single-line input: a one-line field strips newlines on paste,
+              // which corrupts multi-line secrets like SSH private keys (SSH.NET then rejects them).
+              // Mirrors the Connections page.
+              <textarea
+                className={`${inputClass} w-full resize-y font-mono`}
+                rows={2}
+                placeholder={field.helpText ?? "secret value (or paste a key)"}
+                value={values[field.key] ?? ""}
+                onChange={(e) => setValues((current) => ({ ...current, [field.key]: e.target.value }))}
+              />
+            ) : (
+              <input
+                type="text"
+                className={inputClass}
+                value={values[field.key] ?? ""}
+                onChange={(e) => setValues((current) => ({ ...current, [field.key]: e.target.value }))}
+              />
+            )}
+            {field.helpText && !field.secret && (
+              <span className="mt-0.5 block text-[11px] text-zinc-600">{field.helpText}</span>
+            )}
           </label>
         ))}
 
