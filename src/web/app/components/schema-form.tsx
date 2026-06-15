@@ -32,6 +32,9 @@ const isConnectionRef = (value: unknown) =>
 // Inserts {{connections.<name>.<field>}} so users don't hand-type (and mis-case) them.
 // Always available — even with no connections, it offers a path to create one without
 // losing the page (opens /connections in a new tab; the list refetches on focus back).
+const PANEL_WIDTH = 256;
+const PANEL_MAX_HEIGHT = 320;
+
 function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void }) {
   const { data: connections } = useQuery({
     queryKey: ["connections"],
@@ -50,8 +53,18 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
   const usable = (connections ?? []).filter((c) => c.secretKeys.length > 0);
   const matches = filterConnections(usable, query);
 
-  // Portaled to body so an ancestor's overflow can't clip it; close on Escape or a pointer-down
-  // outside both the trigger and the panel, and reset the query each time it closes.
+  // Anchor the (portaled) panel to the trigger, clamped into the viewport so it never renders
+  // off-screen near a low/right-edge field.
+  const place = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const left = Math.min(Math.max(8, rect.right - PANEL_WIDTH), window.innerWidth - PANEL_WIDTH - 8);
+    const top = Math.min(rect.bottom + 4, window.innerHeight - PANEL_MAX_HEIGHT - 8);
+    setPos({ top: Math.max(8, top), left: Math.max(8, left) });
+  };
+
+  // Portaled to body so an ancestor's overflow can't clip it. While open: close on Escape or a
+  // pointer-down outside trigger+panel, and re-anchor on scroll/resize so it tracks the field.
   useEffect(() => {
     if (!open) {
       setQuery("");
@@ -64,26 +77,39 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
+    const reposition = () => place();
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKey);
+    // Capture so scrolls in inner containers (not just the window) re-anchor the panel.
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const toggle = () => {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      const width = 256;
-      setPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - width) });
+    if (open) {
+      setOpen(false);
+      return;
     }
-    setOpen((o) => !o);
+    place();
+    setOpen(true);
   };
 
   const insert = (token: string) => {
     onInsert(token);
     setOpen(false);
+  };
+
+  // Enter in the search box inserts the first match's first key — fast keyboard path.
+  const insertFirstMatch = () => {
+    const key = matches[0]?.secretKeys[0];
+    if (matches[0] && key) insert(`{{connections.${matches[0].name}.${key}}}`);
   };
 
   return (
@@ -104,13 +130,19 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
         createPortal(
           <div
             ref={panelRef}
-            style={{ position: "fixed", top: pos.top, left: pos.left, width: 256 }}
+            style={{ position: "fixed", top: pos.top, left: pos.left, width: PANEL_WIDTH }}
             className="z-50 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-xl"
           >
             <input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  insertFirstMatch();
+                }
+              }}
               placeholder="Search connections…"
               className="mb-1 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
             />
