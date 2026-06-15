@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../lib/api";
 import { ConnectionForm } from "./connection-form";
+import { filterConnections } from "./connection-form-logic";
 import { fieldKind, type JsonSchema } from "./schema-fields";
 import { Dialog, DialogContent } from "./ui/dialog";
 
@@ -38,39 +40,118 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
     refetchOnWindowFocus: true,
   });
 
-  const usable = connections?.filter((c) => c.secretKeys.length > 0) ?? [];
   const [creating, setCreating] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const usable = (connections ?? []).filter((c) => c.secretKeys.length > 0);
+  const matches = filterConnections(usable, query);
+
+  // Portaled to body so an ancestor's overflow can't clip it; close on Escape or a pointer-down
+  // outside both the trigger and the panel, and reset the query each time it closes.
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      return;
+    }
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node;
+      if (!triggerRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const toggle = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const width = 256;
+      setPos({ top: rect.bottom + 4, left: Math.max(8, rect.right - width) });
+    }
+    setOpen((o) => !o);
+  };
+
+  const insert = (token: string) => {
+    onInsert(token);
+    setOpen(false);
+  };
 
   return (
     <>
-      {/* Sits inside the input's right edge: bare 🔗 trigger, no border/arrow. */}
-      <select
+      {/* Bare 🔗 trigger, no border/arrow — sits inside the input's right edge. */}
+      <button
+        ref={triggerRef}
+        type="button"
         title="Insert a connection reference"
-        className="w-6 cursor-pointer appearance-none bg-transparent text-center text-sm text-zinc-500 hover:text-emerald-400 focus:outline-none"
-        value=""
-        onChange={(e) => {
-          const selected = e.target.value;
-          e.target.value = "";
-          if (!selected) return;
-          if (selected === "__new__") {
-            setCreating(true);
-            return;
-          }
-          onInsert(selected);
-        }}
+        onClick={toggle}
+        className="w-6 text-center text-sm text-zinc-500 hover:text-emerald-400 focus:outline-none"
       >
-        <option value="">🔗</option>
-        {usable.map((c) => (
-          <optgroup key={c.id} label={c.name}>
-            {c.secretKeys.map((k) => (
-              <option key={k} value={`{{connections.${c.name}.${k}}}`}>
-                {k}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-        <option value="__new__">＋ New connection…</option>
-      </select>
+        🔗
+      </button>
+
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={panelRef}
+            style={{ position: "fixed", top: pos.top, left: pos.left, width: 256 }}
+            className="z-50 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-xl"
+          >
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search connections…"
+              className="mb-1 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+            />
+            <div className="max-h-56 overflow-y-auto">
+              {matches.length === 0 && (
+                <p className="px-2 py-1.5 text-xs text-zinc-600">
+                  {usable.length === 0 ? "No connections with secrets yet." : "No matches."}
+                </p>
+              )}
+              {matches.map((c) => (
+                <div key={c.id} className="mb-1">
+                  <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                    {c.name}
+                  </div>
+                  {c.secretKeys.map((k) => (
+                    <button
+                      type="button"
+                      key={k}
+                      onClick={() => insert(`{{connections.${c.name}.${k}}}`)}
+                      className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setCreating(true);
+              }}
+              className="mt-1 block w-full rounded border-t border-zinc-800 px-2 py-1.5 text-left text-xs text-emerald-400 hover:bg-zinc-800"
+            >
+              ＋ New connection…
+            </button>
+          </div>,
+          document.body,
+        )}
+
       {creating && <ConnectionCreateModal onClose={() => setCreating(false)} onInsert={onInsert} />}
     </>
   );

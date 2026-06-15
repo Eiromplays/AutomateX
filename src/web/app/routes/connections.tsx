@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ConnectionForm } from "../components/connection-form";
+import { filterConnections } from "../components/connection-form-logic";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { api, type ConnectionSummary } from "../lib/api";
@@ -12,6 +13,7 @@ export default function Connections() {
   const [editing, setEditing] = useState<ConnectionSummary | null>(null);
   // Preselected type for create mode (deep-link from the plugins page).
   const [initialType, setInitialType] = useState<string | undefined>(undefined);
+  const [search, setSearch] = useState("");
 
   const { data: connectionTypes } = useQuery({
     queryKey: ["connection-types"],
@@ -103,8 +105,18 @@ export default function Connections() {
 
       {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
 
+      {(connections?.length ?? 0) > 0 && (
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search connections…"
+          className="w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+        />
+      )}
+
       <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-        {connections?.map((connection) => (
+        {filterConnections(connections ?? [], search).map((connection) => (
           <li key={connection.id} className="flex items-center justify-between px-4 py-3 text-sm">
             <div className="flex items-center gap-3">
               <span className="font-medium">{connection.name}</span>
@@ -165,6 +177,9 @@ export default function Connections() {
         ))}
         {connections?.length === 0 && (
           <li className="px-4 py-6 text-center text-sm text-zinc-500">No connections yet.</li>
+        )}
+        {(connections?.length ?? 0) > 0 && filterConnections(connections ?? [], search).length === 0 && (
+          <li className="px-4 py-6 text-center text-sm text-zinc-500">No connections match “{search}”.</li>
         )}
       </ul>
 
