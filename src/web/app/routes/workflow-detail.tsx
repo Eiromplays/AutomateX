@@ -118,6 +118,15 @@ export default function WorkflowDetail() {
     onError: (error) => toast.error(`Restore failed — ${String(error)}`),
   });
 
+  const deleteVersion = useMutation({
+    mutationFn: (version: number) => api.workflows.deleteVersion(id, version),
+    onSuccess: (_result, version) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow", id] });
+      toast.success(`Deleted v${version}.`);
+    },
+    onError: (error) => toast.error(`Delete failed — ${String(error)}`),
+  });
+
   if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
   if (error || !workflow) {
     return (
@@ -339,24 +348,45 @@ export default function WorkflowDetail() {
                   </span>
                 </div>
                 {version.version !== workflow.latestVersion.version && (
-                  <button
-                    type="button"
-                    disabled={restoreVersion.isPending}
-                    onClick={async () => {
-                      if (
-                        await confirm({
-                          title: `Restore v${version.version}?`,
-                          body: `Its steps become v${workflow.latestVersion.version + 1} — nothing is rewritten.`,
-                          confirmLabel: "Restore",
-                        })
-                      ) {
-                        restoreVersion.mutate(version.version);
-                      }
-                    }}
-                    className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
-                  >
-                    Restore
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      disabled={restoreVersion.isPending}
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            title: `Restore v${version.version}?`,
+                            body: `Its steps become v${workflow.latestVersion.version + 1} — nothing is rewritten.`,
+                            confirmLabel: "Restore",
+                          })
+                        ) {
+                          restoreVersion.mutate(version.version);
+                        }
+                      }}
+                      className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+                    >
+                      Restore
+                    </button>
+                    <button
+                      type="button"
+                      disabled={deleteVersion.isPending}
+                      onClick={async () => {
+                        if (
+                          await confirm({
+                            title: `Delete v${version.version}?`,
+                            body: "Removes it from history. Blocked if any execution ran on this version.",
+                            confirmLabel: "Delete",
+                            destructive: true,
+                          })
+                        ) {
+                          deleteVersion.mutate(version.version);
+                        }
+                      }}
+                      className="text-xs text-zinc-500 hover:text-red-400 disabled:opacity-50"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 )}
               </li>
             ))}

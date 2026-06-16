@@ -393,6 +393,9 @@ export const api = {
         `/workflows/${id}/versions/${version}/restore`,
         { method: "POST" },
       ),
+    // Deletes a past version. Guarded server-side: not the latest, and not referenced by any execution.
+    deleteVersion: (id: string, version: number) =>
+      request<void>(`/workflows/${id}/versions/${version}`, { method: "DELETE" }),
     // Portable document — secrets excluded by construction (cron triggers only,
     // connections as name references). Import needs same-named connections.
     export: (id: string) => request<Record<string, unknown>>(`/workflows/${id}/export`),

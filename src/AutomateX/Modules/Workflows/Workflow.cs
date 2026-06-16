@@ -63,6 +63,22 @@ public sealed class Workflow
             target.ContinueOnFailure);
     }
 
+    // Removes a past version from history. The latest version can't be removed (it's the live
+    // definition); the caller is responsible for ensuring no execution references it.
+    public WorkflowVersion RemoveVersion(int version)
+    {
+        var target = Versions.FirstOrDefault(x => x.Version == version)
+            ?? throw new InvalidOperationException($"Version {version} does not exist.");
+
+        if (version == Versions.Max(x => x.Version))
+        {
+            throw new InvalidOperationException($"v{version} is the latest version and can't be deleted.");
+        }
+
+        Versions.Remove(target);
+        return target;
+    }
+
     public void Rename(string name, string? description)
     {
         Name = name;
