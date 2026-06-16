@@ -4,13 +4,16 @@ using Xunit;
 
 namespace AutomateX.Tests;
 
-// Rules encoded ahead of the implementation:
+// Webhook auth rules:
 // - server-generated secrets: 48 lowercase hex chars (24 random bytes), unique
 // - AddTo injects the secret into the trigger config, preserving existing fields
-// - Validate: fixed-time match required; missing provided OR missing stored secret
-//   both fail — legacy webhook triggers without a secret must be recreated.
+// - Validate accepts an HMAC-SHA256 signature of the raw body (preferred) or the plaintext
+//   secret header; both fixed-time. The secret never travels in the URL.
+// - missing/legacy stored secret always fails.
 public sealed class WebhookSecretTests
 {
+    private const string Body = """{"hello":"world"}""";
+
     [Fact]
     public void Generated_secrets_are_48_hex_and_unique()
     {
@@ -28,25 +31,49 @@ public sealed class WebhookSecretTests
 
         Assert.Contains("keep me", configJson);
         Assert.Contains(secret, configJson);
-        Assert.True(WebhookSecret.Validate(configJson, secret));
+        Assert.True(WebhookSecret.Validate(configJson, Body, WebhookSecret.Sign(secret, Body), null));
     }
 
     [Fact]
-    public void Valid_secret_passes()
+    public void Sign_is_prefixed_lowercase_hmac_sha256()
+    {
+        Assert.Matches(new Regex("^sha256=[0-9a-f]{64}$"), WebhookSecret.Sign("secret", Body));
+    }
+
+    [Fact]
+    public void Valid_signature_over_the_body_passes()
     {
         var (configJson, secret) = WebhookSecret.AddTo("{}");
 
-        Assert.True(WebhookSecret.Validate(configJson, secret));
+        Assert.True(WebhookSecret.Validate(configJson, Body, WebhookSecret.Sign(secret, Body), null));
     }
 
     [Fact]
-    public void Wrong_or_missing_secret_fails()
+    public void Signature_over_a_different_body_or_secret_fails()
+    {
+        var (configJson, secret) = WebhookSecret.AddTo("{}");
+        var signature = WebhookSecret.Sign(secret, Body);
+
+        Assert.False(WebhookSecret.Validate(configJson, """{"hello":"tampered"}""", signature, null));
+        Assert.False(WebhookSecret.Validate(configJson, Body, WebhookSecret.Sign(WebhookSecret.Generate(), Body), null));
+    }
+
+    [Fact]
+    public void Plaintext_secret_header_is_accepted()
+    {
+        var (configJson, secret) = WebhookSecret.AddTo("{}");
+
+        Assert.True(WebhookSecret.Validate(configJson, Body, null, secret));
+        Assert.False(WebhookSecret.Validate(configJson, Body, null, "wrong"));
+    }
+
+    [Fact]
+    public void Missing_signature_and_secret_fails()
     {
         var (configJson, _) = WebhookSecret.AddTo("{}");
 
-        Assert.False(WebhookSecret.Validate(configJson, WebhookSecret.Generate()));
-        Assert.False(WebhookSecret.Validate(configJson, null));
-        Assert.False(WebhookSecret.Validate(configJson, ""));
+        Assert.False(WebhookSecret.Validate(configJson, Body, null, null));
+        Assert.False(WebhookSecret.Validate(configJson, Body, "", ""));
     }
 
     [Fact]
@@ -55,27 +82,23 @@ public sealed class WebhookSecretTests
         var (firstConfig, firstSecret) = WebhookSecret.AddTo("{}");
         var (rotatedConfig, rotatedSecret) = WebhookSecret.AddTo(firstConfig);
 
-        Assert.False(WebhookSecret.Validate(rotatedConfig, firstSecret));
-        Assert.True(WebhookSecret.Validate(rotatedConfig, rotatedSecret));
+        Assert.False(WebhookSecret.Validate(rotatedConfig, Body, WebhookSecret.Sign(firstSecret, Body), null));
+        Assert.True(WebhookSecret.Validate(rotatedConfig, Body, WebhookSecret.Sign(rotatedSecret, Body), null));
     }
 
     [Fact]
-    public void BuildUrl_uses_the_declared_public_base_when_configured()
+    public void BuildUrl_has_no_secret_and_honors_the_public_base()
     {
         var id = Guid.Parse("00000000-0000-0000-0000-000000000001");
 
-        Assert.Equal(
-            $"https://automatex.example.com/api/webhooks/{id}?secret=abc",
-            WebhookSecret.BuildUrl("https://automatex.example.com/", id, "abc"));
-        Assert.Equal(
-            $"/api/webhooks/{id}?secret=abc",
-            WebhookSecret.BuildUrl(null, id, "abc"));
+        Assert.Equal($"https://automatex.example.com/api/webhooks/{id}", WebhookSecret.BuildUrl("https://automatex.example.com/", id));
+        Assert.Equal($"/api/webhooks/{id}", WebhookSecret.BuildUrl(null, id));
     }
 
     [Fact]
     public void Legacy_trigger_without_stored_secret_fails()
     {
-        Assert.False(WebhookSecret.Validate("{}", "anything"));
-        Assert.False(WebhookSecret.Validate("not-json", "anything"));
+        Assert.False(WebhookSecret.Validate("{}", Body, WebhookSecret.Sign("x", Body), null));
+        Assert.False(WebhookSecret.Validate("not-json", Body, null, "anything"));
     }
 }

@@ -61,17 +61,22 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --generate-notes 2>/dev/null || true
           gh release upload "$GITHUB_REF_NAME" out/plugins/*.zip out/plugins/catalog.json --clobber
 
-      # Self-deploy: fires the AutomateX webhook AFTER images exist in GHCR.
-      # No-op until the AUTOMATEX_DEPLOY_WEBHOOK repo secret holds the full
-      # capability URL (.../api/webhooks/<id>?secret=...) - see docs/recipes/self-deploy.md.
+      # Self-deploy: fires the AutomateX webhook AFTER images exist in GHCR. No-op until both repo
+      # secrets are set: AUTOMATEX_DEPLOY_WEBHOOK = the webhook URL (.../api/webhooks/<id>) and
+      # AUTOMATEX_DEPLOY_SECRET = the trigger's secret. The body is signed (HMAC-SHA256) — nothing
+      # secret travels in the URL. See docs/recipes/self-deploy.md.
       - name: Trigger self-deploy
         env:
           DEPLOY_WEBHOOK: ${{ secrets.AUTOMATEX_DEPLOY_WEBHOOK }}
+          DEPLOY_SECRET: ${{ secrets.AUTOMATEX_DEPLOY_SECRET }}
         run: |
-          if [ -n "$DEPLOY_WEBHOOK" ]; then
+          if [ -n "$DEPLOY_WEBHOOK" ] && [ -n "$DEPLOY_SECRET" ]; then
+            BODY="{\"version\":\"${GITHUB_REF_NAME}\",\"actor\":\"${GITHUB_ACTOR}\"}"
+            SIG="sha256=$(printf '%s' "$BODY" | openssl dgst -sha256 -hmac "$DEPLOY_SECRET" -hex | sed 's/^.* //')"
             curl -fsS -X POST "$DEPLOY_WEBHOOK" \
               -H 'Content-Type: application/json' \
-              -d "{\"version\":\"${GITHUB_REF_NAME}\",\"actor\":\"${GITHUB_ACTOR}\"}"
+              -H "X-Webhook-Signature: $SIG" \
+              -d "$BODY"
           else
-            echo "AUTOMATEX_DEPLOY_WEBHOOK not set - skipping self-deploy trigger."
+            echo "AUTOMATEX_DEPLOY_WEBHOOK / AUTOMATEX_DEPLOY_SECRET not set - skipping self-deploy trigger."
           fi

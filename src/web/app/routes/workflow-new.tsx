@@ -36,7 +36,7 @@ export default function WorkflowNew() {
       return { created, secrets };
     },
     onSuccess: ({ created, secrets }) => {
-      secrets.forEach((url) => toast.success(`Webhook URL — copy it now, it's shown only once: ${url}`));
+      secrets.forEach((info) => toast.success(`Webhook — copy it now, it's shown only once — ${info}`));
       toast.success(importDoc ? "Workflow imported." : "Workflow created.");
       navigate(`/workflows/${created.id}`);
     },

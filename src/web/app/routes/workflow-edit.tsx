@@ -31,7 +31,7 @@ export default function WorkflowEdit() {
     onSuccess: ({ result, secrets }) => {
       queryClient.invalidateQueries({ queryKey: ["workflow", id] });
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      secrets.forEach((url) => toast.success(`Webhook URL (copy it now, shown once): ${url}`));
+      secrets.forEach((info) => toast.success(`Webhook (copy now, shown once) — ${info}`));
       toast.success(`Saved as v${result.version}.`);
       navigate(`/workflows/${id}`);
     },

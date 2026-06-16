@@ -46,7 +46,7 @@ public static class RotateWebhookSecret
             await Send.OkAsync(new Response(
                 trigger.Id,
                 secret,
-                WebhookSecret.BuildUrl(engineOptions.Value.PublicBaseUrl, trigger.Id, secret)), ct);
+                WebhookSecret.BuildUrl(engineOptions.Value.PublicBaseUrl, trigger.Id)), ct);
         }
     }
 

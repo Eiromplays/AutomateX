@@ -87,7 +87,15 @@ export async function applyTriggers(
         config: draft.config,
         entryStepOrder: draft.entryStepOrder ?? null,
       });
-      if (created.webhookUrl) secrets.push(created.webhookUrl);
+      if (created.webhookUrl) {
+        // The secret no longer rides in the URL — surface both so the sender can sign (HMAC) or
+        // send X-Webhook-Secret. Shown once.
+        secrets.push(
+          created.webhookSecret
+            ? `${created.webhookUrl}  ·  secret: ${created.webhookSecret}`
+            : created.webhookUrl,
+        );
+      }
       continue;
     }
 
@@ -180,8 +188,8 @@ export function TriggerEditor({
       ) : draft.type === "webhook" ? (
         <p className="text-[11px] text-amber-500/80">
           {draft.id
-            ? "⚠ The secret URL was shown once at creation — rotate it on the workflow page if it was lost."
-            : "⚠ A secret URL is generated on save and shown only once — copy it then. If lost, rotate it later."}
+            ? "⚠ The secret was shown once at creation — rotate it on the workflow page if it was lost."
+            : "⚠ A secret is generated on save and shown only once — copy it then. Senders sign the body HMAC-SHA256 (X-Webhook-Signature) or send X-Webhook-Secret. If lost, rotate it later."}
         </p>
       ) : draft.type === "workflow" ? (
         <div className="flex gap-2">

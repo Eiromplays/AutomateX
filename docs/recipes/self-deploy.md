@@ -105,27 +105,33 @@ Notes:
   `$SSH_ORIGINAL_COMMAND` if you ever want the version there) — the key *cannot* run anything else.
 - `matrix.send` transaction ids are deterministic per execution step, so even if the step is
   retried you get exactly one room message.
-- Add a webhook trigger to the workflow and save the one-time capability URL
-  (`/api/webhooks/{id}?secret=…`).
+- Add a webhook trigger to the workflow and save its URL (`/api/webhooks/{id}`) and the one-time
+  secret (shown once at creation). The secret never travels in the URL — senders authenticate with
+  an HMAC-SHA256 signature of the body in `X-Webhook-Signature: sha256=…` (preferred), or send the
+  secret in the `X-Webhook-Secret` header.
 
 ## 5. Fire it from the release pipeline
 
 The right moment is *after images exist in GHCR*, so trigger from the end of `release.yml` rather
-than a GitHub `release` webhook (which fires before the build):
+than a GitHub `release` webhook (which fires before the build). Sign the body with the secret:
 
 ```yaml
   - name: Trigger self-deploy
     run: |
+      BODY="{\"version\":\"${GITHUB_REF_NAME}\",\"actor\":\"${GITHUB_ACTOR}\"}"
+      SIG="sha256=$(printf '%s' "$BODY" \
+        | openssl dgst -sha256 -hmac "${{ secrets.AUTOMATEX_DEPLOY_SECRET }}" -hex | sed 's/^.* //')"
       curl -fsS -X POST "${{ secrets.AUTOMATEX_DEPLOY_WEBHOOK }}" \
         -H 'Content-Type: application/json' \
-        -d "{\"version\":\"${GITHUB_REF_NAME}\",\"actor\":\"${GITHUB_ACTOR}\"}"
+        -H "X-Webhook-Signature: $SIG" \
+        -d "$BODY"
 ```
 
-with repo secret `AUTOMATEX_DEPLOY_WEBHOOK` = the full capability URL from step 4.
+with repo secrets `AUTOMATEX_DEPLOY_WEBHOOK` = the webhook URL and `AUTOMATEX_DEPLOY_SECRET` = the
+one-time secret. (For a quick manual test you can skip signing and send `-H "X-Webhook-Secret: <secret>"`.)
 
-Alternative: a GitHub repo webhook (Settings → Webhooks → the capability URL, `workflow_run`
-events) — richer payloads (`{{trigger.payload.workflow_run.conclusion}}`), no workflow edit, but
-you'll want to ignore non-`completed` deliveries.
+The pull variant above (poll GitHub releases) needs no inbound webhook at all and is the simpler
+path behind Tailscale.
 
 ## Pull variant — no public ingress (best for Tailscale-only)
 

@@ -33,24 +33,33 @@ public static class FireWebhookTrigger
                 return;
             }
 
-            // Per-trigger secret (header or ?secret=) — webhooks sit outside the global
-            // API-key gate. Legacy triggers without a stored secret must be recreated.
-            var providedSecret = HttpContext.Request.Headers["X-Webhook-Secret"].FirstOrDefault()
-                ?? HttpContext.Request.Query["secret"].FirstOrDefault();
-            if (!WebhookSecret.Validate(trigger.ConfigJson, providedSecret))
+            // Read the raw body first: the HMAC signature is computed over exactly these bytes.
+            var rawBody = await RawJsonBody.ReadRawAsync(HttpContext, ct);
+
+            // Per-trigger secret — webhooks sit outside the global API-key gate. Preferred:
+            // X-Webhook-Signature (HMAC-SHA256 of the body); X-Webhook-Secret (plaintext) also
+            // accepted. Legacy triggers without a stored secret must be recreated.
+            var signature = HttpContext.Request.Headers[WebhookSecret.SignatureHeader].FirstOrDefault();
+            var plaintextSecret = HttpContext.Request.Headers[WebhookSecret.SecretHeader].FirstOrDefault();
+            if (!WebhookSecret.Validate(trigger.ConfigJson, rawBody, signature, plaintextSecret))
             {
                 await Send.UnauthorizedAsync(ct);
                 return;
             }
 
             string? payload = null;
-            try
+            if (!string.IsNullOrWhiteSpace(rawBody))
             {
-                payload = await RawJsonBody.ReadAsync(HttpContext, ct);
-            }
-            catch (JsonException)
-            {
-                ThrowError("Webhook body must be empty or valid JSON — it becomes {{trigger.payload}}.");
+                try
+                {
+                    using var _ = JsonDocument.Parse(rawBody);
+                }
+                catch (JsonException)
+                {
+                    ThrowError("Webhook body must be empty or valid JSON — it becomes {{trigger.payload}}.");
+                }
+
+                payload = rawBody;
             }
 
             var executionId = Guid.CreateVersion7();

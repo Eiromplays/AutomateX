@@ -85,7 +85,7 @@ public static class CreateTrigger
                 webhookSecret,
                 webhookSecret is null
                     ? null
-                    : WebhookSecret.BuildUrl(engineOptions.Value.PublicBaseUrl, trigger.Id, webhookSecret)), ct);
+                    : WebhookSecret.BuildUrl(engineOptions.Value.PublicBaseUrl, trigger.Id)), ct);
         }
 
         private async Task ValidateChainConfigOrThrowAsync(string configJson, Guid workspaceId, CancellationToken ct)
