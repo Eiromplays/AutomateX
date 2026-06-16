@@ -15,6 +15,10 @@ const KNOWN_ACTIONS = new Set([
   "email.send",
   "mcp.call",
   "ssh.command",
+  "kv.get",
+  "kv.set",
+  "kv.setIfAbsent",
+  "kv.delete",
 ]);
 
 describe("starter templates", () => {

@@ -228,7 +228,7 @@ export const templates: WorkflowTemplate[] = [
     id: "self-deploy",
     name: "Self-deploy on new release",
     description:
-      "Polls GitHub for new AutomateX releases and runs `docker compose pull && up -d` on the host over SSH, then notifies. Needs the Feed plugin (http.poll trigger), an 'ssh' connection, and Pushover — edit host/username/paths. Pull model: no public webhook needed. See docs/recipes/self-deploy.md.",
+      "Polls GitHub for new AutomateX releases and runs `docker compose pull && up -d` on the host over SSH, then notifies. Dedups per release tag (kv.setIfAbsent) so an incidental feed change can't redeploy the same version. Needs the Feed plugin (http.poll trigger), an 'ssh' connection, and Pushover — edit host/username/paths. Pull model: no public webhook needed. See docs/recipes/self-deploy.md.",
     category: "Maintenance",
     doc: {
       automatex: 1,
@@ -239,6 +239,18 @@ export const templates: WorkflowTemplate[] = [
           actionType: "gate",
           name: "Only on HTTP 200",
           config: { value: "{{trigger.payload.statusCode}}", equals: "200" },
+        },
+        {
+          actionType: "kv.setIfAbsent",
+          name: "Claim this release",
+          config: { key: "deployed:{{trigger.payload.json.0.tag_name}}", value: "1" },
+        },
+        {
+          actionType: "gate",
+          name: "First time for this tag",
+          // http.poll dedups on the whole response body, so an incidental change can re-fire for a
+          // tag already deployed; gating on `acquired` makes the deploy idempotent per release tag.
+          config: { value: "{{steps.1.output.acquired}}", isTruthy: true },
         },
         {
           actionType: "ssh.command",
