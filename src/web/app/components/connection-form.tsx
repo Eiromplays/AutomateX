@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { api, type ConnectionSummary } from "../lib/api";
+import { AutoTextarea } from "./auto-textarea";
 import {
   buildSecretsPayload,
   emptyRow,
@@ -171,9 +172,8 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
               {row.secret ? (
                 // Textarea, not a single-line input: a one-line field strips newlines on paste,
                 // which corrupts multi-line secrets like SSH private keys (SSH.NET then rejects them).
-                <textarea
-                  className={`${inputClass} w-full resize-y font-mono`}
-                  rows={2}
+                <AutoTextarea
+                  className={`${inputClass} min-h-[3rem] w-full font-mono`}
                   placeholder={editing && row.existing ? "unchanged" : row.helpText ?? ""}
                   value={row.value}
                   onChange={(e) => updateRow(row.key, { value: e.target.value })}
@@ -200,9 +200,8 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                 disabled={row.existing}
                 onChange={(e) => updateRow(row.key, { name: e.target.value })}
               />
-              <textarea
-                className={`${inputClass} flex-1 resize-y font-mono ${row.removed ? "line-through opacity-40" : ""}`}
-                rows={1}
+              <AutoTextarea
+                className={`${inputClass} min-h-[2.25rem] flex-1 font-mono ${row.removed ? "line-through opacity-40" : ""}`}
                 placeholder={row.existing ? "unchanged" : "secret value (or paste a key)"}
                 value={row.value}
                 disabled={row.removed}

@@ -2,8 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../lib/api";
+import { AutoTextarea } from "./auto-textarea";
 import { ConnectionForm } from "./connection-form";
 import { filterConnections } from "./connection-form-logic";
+import { checkConnectionRefs, hasConnectionRef } from "./connection-refs";
 import { fieldKind, type JsonSchema } from "./schema-fields";
 import { Dialog, DialogContent } from "./ui/dialog";
 
@@ -25,9 +27,6 @@ type SchemaFormProps = {
 const inputClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
   "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
-
-const isConnectionRef = (value: unknown) =>
-  typeof value === "string" && value.includes("{{connections.");
 
 // Inserts {{connections.<name>.<field>}} so users don't hand-type (and mis-case) them.
 // Always available — even with no connections, it offers a path to create one without
@@ -585,6 +584,13 @@ function LlmAgentEditor({
 }
 
 export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormProps) {
+  // For validating {{connections.…}} refs in field values. undefined while loading → neutral chip.
+  const { data: connections } = useQuery({
+    queryKey: ["connections"],
+    queryFn: api.connections.list,
+    staleTime: 60_000,
+  });
+
   if (actionType === "mcp.call") {
     return <McpCallEditor value={value} onChange={onChange} />;
   }
@@ -635,14 +641,31 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
           );
         }
         const kind = fieldKind(property);
+        const refCheck = connections ? checkConnectionRefs(value[key], connections) : null;
+        const isEmptyRequired =
+          required.has(key) && kind !== "boolean" && (value[key] === undefined || value[key] === "");
         return (
           <label key={key} className="block">
             <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
               {key}
               {required.has(key) && <span className="text-emerald-400">*</span>}
-              {isConnectionRef(value[key]) && (
+              {isEmptyRequired && <span className="text-[10px] text-amber-400">required</span>}
+              {connections == null && hasConnectionRef(value[key]) && (
                 <span className="text-[10px] text-sky-400" title="Uses a connection reference">
                   🔗 connection
+                </span>
+              )}
+              {refCheck?.status === "ok" && (
+                <span className="text-[10px] text-emerald-400" title="Connection reference resolves">
+                  🔗 connection
+                </span>
+              )}
+              {refCheck?.status === "unknown" && (
+                <span
+                  className="text-[10px] text-amber-400"
+                  title={`Unknown connection or key: ${refCheck.unknown.join(", ")}`}
+                >
+                  🔗 unknown: {refCheck.unknown.join(", ")}
                 </span>
               )}
             </span>
@@ -675,9 +698,8 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
               />
             ) : kind === "multiline" ? (
               <div className="relative">
-                <textarea
-                  className={`${inputClass} pr-8`}
-                  rows={3}
+                <AutoTextarea
+                  className={`${inputClass} min-h-[4.5rem] pr-8`}
                   value={value[key] === undefined ? "" : String(value[key])}
                   onChange={(e) => set(key, e.target.value === "" ? undefined : e.target.value)}
                 />
