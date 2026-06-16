@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../lib/api";
 import { AutoTextarea } from "./auto-textarea";
+import { ConnectionAutocompleteField } from "./connection-autocomplete-field";
 import { ConnectionForm } from "./connection-form";
 import { filterConnections } from "./connection-form-logic";
 import { checkConnectionRefs, hasConnectionRef } from "./connection-refs";
@@ -709,11 +710,11 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
               </div>
             ) : (
               <div className="relative">
-                <input
-                  type="text"
+                <ConnectionAutocompleteField
                   className={`${inputClass} pr-10`}
                   value={value[key] === undefined ? "" : String(value[key])}
-                  onChange={(e) => set(key, e.target.value === "" ? undefined : e.target.value)}
+                  onChange={(v) => set(key, v === "" ? undefined : v)}
+                  connections={connections ?? []}
                 />
                 <div className="absolute inset-y-0 right-1.5 flex items-center">
                   <ConnectionInserter onInsert={(token) => append(key, token)} />
