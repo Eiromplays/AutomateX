@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent } from "react";
+import { useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import {
   applyConnectionCompletion,
@@ -12,18 +12,36 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   connections: ConnectionLite[];
+  multiline?: boolean;
   className?: string;
   placeholder?: string;
 };
 
-// A single-line text input with inline {{connections.…}} autocomplete: typing the prefix pops a
-// caret-anchored suggestion list filtered as you go; picking one inserts the full token.
-export function ConnectionAutocompleteField({ value, onChange, connections, className, placeholder }: Props) {
-  const inputRef = useRef<HTMLInputElement>(null);
+// A text input or textarea with inline {{connections.…}} autocomplete: typing the prefix pops a
+// caret-anchored suggestion list filtered as you go; picking one inserts the full token. Owns the
+// element ref so it also handles textarea auto-grow without a second component.
+export function ConnectionAutocompleteField({
+  value,
+  onChange,
+  connections,
+  multiline,
+  className,
+  placeholder,
+}: Props) {
+  const elRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [completions, setCompletions] = useState<Completion[]>([]);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const tokenStart = useRef(0);
   const caret = useRef(0);
+
+  // Auto-grow the textarea to fit content (min height comes from the className floor).
+  useLayoutEffect(() => {
+    const el = elRef.current;
+    if (multiline && el) {
+      el.style.height = "auto";
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [value, multiline]);
 
   const close = () => setCompletions([]);
 
@@ -36,14 +54,14 @@ export function ConnectionAutocompleteField({ value, onChange, connections, clas
     }
     tokenStart.current = active.start;
     caret.current = at;
-    const rect = inputRef.current?.getBoundingClientRect();
+    const rect = elRef.current?.getBoundingClientRect();
     if (rect) {
       setPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 220) });
     }
     setCompletions(matches);
   };
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onChange(e.target.value);
     refresh(e.target.value, e.target.selectionStart ?? e.target.value.length);
   };
@@ -53,7 +71,7 @@ export function ConnectionAutocompleteField({ value, onChange, connections, clas
     onChange(next.value);
     close();
     requestAnimationFrame(() => {
-      const el = inputRef.current;
+      const el = elRef.current;
       if (el) {
         el.focus();
         el.setSelectionRange(next.caret, next.caret);
@@ -61,22 +79,28 @@ export function ConnectionAutocompleteField({ value, onChange, connections, clas
     });
   };
 
+  const shared = {
+    ref: (el: HTMLInputElement | HTMLTextAreaElement | null) => {
+      elRef.current = el;
+    },
+    value,
+    placeholder,
+    onChange: handleChange,
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        close();
+      }
+    },
+    onBlur: () => setTimeout(close, 120),
+  };
+
   return (
     <>
-      <input
-        ref={inputRef}
-        type="text"
-        className={className}
-        value={value}
-        placeholder={placeholder}
-        onChange={handleChange}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            close();
-          }
-        }}
-        onBlur={() => setTimeout(close, 120)}
-      />
+      {multiline ? (
+        <textarea {...shared} className={`resize-none overflow-hidden ${className ?? ""}`} />
+      ) : (
+        <input type="text" {...shared} className={className} />
+      )}
       {completions.length > 0 &&
         pos &&
         createPortal(
@@ -88,7 +112,7 @@ export function ConnectionAutocompleteField({ value, onChange, connections, clas
               <button
                 type="button"
                 key={c.token}
-                // mouseDown (not click) + preventDefault so the input doesn't blur-close first.
+                // mouseDown (not click) + preventDefault so the field doesn't blur-close first.
                 onMouseDown={(e) => {
                   e.preventDefault();
                   pick(c.token);

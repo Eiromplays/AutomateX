@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../lib/api";
-import { AutoTextarea } from "./auto-textarea";
 import { ConnectionAutocompleteField } from "./connection-autocomplete-field";
 import { ConnectionForm } from "./connection-form";
 import { filterConnections } from "./connection-form-logic";
@@ -699,10 +698,12 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
               />
             ) : kind === "multiline" ? (
               <div className="relative">
-                <AutoTextarea
+                <ConnectionAutocompleteField
+                  multiline
                   className={`${inputClass} min-h-[4.5rem] pr-8`}
                   value={value[key] === undefined ? "" : String(value[key])}
-                  onChange={(e) => set(key, e.target.value === "" ? undefined : e.target.value)}
+                  onChange={(v) => set(key, v === "" ? undefined : v)}
+                  connections={connections ?? []}
                 />
                 <div className="absolute right-1.5 top-1.5 flex items-center">
                   <ConnectionInserter onInsert={(token) => append(key, token)} />
