@@ -139,6 +139,23 @@ Import the **Self-deploy on new release** template (Templates → Use template).
 Feed plugin (for `http.poll`). The poll fires when a new release appears (content-hash dedup), so it
 catches pre-releases too, unlike the "latest" endpoint.
 
+### Dedup on the release tag
+
+`http.poll` hashes the *whole* releases response, so an incidental feed change (an asset's download
+count, another pre-release) can re-fire for a tag you already deployed. The template guards against
+this with two leading steps:
+
+```
+kv.setIfAbsent   key = "deployed:{{trigger.payload.json.0.tag_name}}"
+gate             value = {{steps.0.output.acquired}}, isTruthy = true
+ssh.command      pull + restart
+```
+
+`kv.setIfAbsent` claims the tag (`acquired = true` only the first time); the gate halts every later
+fire for the same tag, so a release deploys exactly once. If you built the workflow before this was
+added, drop those two steps in ahead of the SSH step. See
+[dedup & durable state](./dedup-and-state.md). (`kv.*` are built-in — no plugin needed.)
+
 ## Security posture
 
 The deploy credential is encrypted at rest (AES-256-GCM), write-only through the API, masked
