@@ -1,3 +1,4 @@
+using System.Net;
 using AutomateX.Database;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -87,12 +88,34 @@ public static class AuthExtensions
         builder.Services.AddSingleton<CookieTokenRefresher>();
         builder.Services.AddAuthorization();
 
-        // Behind Caddy/Vite the OIDC redirect URI must be built from forwarded headers.
+        // Behind Caddy/Vite the OIDC redirect URI is built from forwarded Host/proto — but only
+        // trust those headers from the proxy, never from arbitrary clients (spoofed Host/proto =
+        // OIDC redirect/host poisoning). Default to private ranges (the proxy shares the container/
+        // LAN network); pin tighter with ForwardedHeaders:KnownProxies (CSV of the proxy's IPs).
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
+
+            var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>();
+            if (knownProxies is { Length: > 0 })
+            {
+                foreach (var proxy in knownProxies)
+                {
+                    if (IPAddress.TryParse(proxy, out var address))
+                    {
+                        options.KnownProxies.Add(address);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var network in PrivateNetworks)
+                {
+                    options.KnownIPNetworks.Add(network);
+                }
+            }
         });
 
         return builder;
@@ -148,4 +171,16 @@ public static class AuthExtensions
 
     private static string SafeLocalUrl(string? returnUrl) =>
         returnUrl is ['/', ..] && !returnUrl.StartsWith("//", StringComparison.Ordinal) ? returnUrl : "/";
+
+    // Default trusted proxy networks when ForwardedHeaders:KnownProxies isn't set: loopback +
+    // RFC1918/ULA, since the reverse proxy lives on the container/LAN network.
+    private static readonly System.Net.IPNetwork[] PrivateNetworks =
+    [
+        new(IPAddress.Parse("10.0.0.0"), 8),
+        new(IPAddress.Parse("172.16.0.0"), 12),
+        new(IPAddress.Parse("192.168.0.0"), 16),
+        new(IPAddress.Parse("127.0.0.0"), 8),
+        new(IPAddress.IPv6Loopback, 128),
+        new(IPAddress.Parse("fc00::"), 7),
+    ];
 }
