@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.Json;
 using AutomateX.Database;
@@ -23,7 +22,15 @@ public sealed class ConnectionResolver(
     ILogger<ConnectionResolver> logger)
 {
     private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(2);
-    private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _locks = new();
+
+    // Striped single-flight: a fixed pool of gates keyed by connection id, so the lock set is
+    // bounded (no per-id SemaphoreSlim that's never disposed). Two ids sharing a stripe just
+    // serialize briefly; the re-check after acquiring the gate keeps refresh correct regardless.
+    private const int LockStripes = 32;
+    private readonly SemaphoreSlim[] _locks =
+        [.. Enumerable.Range(0, LockStripes).Select(_ => new SemaphoreSlim(1, 1))];
+
+    private SemaphoreSlim LockFor(Guid connectionId) => _locks[(uint)connectionId.GetHashCode() % LockStripes];
 
     public async Task<Dictionary<string, JsonElement>> ResolveAsync(
         IReadOnlyList<Connection> connections, CancellationToken cancellationToken)
@@ -59,7 +66,7 @@ public sealed class ConnectionResolver(
 
     private async Task<Dictionary<string, string>?> RefreshAsync(Guid connectionId, CancellationToken cancellationToken)
     {
-        var gate = _locks.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
+        var gate = LockFor(connectionId);
         await gate.WaitAsync(cancellationToken);
         try
         {

@@ -272,7 +272,7 @@ public static class ExecuteStepHandler
         // workflow's own workspace's connections (isolation boundary). OAuth tokens that are
         // expired get refreshed here, before the step runs.
         Dictionary<string, JsonElement>? connections = null;
-        if (configJson.Contains("connections", StringComparison.Ordinal))
+        if (configJson.Contains("{{connections.", StringComparison.Ordinal))
         {
             var workspaceConnections = await dbContext.Connections
                 .AsNoTracking()
