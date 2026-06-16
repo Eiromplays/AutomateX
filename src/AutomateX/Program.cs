@@ -15,6 +15,7 @@ var connectionString = builder.Configuration.GetConnectionString("automatex")
 builder.AddAutomateXEngine(connectionString);
 builder.AddAutomateXAuth();
 builder.Services.AddFastEndpoints();
+builder.Services.AddAutomateXRateLimiting();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IEngineEventListener, SignalRExecutionEventListener>();
 
@@ -22,6 +23,7 @@ var app = builder.Build();
 
 app.UseAutomateXAuth();
 app.MapDefaultEndpoints();
+app.UseRateLimiter();
 app.UseFastEndpoints(config => config.Endpoints.RoutePrefix = "api");
 app.MapHub<ExecutionEventsHub>("/hubs/executions");
 

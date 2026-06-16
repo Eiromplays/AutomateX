@@ -1,4 +1,5 @@
 using FastEndpoints;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 
 namespace AutomateX.Web;
@@ -14,6 +15,7 @@ public static class CreateSession
         {
             Post("auth/session");
             AllowAnonymous();
+            Options(b => b.RequireRateLimiting(RateLimitPolicies.Auth));
         }
 
         public override async Task HandleAsync(Request req, CancellationToken ct)

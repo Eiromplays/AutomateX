@@ -3,6 +3,7 @@ using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Web;
 using FastEndpoints;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Wolverine;
 
@@ -16,6 +17,7 @@ public static class FireWebhookTrigger
         {
             Post("webhooks/{triggerId}");
             AllowAnonymous();
+            Options(b => b.RequireRateLimiting(RateLimitPolicies.Webhook));
         }
 
         public override async Task HandleAsync(CancellationToken ct)
