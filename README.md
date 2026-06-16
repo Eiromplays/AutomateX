@@ -28,8 +28,9 @@ Release history is in [CHANGELOG.md](CHANGELOG.md). v1 is archived at
   `{{connections.<name>.<field>}}`, masked everywhere.
 - **Workspaces & auth** — viewer/editor/owner roles; auth is open → API key → OIDC (with
   refresh-token sessions).
-- **Plugin platform** — hot-reload, workspace-scoped plugins, an in-app catalog with sha256-verified
-  installs (upload gated behind `Engine__AllowPluginUpload`).
+- **Plugin platform** — plugins contribute actions, triggers, and connection types; hot-reload,
+  workspace-scoped plugins, and an in-app catalog with sha256-verified installs (upload gated behind
+  `Engine__AllowPluginUpload`).
 - **Self-hosting** — `docker compose up`, GHCR images on `v*` tags, and a full homelab guide
   (Proxmox + Tailscale HTTPS + OIDC) in [docs/deploy-homelab.md](docs/deploy-homelab.md).
 
@@ -100,9 +101,10 @@ public sealed class GreetAction : IAction<GreetConfig, GreetResult>
 }
 ```
 
-Plugins implement `IAction<TConfig, TResult>` (actions) or `ITriggerListener<TConfig>` (triggers)
-against `AutomateX.Plugin.Sdk`; config/result types export as JSON Schema and drive the builder forms.
-Scaffold one:
+Plugins implement `IAction<TConfig, TResult>` (actions), `ITriggerListener<TConfig>` (triggers), or
+`IConnectionType` (guided connection types — with `IOAuthConnectionType` for OAuth2 and
+`IConnectionTester` for a "Test" button) against `AutomateX.Plugin.Sdk`; config/result types export
+as JSON Schema and drive the builder forms. Scaffold one:
 
 ```bash
 dotnet new install ./templates/automatex-plugin
