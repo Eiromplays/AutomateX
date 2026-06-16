@@ -1,6 +1,11 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
-var postgres = builder.AddPostgres("postgres")
+// Explicit, stable password: without it Aspire generates a new one each run, but the data volume
+// keeps the original baked in — "password authentication failed for user 'postgres'" after the
+// first restart. Set via user-secrets/env "Parameters:db-password"; generated once if absent.
+var dbPassword = builder.AddParameter("db-password", secret: true);
+
+var postgres = builder.AddPostgres("postgres", password: dbPassword)
     .WithDataVolume("automatex-postgres-data");
 
 var db = postgres.AddDatabase("automatex");
