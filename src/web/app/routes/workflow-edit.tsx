@@ -78,6 +78,7 @@ export default function WorkflowEdit() {
         pending={update.isPending}
         error={update.error}
         onSubmit={(value) => update.mutate(value)}
+        onCancel={() => navigate(`/workflows/${id}`)}
       />
     </div>
   );

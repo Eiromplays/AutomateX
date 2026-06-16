@@ -32,6 +32,7 @@ export function WorkflowForm({
   pending,
   error,
   onSubmit,
+  onCancel,
   hideTriggers,
 }: {
   initial?: WorkflowFormValue;
@@ -40,6 +41,7 @@ export function WorkflowForm({
   pending: boolean;
   error: unknown;
   onSubmit: (value: WorkflowFormValue) => void;
+  onCancel?: () => void;
   hideTriggers?: boolean;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -234,23 +236,35 @@ export function WorkflowForm({
 
       {error != null && <p className="text-sm text-red-400">{String(error)}</p>}
 
-      <button
-        type="button"
-        disabled={!name || pending}
-        onClick={() =>
-          onSubmit({
-            name,
-            description: description || null,
-            steps: steps.map(({ key: _key, routing: _routing, fanOut: _fanOut, ...step }) => step),
-            edges: submitEdges(steps),
-            triggers: triggerDrafts,
-            continueOnFailure,
-          })
-        }
-        className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-      >
-        {pending ? pendingLabel : submitLabel}
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={!name || pending}
+          onClick={() =>
+            onSubmit({
+              name,
+              description: description || null,
+              steps: steps.map(({ key: _key, routing: _routing, fanOut: _fanOut, ...step }) => step),
+              edges: submitEdges(steps),
+              triggers: triggerDrafts,
+              continueOnFailure,
+            })
+          }
+          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+        >
+          {pending ? pendingLabel : submitLabel}
+        </button>
+        {onCancel && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={onCancel}
+            className="rounded-md border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-900 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        )}
+      </div>
     </div>
   );
 }
