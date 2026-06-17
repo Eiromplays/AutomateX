@@ -1,8 +1,10 @@
 using System.Net;
 using System.Text;
+using AutomateX.Engine;
 using AutomateX.Engine.Actions;
 using AutomateX.Plugin.Sdk;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace AutomateX.Tests;
@@ -37,6 +39,10 @@ public sealed class HttpRequestActionTests
         StepOrder = 0,
     };
 
+    // SSRF guard off by default (legitimate internal targets keep working).
+    private static HttpRequestAction Action(bool blockPrivate = false) =>
+        new(Options.Create(new EngineOptions { BlockPrivateNetworkRequests = blockPrivate }));
+
     [Fact]
     public async Task Sends_method_url_headers_and_json_body_by_default()
     {
@@ -51,7 +57,7 @@ public sealed class HttpRequestActionTests
                 ["X-Custom"] = "42",
             });
 
-        var result = await new HttpRequestAction().ExecuteAsync(config, Context(handler));
+        var result = await Action().ExecuteAsync(config, Context(handler));
 
         var (request, body) = Assert.Single(handler.Calls);
         Assert.Equal(HttpMethod.Post, request.Method);
@@ -71,7 +77,7 @@ public sealed class HttpRequestActionTests
         var config = new HttpRequestConfig(
             "POST", "https://api.example.com", Body: "a=1", ContentType: "application/x-www-form-urlencoded");
 
-        await new HttpRequestAction().ExecuteAsync(config, Context(handler));
+        await Action().ExecuteAsync(config, Context(handler));
 
         var (request, _) = Assert.Single(handler.Calls);
         Assert.Equal("application/x-www-form-urlencoded", request.Content?.Headers.ContentType?.MediaType);
@@ -85,7 +91,7 @@ public sealed class HttpRequestActionTests
             Content = new StringContent("""{"message":"Not Found"}"""),
         }));
 
-        var result = await new HttpRequestAction().ExecuteAsync(
+        var result = await Action().ExecuteAsync(
             new HttpRequestConfig("GET", "https://api.example.com/missing"), Context(handler));
 
         Assert.Equal(404, result.StatusCode);
@@ -102,7 +108,7 @@ public sealed class HttpRequestActionTests
         var config = new HttpRequestConfig("GET", "https://api.example.com", FailOnErrorStatus: true);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => new HttpRequestAction().ExecuteAsync(config, Context(handler)));
+            () => Action().ExecuteAsync(config, Context(handler)));
 
         Assert.Contains("500", exception.Message);
         Assert.Contains("kaboom", exception.Message);
@@ -118,11 +124,23 @@ public sealed class HttpRequestActionTests
             return Task.FromResult(response);
         });
 
-        var result = await new HttpRequestAction().ExecuteAsync(
+        var result = await Action().ExecuteAsync(
             new HttpRequestConfig("GET", "https://api.example.com"), Context(handler));
 
         Assert.Equal("abc-123", result.Headers["x-request-id"]);
         Assert.StartsWith("application/json", result.Headers["content-type"]);
+    }
+
+    [Fact]
+    public async Task Blocks_private_targets_when_the_guard_is_enabled()
+    {
+        var handler = new FakeHandler(_ => Task.FromResult(Ok()));
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => Action(blockPrivate: true).ExecuteAsync(new HttpRequestConfig("GET", "http://127.0.0.1/x"), Context(handler)));
+
+        Assert.Contains("blocked", exception.Message);
+        Assert.Empty(handler.Calls); // never sent
     }
 
     [Fact]
@@ -136,6 +154,6 @@ public sealed class HttpRequestActionTests
         var config = new HttpRequestConfig("GET", "https://api.example.com", TimeoutSeconds: 1);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => new HttpRequestAction().ExecuteAsync(config, Context(handler)));
+            () => Action().ExecuteAsync(config, Context(handler)));
     }
 }

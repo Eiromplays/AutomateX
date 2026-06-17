@@ -51,6 +51,9 @@ services:
       Auth__ClientSecret: ${OIDC_CLIENT_SECRET}
       # In-process, full host trust — leave false unless you're actively uploading plugins.
       Engine__AllowPluginUpload: ${ALLOW_PLUGIN_UPLOAD:-false}
+      # SSRF guard: block http.request to private/loopback/link-local targets. Off by default so a
+      # local LLM / LAN services work; turn on for internet-exposed instances with no internal targets.
+      Engine__BlockPrivateNetworkRequests: ${BLOCK_PRIVATE_NETWORK_REQUESTS:-false}
     volumes:
       - automatex-plugins:/app/plugins
     depends_on:

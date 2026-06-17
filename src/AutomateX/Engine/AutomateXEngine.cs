@@ -4,6 +4,7 @@ using AutomateX.Engine.Events;
 using AutomateX.Engine.Plugins;
 using AutomateX.Engine.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
 using Wolverine.Postgresql;
@@ -45,7 +46,7 @@ public static class AutomateXEngine
         {
             client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
-        });
+        }).ConfigurePrimaryHttpMessageHandler(GuardedHandler);
 
         // Triggers may long-poll (e.g. matrix.onMessage holds a sync request open for
         // ~30s). The standard resilience handler's total-request timeout + retries are
@@ -56,7 +57,7 @@ public static class AutomateXEngine
         {
             client.Timeout = Timeout.InfiniteTimeSpan;
             client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
-        }).RemoveAllResilienceHandlers();
+        }).RemoveAllResilienceHandlers().ConfigurePrimaryHttpMessageHandler(GuardedHandler);
 #pragma warning restore EXTEXP0001
 
         builder.Services.AddOptions<EngineOptions>().BindConfiguration(EngineOptions.SectionName);
@@ -88,5 +89,19 @@ public static class AutomateXEngine
         builder.Services.AddHostedService<StuckExecutionSweeper>();
 
         return builder;
+    }
+
+    // Primary handler for the action/trigger HTTP clients. When the SSRF guard is on, it only
+    // connects to non-blocked addresses (rebinding-proof — gates the IP actually dialed). Off = a
+    // plain handler with default behavior.
+    private static HttpMessageHandler GuardedHandler(IServiceProvider services)
+    {
+        var handler = new SocketsHttpHandler();
+        if (services.GetRequiredService<IOptions<EngineOptions>>().Value.BlockPrivateNetworkRequests)
+        {
+            handler.ConnectCallback = SsrfGuard.FilteringConnectCallback;
+        }
+
+        return handler;
     }
 }

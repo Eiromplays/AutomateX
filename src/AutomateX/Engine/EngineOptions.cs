@@ -48,4 +48,9 @@ public sealed class EngineOptions
     // The operator-declared public origin (e.g. https://automatex.example.com) used to
     // build absolute webhook URLs. Unset = relative URLs, UI prefixes its own origin.
     public string? PublicBaseUrl { get; set; }
+
+    // SSRF guard for http.request: when true, requests whose host resolves to a loopback /
+    // private / link-local (incl. cloud metadata) address are blocked. Off by default so internal
+    // targets (a local LLM, LAN services) keep working — turn it on for internet-exposed instances.
+    public bool BlockPrivateNetworkRequests { get; set; }
 }

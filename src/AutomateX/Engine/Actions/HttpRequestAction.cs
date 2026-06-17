@@ -1,5 +1,6 @@
 using System.Text;
 using AutomateX.Plugin.Sdk;
+using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Actions;
 
@@ -19,13 +20,18 @@ public sealed record HttpRequestResult(int StatusCode, string Body, Dictionary<s
     Description = "Send an HTTP request and capture status, body and response headers. Bodies default to "
         + "application/json (override with contentType). Set failOnErrorStatus to fail the step — and trigger "
         + "retries — on non-2xx responses.")]
-public sealed class HttpRequestAction : IAction<HttpRequestConfig, HttpRequestResult>
+public sealed class HttpRequestAction(IOptions<EngineOptions> options) : IAction<HttpRequestConfig, HttpRequestResult>
 {
     public async Task<HttpRequestResult> ExecuteAsync(
         HttpRequestConfig config,
         ActionContext context,
         CancellationToken cancellationToken = default)
     {
+        if (options.Value.BlockPrivateNetworkRequests)
+        {
+            await SsrfGuard.GuardAsync(config.Url, cancellationToken);
+        }
+
         using var request = new HttpRequestMessage(HttpMethod.Parse(config.Method), config.Url);
         if (config.Body is not null)
         {
