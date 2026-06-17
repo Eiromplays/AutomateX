@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # .NET — Central Package Management (Directory.Packages.props at the repo root).
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      dotnet:
+        patterns: ["*"]
+
+  # Web app (pnpm).
+  - package-ecosystem: npm
+    directory: "/src/web"
+    schedule:
+      interval: weekly
+    groups:
+      web:
+        patterns: ["*"]
+
+  # GitHub Actions used by the workflows.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
