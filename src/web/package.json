@@ -8,6 +8,9 @@
     "build": "react-router build",
     "typecheck": "tsc",
     "test": "vitest run",
+    "lint": "biome lint .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -23,6 +26,7 @@
     "react-router": "^7.9.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
     "@react-router/dev": "^7.9.0",
     "@tailwindcss/vite": "^4.1.0",
     "@types/node": "^22.10.0",
