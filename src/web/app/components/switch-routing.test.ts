@@ -3,10 +3,10 @@ import {
   backboneEdges,
   isBranched,
   keyEdges,
+  type RoutingStep,
   routingFromEdges,
   submitEdges,
   validFanOut,
-  type RoutingStep,
 } from "./switch-routing";
 
 // Keys are deliberately not equal to indices, so any code that confuses the two is caught.
@@ -28,7 +28,12 @@ function switchStep(index: number, labels: string[]): RoutingStep {
 // A fresh copy stripped of authored routing/fanOut — the state right after a reload, before
 // routingFromEdges re-derives intent from the persisted edges.
 function reload(steps: RoutingStep[]): RoutingStep[] {
-  return steps.map((s) => ({ key: s.key, actionType: s.actionType, name: s.name, config: s.config }));
+  return steps.map((s) => ({
+    key: s.key,
+    actionType: s.actionType,
+    name: s.name,
+    config: s.config,
+  }));
 }
 
 describe("linear workflows stay unbranched", () => {

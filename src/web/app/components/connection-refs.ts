@@ -26,7 +26,7 @@ export function checkConnectionRefs(value: unknown, connections: ConnectionLite[
   const unknown: string[] = [];
   for (const [, name, field] of refs) {
     const conn = connections.find((c) => c.name === name);
-    if (!conn || !conn.secretKeys.includes(field)) {
+    if (!conn?.secretKeys.includes(field)) {
       unknown.push(`${name}.${field}`);
     }
   }

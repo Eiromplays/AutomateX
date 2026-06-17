@@ -1,13 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, type CreateWorkflowStep, type WorkflowEdgeInput } from "../lib/api";
-import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
+import { type JsonSchema, SchemaForm } from "./schema-form";
+import {
+  FanOutTargets,
+  keyEdges,
+  routingFromEdges,
+  type SwitchRouting,
+  SwitchTargets,
+  submitEdges,
+} from "./switch-routing";
 import { WorkflowCanvas } from "./workflow-canvas";
-import { FanOutTargets, keyEdges, routingFromEdges, submitEdges, SwitchTargets, type SwitchRouting } from "./switch-routing";
-import { TriggersSection, type DraftTrigger } from "./workflow-triggers";
+import { type DraftTrigger, TriggersSection } from "./workflow-triggers";
 
-type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting; fanOut?: number[] };
+type DraftStep = CreateWorkflowStep & {
+  key: number;
+  routing?: SwitchRouting;
+  fanOut?: number[];
+};
 
 const inputClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -54,7 +65,10 @@ export function WorkflowForm({
     return built;
   });
 
-  const { data: actions } = useQuery({ queryKey: ["actions"], queryFn: api.actions.list });
+  const { data: actions } = useQuery({
+    queryKey: ["actions"],
+    queryFn: api.actions.list,
+  });
 
   const schemaFor = (actionType: string): JsonSchema | null => {
     const raw = actions?.find((a) => a.type === actionType)?.configSchema;
@@ -62,7 +76,8 @@ export function WorkflowForm({
   };
 
   // Labels in workflow order (index = step order) for the trigger "starts at step" picker.
-  const displayName = (actionType: string) => actions?.find((a) => a.type === actionType)?.displayName ?? actionType;
+  const displayName = (actionType: string) =>
+    actions?.find((a) => a.type === actionType)?.displayName ?? actionType;
   const stepLabels = steps.map((s, i) => `#${i + 1} ${s.name || displayName(s.actionType)}`);
 
   const updateStep = (key: number, patch: Partial<DraftStep>) =>
@@ -80,7 +95,12 @@ export function WorkflowForm({
   const addStep = () =>
     setSteps((current) => [
       ...current,
-      { key: nextKey++, actionType: actions?.[0]?.type ?? "", name: null, config: {} },
+      {
+        key: nextKey++,
+        actionType: actions?.[0]?.type ?? "",
+        name: null,
+        config: {},
+      },
     ]);
 
   const removeStep = (key: number) => setSteps((current) => current.filter((s) => s.key !== key));
@@ -97,11 +117,7 @@ export function WorkflowForm({
       </label>
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-zinc-400">Description</span>
-        <input
-          className={inputClass}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
+        <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} />
       </label>
 
       <label className="flex items-start gap-2">
@@ -114,8 +130,8 @@ export function WorkflowForm({
         <span>
           <span className="block text-sm text-zinc-300">Continue on step failure</span>
           <span className="block text-[11px] text-zinc-500">
-            On by default a failed step fails the whole run. Enable to let independent parallel
-            lanes finish; the run still ends Failed.
+            On by default a failed step fails the whole run. Enable to let independent parallel lanes finish;
+            the run still ends Failed.
           </span>
         </span>
       </label>
@@ -162,70 +178,89 @@ export function WorkflowForm({
 
         {mode === "form" &&
           steps.map((step, index) => (
-          <div key={step.key} className="rounded-lg border border-zinc-800 p-4">
-            <div className="mb-3 flex items-center gap-2">
-              <span className="text-xs text-zinc-500">#{index + 1}</span>
-              <select
-                className={`${inputClass} flex-1`}
-                value={step.actionType}
-                onChange={(e) => updateStep(step.key, { actionType: e.target.value, config: {}, routing: undefined, fanOut: undefined })}
-              >
-                {groupBySource(actions ?? []).map(([source, items]) => (
-                  <optgroup
-                    key={source}
-                    label={
-                      sourceKind(source) === "workspace"
-                        ? `${sourceLabel(source)} — workspace override`
-                        : sourceLabel(source)
-                    }
-                  >
-                    {items.map((action) => (
-                      <option key={action.type} value={action.type}>
-                        {action.displayName} ({action.type})
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-              <button type="button" onClick={() => moveStep(index, -1)} className="px-1 text-zinc-500 hover:text-zinc-200">↑</button>
-              <button type="button" onClick={() => moveStep(index, 1)} className="px-1 text-zinc-500 hover:text-zinc-200">↓</button>
-              <button
-                type="button"
-                onClick={() => setSteps((current) => current.filter((s) => s.key !== step.key))}
-                className="px-1 text-zinc-500 hover:text-red-400"
-              >
-                ✕
-              </button>
+            <div key={step.key} className="rounded-lg border border-zinc-800 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <span className="text-xs text-zinc-500">#{index + 1}</span>
+                <select
+                  className={`${inputClass} flex-1`}
+                  value={step.actionType}
+                  onChange={(e) =>
+                    updateStep(step.key, {
+                      actionType: e.target.value,
+                      config: {},
+                      routing: undefined,
+                      fanOut: undefined,
+                    })
+                  }
+                >
+                  {groupBySource(actions ?? []).map(([source, items]) => (
+                    <optgroup
+                      key={source}
+                      label={
+                        sourceKind(source) === "workspace"
+                          ? `${sourceLabel(source)} — workspace override`
+                          : sourceLabel(source)
+                      }
+                    >
+                      {items.map((action) => (
+                        <option key={action.type} value={action.type}>
+                          {action.displayName} ({action.type})
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => moveStep(index, -1)}
+                  className="px-1 text-zinc-500 hover:text-zinc-200"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveStep(index, 1)}
+                  className="px-1 text-zinc-500 hover:text-zinc-200"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSteps((current) => current.filter((s) => s.key !== step.key))}
+                  className="px-1 text-zinc-500 hover:text-red-400"
+                >
+                  ✕
+                </button>
+              </div>
+              <input
+                className={`${inputClass} mb-3`}
+                placeholder="Step name (optional)"
+                value={step.name ?? ""}
+                onChange={(e) => updateStep(step.key, { name: e.target.value || null })}
+              />
+              <SchemaForm
+                schema={schemaFor(step.actionType)}
+                value={step.config}
+                actionType={step.actionType}
+                onChange={(config) => updateStep(step.key, { config })}
+              />
+              <div className="mt-3">
+                {step.actionType === "switch" ? (
+                  <SwitchTargets
+                    step={step}
+                    steps={steps}
+                    onChange={(routing) => updateStep(step.key, { routing })}
+                  />
+                ) : (
+                  <FanOutTargets
+                    step={step}
+                    steps={steps}
+                    onChange={(fanOut) => updateStep(step.key, { fanOut })}
+                  />
+                )}
+              </div>
             </div>
-            <input
-              className={`${inputClass} mb-3`}
-              placeholder="Step name (optional)"
-              value={step.name ?? ""}
-              onChange={(e) => updateStep(step.key, { name: e.target.value || null })}
-            />
-            <SchemaForm
-              schema={schemaFor(step.actionType)}
-              value={step.config}
-              actionType={step.actionType}
-              onChange={(config) => updateStep(step.key, { config })}
-            />
-            <div className="mt-3">
-              {step.actionType === "switch" ? (
-                <SwitchTargets
-                  step={step}
-                  steps={steps}
-                  onChange={(routing) => updateStep(step.key, { routing })}
-                />
-              ) : (
-                <FanOutTargets
-                  step={step}
-                  steps={steps}
-                  onChange={(fanOut) => updateStep(step.key, { fanOut })}
-                />
-              )}
-            </div>
-          </div>
-        ))}
+          ))}
       </div>
 
       {!hideTriggers && mode === "form" && (

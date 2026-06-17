@@ -8,7 +8,11 @@ type TemplateDoc = {
   name: string;
   description: string;
   continueOnFailure?: boolean;
-  steps: { actionType: string; name?: string; config: Record<string, unknown> }[];
+  steps: {
+    actionType: string;
+    name?: string;
+    config: Record<string, unknown>;
+  }[];
   edges?: { from: number; to: number; label: string | null }[];
   triggers?: { type: string; config: Record<string, unknown> }[];
 };
@@ -58,7 +62,11 @@ export const templates: WorkflowTemplate[] = [
         {
           actionType: "http.request",
           name: "Fetch",
-          config: { method: "GET", url: "https://api.github.com/zen", headers: { Accept: "application/json" } },
+          config: {
+            method: "GET",
+            url: "https://api.github.com/zen",
+            headers: { Accept: "application/json" },
+          },
         },
         {
           actionType: "matrix.send",
@@ -89,7 +97,11 @@ export const templates: WorkflowTemplate[] = [
         {
           actionType: "http.request",
           name: "Check",
-          config: { method: "GET", url: "https://example.com", failOnErrorStatus: false },
+          config: {
+            method: "GET",
+            url: "https://example.com",
+            failOnErrorStatus: false,
+          },
         },
         {
           actionType: "gate",
@@ -124,7 +136,11 @@ export const templates: WorkflowTemplate[] = [
         {
           actionType: "http.request",
           name: "Fetch",
-          config: { method: "GET", url: "https://api.github.com/zen", headers: { Accept: "application/json" } },
+          config: {
+            method: "GET",
+            url: "https://api.github.com/zen",
+            headers: { Accept: "application/json" },
+          },
         },
         {
           actionType: "llm.prompt",
@@ -139,7 +155,10 @@ export const templates: WorkflowTemplate[] = [
         {
           actionType: "discord.send",
           name: "Notify",
-          config: { webhookUrl: "{{connections.discord.webhookUrl}}", content: "🤖 {{steps.1.output.text}}" },
+          config: {
+            webhookUrl: "{{connections.discord.webhookUrl}}",
+            content: "🤖 {{steps.1.output.text}}",
+          },
         },
       ],
     },
@@ -156,32 +175,76 @@ export const templates: WorkflowTemplate[] = [
       description: "Parallel alert lanes on failure, joined at the end.",
       continueOnFailure: true,
       steps: [
-        { actionType: "http.request", name: "Probe", config: { method: "GET", url: "https://example.com", failOnErrorStatus: false } },
-        { actionType: "switch", name: "Healthy?", config: { value: "{{steps.0.output.statusCode}}", cases: [{ label: "up", equals: "200" }] } },
+        {
+          actionType: "http.request",
+          name: "Probe",
+          config: {
+            method: "GET",
+            url: "https://example.com",
+            failOnErrorStatus: false,
+          },
+        },
+        {
+          actionType: "switch",
+          name: "Healthy?",
+          config: {
+            value: "{{steps.0.output.statusCode}}",
+            cases: [{ label: "up", equals: "200" }],
+          },
+        },
         {
           actionType: "pushover.send",
           name: "Heartbeat OK",
-          config: { appToken: "{{connections.pushover.appToken}}", userKey: "{{connections.pushover.userKey}}", title: "API healthy", message: "Returned {{steps.0.output.statusCode}}.", priority: -1 },
+          config: {
+            appToken: "{{connections.pushover.appToken}}",
+            userKey: "{{connections.pushover.userKey}}",
+            title: "API healthy",
+            message: "Returned {{steps.0.output.statusCode}}.",
+            priority: -1,
+          },
         },
         {
           actionType: "http.request",
           name: "Diagnose",
-          config: { method: "POST", url: "https://httpbin.org/post", contentType: "application/json", body: "{\"status\":\"{{steps.0.output.statusCode}}\"}" },
+          config: {
+            method: "POST",
+            url: "https://httpbin.org/post",
+            contentType: "application/json",
+            body: '{"status":"{{steps.0.output.statusCode}}"}',
+          },
         },
         {
           actionType: "pushover.send",
           name: "Page on-call",
-          config: { appToken: "{{connections.pushover.appToken}}", userKey: "{{connections.pushover.userKey}}", title: "API DOWN ({{steps.0.output.statusCode}})", message: "Probe failed — paging.", priority: 1 },
+          config: {
+            appToken: "{{connections.pushover.appToken}}",
+            userKey: "{{connections.pushover.userKey}}",
+            title: "API DOWN ({{steps.0.output.statusCode}})",
+            message: "Probe failed — paging.",
+            priority: 1,
+          },
         },
         {
           actionType: "http.request",
           name: "Log incident",
-          config: { method: "POST", url: "https://httpbin.org/post", contentType: "application/json", body: "{\"status\":\"{{steps.0.output.statusCode}}\"}", failOnErrorStatus: true },
+          config: {
+            method: "POST",
+            url: "https://httpbin.org/post",
+            contentType: "application/json",
+            body: '{"status":"{{steps.0.output.statusCode}}"}',
+            failOnErrorStatus: true,
+          },
         },
         {
           actionType: "pushover.send",
           name: "Incident recorded",
-          config: { appToken: "{{connections.pushover.appToken}}", userKey: "{{connections.pushover.userKey}}", title: "Incident logged", message: "Paged and logged for {{steps.0.output.statusCode}}.", priority: 0 },
+          config: {
+            appToken: "{{connections.pushover.appToken}}",
+            userKey: "{{connections.pushover.userKey}}",
+            title: "Incident logged",
+            message: "Paged and logged for {{steps.0.output.statusCode}}.",
+            priority: 0,
+          },
         },
       ],
       edges: [
@@ -243,7 +306,10 @@ export const templates: WorkflowTemplate[] = [
         {
           actionType: "kv.setIfAbsent",
           name: "Claim this release",
-          config: { key: "deployed:{{trigger.payload.json.0.tag_name}}", value: "1" },
+          config: {
+            key: "deployed:{{trigger.payload.json.0.tag_name}}",
+            value: "1",
+          },
         },
         {
           actionType: "gate",

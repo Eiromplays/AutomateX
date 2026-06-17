@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
-import { api, type ExecutionSummary } from "../lib/api";
 import { StatusBadge } from "../components/status-badge";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
+import { api, type ExecutionSummary } from "../lib/api";
 import { useEngineEvents } from "../lib/use-engine-events";
 
 // Chains render as trees: root execution first, chained children nested beneath,
@@ -96,9 +96,7 @@ export default function Executions() {
             {depth > 0 && (
               <span
                 className={
-                  execution.triggeredBy.startsWith("retry:")
-                    ? "text-emerald-400/70"
-                    : "text-violet-400/70"
+                  execution.triggeredBy.startsWith("retry:") ? "text-emerald-400/70" : "text-violet-400/70"
                 }
               >
                 {execution.triggeredBy.startsWith("retry:") ? "↻" : "↳"}
@@ -128,16 +126,21 @@ export default function Executions() {
               <span className="text-xs text-zinc-500">{execution.triggeredBy.split(":")[0]}</span>
             )}
           </div>
-          <span className="text-xs text-zinc-500">
-            {new Date(execution.startedAt).toLocaleString()}
-          </span>
+          <span className="text-xs text-zinc-500">{new Date(execution.startedAt).toLocaleString()}</span>
         </Link>
         {(execution.status === "Succeeded" || execution.status === "Failed") && (
           <button
             type="button"
             title="Delete execution"
             onClick={async () => {
-              if (await confirm({ title: "Delete execution?", body: "This deletes the execution and its step history.", confirmLabel: "Delete", destructive: true })) {
+              if (
+                await confirm({
+                  title: "Delete execution?",
+                  body: "This deletes the execution and its step history.",
+                  confirmLabel: "Delete",
+                  destructive: true,
+                })
+              ) {
                 remove.mutate(execution.id);
               }
             }}

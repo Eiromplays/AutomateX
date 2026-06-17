@@ -1,5 +1,5 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 // Thin shadcn-style wrappers over Radix DropdownMenu, styled with our zinc Tailwind classes.
 export const DropdownMenu = Menu.Root;

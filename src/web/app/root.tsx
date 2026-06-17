@@ -1,10 +1,10 @@
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { api, getWorkspaceId, setWorkspaceId } from "./lib/api";
 import { Toasts, toast } from "./components/toast";
 import { ConfirmProvider, usePrompt } from "./components/ui/confirm";
+import { api, getWorkspaceId, setWorkspaceId } from "./lib/api";
 import "./app.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -72,13 +72,13 @@ function getSeen(): string[] | null {
 
 function markSeen(ids: string[]) {
   const seen = new Set(getSeen() ?? []);
-  ids.forEach((id) => seen.add(id));
+  for (const id of ids) seen.add(id);
   localStorage.setItem(SEEN_STORAGE, JSON.stringify([...seen]));
 }
 
 function unmarkSeen(ids: string[]) {
   const seen = new Set(getSeen() ?? []);
-  ids.forEach((id) => seen.delete(id));
+  for (const id of ids) seen.delete(id);
   localStorage.setItem(SEEN_STORAGE, JSON.stringify([...seen]));
 }
 
@@ -120,8 +120,7 @@ function NewWorkspaceBanner() {
           className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm"
         >
           <span>
-            You've been added to <span className="font-medium">{workspace.name}</span> as{" "}
-            {workspace.role}.
+            You've been added to <span className="font-medium">{workspace.name}</span> as {workspace.role}.
           </span>
           <span className="flex gap-3">
             <button
@@ -170,7 +169,11 @@ function WorkspaceSwitcher() {
       value={current}
       onChange={async (e) => {
         if (e.target.value === "__new__") {
-          const name = await prompt({ title: "New workspace", placeholder: "Workspace name", confirmLabel: "Create" });
+          const name = await prompt({
+            title: "New workspace",
+            placeholder: "Workspace name",
+            confirmLabel: "Create",
+          });
           if (!name) return;
           const created = await api.workspaces.create(name);
           setWorkspaceId(created.id);

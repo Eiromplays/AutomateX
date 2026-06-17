@@ -74,13 +74,20 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
     mutationFn: () => {
       const secrets = buildSecretsPayload(rows);
       if (editing) {
-        return api.connections.update(editing.id, { provider: provider || null, secrets });
+        return api.connections.update(editing.id, {
+          provider: provider || null,
+          secrets,
+        });
       }
       // Create has no merge/delete: nulls can't occur here, so narrow to plain values.
       const created = Object.fromEntries(
         Object.entries(secrets).filter(([, value]) => value !== null),
       ) as Record<string, string>;
-      return api.connections.create({ name, provider: provider || null, secrets: created });
+      return api.connections.create({
+        name,
+        provider: provider || null,
+        secrets: created,
+      });
     },
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ["connections"] });
@@ -128,7 +135,8 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
 
       {selectedType?.isOAuth && (
         <p className="text-xs text-sky-400">
-          After saving, click <strong>Connect</strong> on the connection in the list to authorize with the provider.
+          After saving, click <strong>Connect</strong> on the connection in the list to authorize with the
+          provider.
         </p>
       )}
 
@@ -151,7 +159,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           <div className="text-xs font-medium text-zinc-400">
             Secret fields{" "}
             <span className="font-normal text-zinc-600">
-              — each becomes {"{{connections." + (name || "<name>") + ".<field>}}"}
+              — each becomes {`{{connections.${name || "<name>"}.<field>}}`}
             </span>
           </div>
         )}
@@ -164,7 +172,12 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                 {row.required && <span className="text-emerald-400">*</span>}
                 <code className="text-[10px] text-zinc-600">{row.name}</code>
                 {row.docsUrl && (
-                  <a href={row.docsUrl} target="_blank" rel="noreferrer" className="text-[10px] text-emerald-400 hover:underline">
+                  <a
+                    href={row.docsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[10px] text-emerald-400 hover:underline"
+                  >
                     where to get it ↗
                   </a>
                 )}
@@ -174,7 +187,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                 // which corrupts multi-line secrets like SSH private keys (SSH.NET then rejects them).
                 <AutoTextarea
                   className={`${inputClass} min-h-[3rem] w-full font-mono`}
-                  placeholder={editing && row.existing ? "unchanged" : row.helpText ?? ""}
+                  placeholder={editing && row.existing ? "unchanged" : (row.helpText ?? "")}
                   value={row.value}
                   onChange={(e) => updateRow(row.key, { value: e.target.value })}
                 />
@@ -182,7 +195,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                 <input
                   className={`${inputClass} w-full`}
                   type="text"
-                  placeholder={editing && row.existing ? "unchanged" : row.helpText ?? ""}
+                  placeholder={editing && row.existing ? "unchanged" : (row.helpText ?? "")}
                   value={row.value}
                   onChange={(e) => updateRow(row.key, { value: e.target.value })}
                 />
@@ -252,7 +265,11 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           {save.isPending ? "Saving…" : editing ? "Save changes" : "Create connection"}
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+          >
             Cancel
           </button>
         )}

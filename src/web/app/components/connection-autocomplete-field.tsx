@@ -1,10 +1,10 @@
-import { useLayoutEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { type ChangeEvent, type KeyboardEvent, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   applyConnectionCompletion,
+  type Completion,
   connectionAutocompleteQuery,
   connectionCompletions,
-  type Completion,
 } from "./connection-autocomplete";
 import type { ConnectionLite } from "./connection-refs";
 
@@ -30,7 +30,11 @@ export function ConnectionAutocompleteField({
 }: Props) {
   const elRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
   const [completions, setCompletions] = useState<Completion[]>([]);
-  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [pos, setPos] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
   const tokenStart = useRef(0);
   const caret = useRef(0);
 
@@ -56,7 +60,11 @@ export function ConnectionAutocompleteField({
     caret.current = at;
     const rect = elRef.current?.getBoundingClientRect();
     if (rect) {
-      setPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 220) });
+      setPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 220),
+      });
     }
     setCompletions(matches);
   };
@@ -105,7 +113,12 @@ export function ConnectionAutocompleteField({
         pos &&
         createPortal(
           <div
-            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width }}
+            style={{
+              position: "fixed",
+              top: pos.top,
+              left: pos.left,
+              width: pos.width,
+            }}
             className="z-50 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-xl"
           >
             {completions.map((c) => (

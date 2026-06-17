@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { api, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
+import { api, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -16,10 +16,18 @@ export default function WorkspaceSettings() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("Editor");
 
-  const { data: workspaces } = useQuery({ queryKey: ["workspaces"], queryFn: api.workspaces.list });
-  const { data: me } = useQuery({ queryKey: ["auth", "me"], queryFn: api.auth.me, staleTime: Infinity });
+  const { data: workspaces } = useQuery({
+    queryKey: ["workspaces"],
+    queryFn: api.workspaces.list,
+  });
+  const { data: me } = useQuery({
+    queryKey: ["auth", "me"],
+    queryFn: api.auth.me,
+    staleTime: Infinity,
+  });
   const currentId = getWorkspaceId() ?? DEFAULT_WORKSPACE_ID;
-  const current: WorkspaceSummary | undefined = workspaces?.find((w) => w.id === currentId) ?? workspaces?.[0];
+  const current: WorkspaceSummary | undefined =
+    workspaces?.find((w) => w.id === currentId) ?? workspaces?.[0];
 
   const { data: members } = useQuery({
     queryKey: ["members", current?.id],
@@ -97,8 +105,8 @@ export default function WorkspaceSettings() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-zinc-300">Members</h2>
         <p className="text-xs text-zinc-500">
-          Invite by email — access starts the first time they sign in. A workspace with no
-          members is open to every signed-in user; adding the first member claims it.
+          Invite by email — access starts the first time they sign in. A workspace with no members is open to
+          every signed-in user; adding the first member claims it.
         </p>
         <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
           {members?.map((member) => {
@@ -107,7 +115,9 @@ export default function WorkspaceSettings() {
               <li key={member.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
                 <div className="flex items-center gap-3">
                   <span>{member.email}</span>
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">{member.role}</span>
+                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+                    {member.role}
+                  </span>
                   {!member.signedInBefore && <span className="text-xs text-amber-400">invited</span>}
                   {isSelf && <span className="text-xs text-zinc-600">you</span>}
                 </div>

@@ -1,12 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { api } from "../lib/api";
 import { toast } from "../components/toast";
+import { api } from "../lib/api";
 
 export default function Workflows() {
   const navigate = useNavigate();
-  const { data: workflows, isLoading, error } = useQuery({
+  const {
+    data: workflows,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["workflows"],
     queryFn: api.workflows.list,
   });
@@ -84,18 +88,12 @@ export default function Workflows() {
             >
               <div>
                 <div className="text-sm font-medium">{workflow.name}</div>
-                {workflow.description && (
-                  <div className="text-xs text-zinc-500">{workflow.description}</div>
-                )}
+                {workflow.description && <div className="text-xs text-zinc-500">{workflow.description}</div>}
                 {workflow.runsAfter.length > 0 && (
-                  <div className="text-xs text-violet-400">
-                    ⛓ runs after {workflow.runsAfter.join(", ")}
-                  </div>
+                  <div className="text-xs text-violet-400">⛓ runs after {workflow.runsAfter.join(", ")}</div>
                 )}
                 {workflow.feeds.length > 0 && (
-                  <div className="text-xs text-violet-400">
-                    ⛓ feeds {workflow.feeds.join(", ")}
-                  </div>
+                  <div className="text-xs text-violet-400">⛓ feeds {workflow.feeds.join(", ")}</div>
                 )}
               </div>
               <span className="text-xs text-zinc-500">v{workflow.latestVersion}</span>

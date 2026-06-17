@@ -1,16 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
-import { api } from "../lib/api";
 import { toast } from "../components/toast";
 import { WorkflowForm, type WorkflowFormValue } from "../components/workflow-form";
 import { applyTriggers, triggersFromWorkflow } from "../components/workflow-triggers";
+import { api } from "../lib/api";
 
 export default function WorkflowEdit() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: workflow, isLoading, error } = useQuery({
+  const {
+    data: workflow,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["workflow", id],
     queryFn: () => api.workflows.get(id),
     retry: false,
@@ -25,13 +29,17 @@ export default function WorkflowEdit() {
         edges: value.edges,
         continueOnFailure: value.continueOnFailure,
       });
-      const secrets = await applyTriggers(id, value.triggers ?? [], triggersFromWorkflow(workflow?.triggers ?? []));
+      const secrets = await applyTriggers(
+        id,
+        value.triggers ?? [],
+        triggersFromWorkflow(workflow?.triggers ?? []),
+      );
       return { result, secrets };
     },
     onSuccess: ({ result, secrets }) => {
       queryClient.invalidateQueries({ queryKey: ["workflow", id] });
       queryClient.invalidateQueries({ queryKey: ["workflows"] });
-      secrets.forEach((info) => toast.success(`Webhook (copy now, shown once) — ${info}`));
+      for (const info of secrets) toast.success(`Webhook (copy now, shown once) — ${info}`);
       toast.success(`Saved as v${result.version}.`);
       navigate(`/workflows/${id}`);
     },
@@ -54,8 +62,8 @@ export default function WorkflowEdit() {
     <div className="max-w-5xl">
       <h1 className="mb-1 text-lg font-semibold">Edit workflow</h1>
       <p className="mb-6 text-xs text-zinc-500">
-        Saving appends version v{workflow.latestVersion.version + 1} — past executions keep the
-        version they ran.
+        Saving appends version v{workflow.latestVersion.version + 1} — past executions keep the version they
+        ran.
       </p>
       <WorkflowForm
         initial={{

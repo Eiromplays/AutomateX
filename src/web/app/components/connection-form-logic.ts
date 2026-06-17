@@ -56,7 +56,14 @@ export function rowsFromType(type: ConnectionTypeInfo, existingKeys: string[]): 
 
 export function freeRows(existingKeys: string[]): SecretRow[] {
   return existingKeys.length > 0
-    ? [...existingKeys.map((k) => ({ ...emptyRow(), name: k, existing: true })), emptyRow()]
+    ? [
+        ...existingKeys.map((k) => ({
+          ...emptyRow(),
+          name: k,
+          existing: true,
+        })),
+        emptyRow(),
+      ]
     : [emptyRow()];
 }
 

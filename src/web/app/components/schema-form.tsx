@@ -129,7 +129,12 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
         createPortal(
           <div
             ref={panelRef}
-            style={{ position: "fixed", top: pos.top, left: pos.left, width: PANEL_WIDTH }}
+            style={{
+              position: "fixed",
+              top: pos.top,
+              left: pos.left,
+              width: PANEL_WIDTH,
+            }}
             className="z-50 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-xl"
           >
             <input
@@ -404,7 +409,11 @@ function McpCallEditor({
     <div className="space-y-3">
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-zinc-400">MCP server</span>
-        <select className={inputClass} value={selectedName ?? ""} onChange={(e) => pickServer(e.target.value)}>
+        <select
+          className={inputClass}
+          value={selectedName ?? ""}
+          onChange={(e) => pickServer(e.target.value)}
+        >
           <option value="">Select an MCP connection…</option>
           {mcpConnections.map((c) => (
             <option key={c.id} value={c.name}>
@@ -415,7 +424,12 @@ function McpCallEditor({
         {mcpConnections.length === 0 && (
           <span className="mt-1 block text-[11px] text-zinc-600">
             No MCP connections yet — create one (type “MCP server”) on the{" "}
-            <a href="/connections" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">
+            <a
+              href="/connections"
+              target="_blank"
+              rel="noopener"
+              className="text-emerald-400 hover:underline"
+            >
               Connections page
             </a>
             .
@@ -431,7 +445,11 @@ function McpCallEditor({
           ) : tools.error ? (
             <span className="text-xs text-red-400">Couldn’t list tools — {String(tools.error)}</span>
           ) : (
-            <select className={inputClass} value={tool} onChange={(e) => set({ tool: e.target.value, arguments: {} })}>
+            <select
+              className={inputClass}
+              value={tool}
+              onChange={(e) => set({ tool: e.target.value, arguments: {} })}
+            >
               <option value="">Select a tool…</option>
               {tools.data?.map((t) => (
                 <option key={t.name} value={t.name}>
@@ -478,23 +496,33 @@ function LlmAgentEditor({
   const mcpConnections = (connections ?? []).filter((c) => c.provider === "mcp");
 
   const set = (patch: Record<string, unknown>) => onChange({ ...value, ...patch });
-  const str = (key: string, fallback = "") => (typeof value[key] === "string" ? (value[key] as string) : fallback);
+  const str = (key: string, fallback = "") =>
+    typeof value[key] === "string" ? (value[key] as string) : fallback;
 
   const servers = Array.isArray(value.mcpServers)
     ? (value.mcpServers as { serverUrl?: string; token?: string }[])
     : [];
   const selectedNames = new Set<string>(
     servers.flatMap((s) => {
-      const match = typeof s.serverUrl === "string" ? s.serverUrl.match(/\{\{connections\.([^.}]+)\.serverUrl\}\}/) : null;
+      const match =
+        typeof s.serverUrl === "string"
+          ? s.serverUrl.match(/\{\{connections\.([^.}]+)\.serverUrl\}\}/)
+          : null;
       return match ? [match[1]] : [];
     }),
   );
 
   const toggleServer = (name: string, hasToken: boolean) => {
     if (selectedNames.has(name)) {
-      set({ mcpServers: servers.filter((s) => !(typeof s.serverUrl === "string" && s.serverUrl.includes(`connections.${name}.serverUrl`))) });
+      set({
+        mcpServers: servers.filter(
+          (s) => !(typeof s.serverUrl === "string" && s.serverUrl.includes(`connections.${name}.serverUrl`)),
+        ),
+      });
     } else {
-      const entry: { serverUrl: string; token?: string } = { serverUrl: `{{connections.${name}.serverUrl}}` };
+      const entry: { serverUrl: string; token?: string } = {
+        serverUrl: `{{connections.${name}.serverUrl}}`,
+      };
       if (hasToken) entry.token = `{{connections.${name}.token}}`;
       set({ mcpServers: [...servers, entry] });
     }
@@ -524,7 +552,12 @@ function LlmAgentEditor({
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-zinc-400">Model *</span>
-          <input className={inputClass} placeholder="gpt-4o-mini" value={str("model")} onChange={(e) => set({ model: e.target.value })} />
+          <input
+            className={inputClass}
+            placeholder="gpt-4o-mini"
+            value={str("model")}
+            onChange={(e) => set({ model: e.target.value })}
+          />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-zinc-400">Max iterations</span>
@@ -532,7 +565,11 @@ function LlmAgentEditor({
             type="number"
             className={inputClass}
             value={typeof value.maxIterations === "number" ? value.maxIterations : 8}
-            onChange={(e) => set({ maxIterations: e.target.value === "" ? undefined : Number(e.target.value) })}
+            onChange={(e) =>
+              set({
+                maxIterations: e.target.value === "" ? undefined : Number(e.target.value),
+              })
+            }
           />
         </label>
       </div>
@@ -558,7 +595,12 @@ function LlmAgentEditor({
         {mcpConnections.length === 0 ? (
           <span className="text-[11px] text-zinc-600">
             No MCP connections yet — create one (type “MCP server”) on the{" "}
-            <a href="/connections" target="_blank" rel="noopener" className="text-emerald-400 hover:underline">
+            <a
+              href="/connections"
+              target="_blank"
+              rel="noopener"
+              className="text-emerald-400 hover:underline"
+            >
               Connections page
             </a>
             .
@@ -624,7 +666,8 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
   const unknownKeys = Object.keys(value).filter((key) => !(key in (schema.properties ?? {})));
 
   const set = (key: string, fieldValue: unknown) => onChange({ ...value, [key]: fieldValue });
-  const append = (key: string, token: string) => set(key, `${value[key] === undefined ? "" : String(value[key])}${token}`);
+  const append = (key: string, token: string) =>
+    set(key, `${value[key] === undefined ? "" : String(value[key])}${token}`);
 
   return (
     <div className="space-y-3">
@@ -727,8 +770,8 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
       })}
       {unknownKeys.length > 0 && (
         <p className="text-xs text-amber-400">
-          ⚠ Not in the current action's schema: {unknownKeys.join(", ")} — kept in the config but
-          ignored at execution (plugin version drift?).
+          ⚠ Not in the current action's schema: {unknownKeys.join(", ")} — kept in the config but ignored at
+          execution (plugin version drift?).
         </p>
       )}
     </div>

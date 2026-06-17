@@ -64,8 +64,7 @@ export function DriftWarning({ actionType, configJson }: { actionType: string; c
     if (unknown.length === 0) return null;
     return (
       <p className="mt-2 text-xs text-amber-400">
-        ⚠ {unknown.join(", ")} — not used by the current <code>{actionType}</code> (plugin version
-        drift?)
+        ⚠ {unknown.join(", ")} — not used by the current <code>{actionType}</code> (plugin version drift?)
       </p>
     );
   } catch {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkConnectionRefs, hasConnectionRef, type ConnectionLite } from "./connection-refs";
+import { type ConnectionLite, checkConnectionRefs, hasConnectionRef } from "./connection-refs";
 
 const conns: ConnectionLite[] = [
   { name: "github", secretKeys: ["token"] },
@@ -21,7 +21,10 @@ describe("checkConnectionRefs", () => {
   });
 
   it("resolves a valid ref to ok", () => {
-    expect(checkConnectionRefs("Bearer {{connections.github.token}}", conns)).toEqual({ status: "ok", unknown: [] });
+    expect(checkConnectionRefs("Bearer {{connections.github.token}}", conns)).toEqual({
+      status: "ok",
+      unknown: [],
+    });
   });
 
   it("flags an unknown connection", () => {

@@ -14,7 +14,10 @@ const conns: ConnectionLite[] = [
 describe("connectionAutocompleteQuery", () => {
   it("detects an open token at the caret", () => {
     const text = "Bearer {{connections.git";
-    expect(connectionAutocompleteQuery(text, text.length)).toEqual({ start: 7, query: "git" });
+    expect(connectionAutocompleteQuery(text, text.length)).toEqual({
+      start: 7,
+      query: "git",
+    });
   });
 
   it("returns null when the token is already closed", () => {

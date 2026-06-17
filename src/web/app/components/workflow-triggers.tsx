@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, type WorkflowTrigger } from "../lib/api";
-import { SchemaForm, type JsonSchema } from "./schema-form";
+import { type JsonSchema, SchemaForm } from "./schema-form";
 
 // A trigger being authored in the builder. `id` present = it already exists (edit); absent = new.
 export type DraftTrigger = {
@@ -48,19 +48,38 @@ export function triggersFromWorkflow(triggers: WorkflowTrigger[]): DraftTrigger[
     } catch {
       config = {};
     }
-    return { key: nextTriggerKey++, id: t.id, type: t.type, config, enabled: t.enabled, entryStepOrder: t.entryStepOrder };
+    return {
+      key: nextTriggerKey++,
+      id: t.id,
+      type: t.type,
+      config,
+      enabled: t.enabled,
+      entryStepOrder: t.entryStepOrder,
+    };
   });
 }
 
 export function newDraftTrigger(): DraftTrigger {
-  return { key: nextTriggerKey++, type: "cron", config: defaultConfig("cron"), enabled: true };
+  return {
+    key: nextTriggerKey++,
+    type: "cron",
+    config: defaultConfig("cron"),
+    enabled: true,
+  };
 }
 
 // Trigger drafts from an import document's triggers (so they show, editable, in the builder).
-export function importedDraftTriggers(triggers: { type?: string; config?: Record<string, unknown> }[]): DraftTrigger[] {
+export function importedDraftTriggers(
+  triggers: { type?: string; config?: Record<string, unknown> }[],
+): DraftTrigger[] {
   return triggers
     .filter((t) => typeof t.type === "string")
-    .map((t) => ({ key: nextTriggerKey++, type: t.type as string, config: t.config ?? {}, enabled: true }));
+    .map((t) => ({
+      key: nextTriggerKey++,
+      type: t.type as string,
+      config: t.config ?? {},
+      enabled: true,
+    }));
 }
 
 // Persists the builder's trigger drafts against a saved workflow: deletes removed ones, creates
@@ -103,7 +122,8 @@ export async function applyTriggers(
     if (!original) continue;
 
     // Webhook config is immutable (holds the secret); only its enabled flag / entry can change.
-    const configChanged = draft.type !== "webhook" && JSON.stringify(original.config) !== JSON.stringify(draft.config);
+    const configChanged =
+      draft.type !== "webhook" && JSON.stringify(original.config) !== JSON.stringify(draft.config);
     const enabledChanged = original.enabled !== draft.enabled;
     const entryChanged = (original.entryStepOrder ?? null) !== (draft.entryStepOrder ?? null);
     if (configChanged || enabledChanged || entryChanged) {
@@ -131,8 +151,16 @@ export function TriggerEditor({
   // Step labels in workflow order (index = step order); enables the "starts at step" picker.
   stepLabels?: string[];
 }) {
-  const { data: triggerTypes } = useQuery({ queryKey: ["trigger-types"], queryFn: api.triggers.types, staleTime: 60_000 });
-  const { data: workflows } = useQuery({ queryKey: ["workflows"], queryFn: api.workflows.list, staleTime: 60_000 });
+  const { data: triggerTypes } = useQuery({
+    queryKey: ["trigger-types"],
+    queryFn: api.triggers.types,
+    staleTime: 60_000,
+  });
+  const { data: workflows } = useQuery({
+    queryKey: ["workflows"],
+    queryFn: api.workflows.list,
+    staleTime: 60_000,
+  });
 
   const pluginTypes = (triggerTypes ?? [])
     .filter((t) => t.source !== "builtin")
@@ -150,12 +178,19 @@ export function TriggerEditor({
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         {draft.id ? (
-          <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300">{draft.type}</span>
+          <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300">
+            {draft.type}
+          </span>
         ) : (
           <select
             className={`${inputClass} flex-1`}
             value={draft.type}
-            onChange={(e) => set({ type: e.target.value, config: defaultConfig(e.target.value) })}
+            onChange={(e) =>
+              set({
+                type: e.target.value,
+                config: defaultConfig(e.target.value),
+              })
+            }
           >
             {typeOptions.map((o) => (
               <option key={o.type} value={o.type}>
@@ -224,7 +259,11 @@ export function TriggerEditor({
           <select
             className={inputClass}
             value={draft.entryStepOrder ?? ""}
-            onChange={(e) => set({ entryStepOrder: e.target.value === "" ? null : Number(e.target.value) })}
+            onChange={(e) =>
+              set({
+                entryStepOrder: e.target.value === "" ? null : Number(e.target.value),
+              })
+            }
           >
             <option value="">First step (default)</option>
             {stepLabels.map((label, order) => (
@@ -249,7 +288,8 @@ export function TriggersSection({
   onChange: (triggers: DraftTrigger[]) => void;
   stepLabels?: string[];
 }) {
-  const update = (key: number, draft: DraftTrigger) => onChange(triggers.map((t) => (t.key === key ? draft : t)));
+  const update = (key: number, draft: DraftTrigger) =>
+    onChange(triggers.map((t) => (t.key === key ? draft : t)));
   const remove = (key: number) => onChange(triggers.filter((t) => t.key !== key));
 
   return (
@@ -267,7 +307,9 @@ export function TriggersSection({
       <p className="text-xs text-zinc-500">What starts this workflow. Changes apply when you save.</p>
 
       {triggers.length === 0 && (
-        <p className="text-xs text-zinc-600">No triggers yet — add one, or run the workflow manually with “Run now”.</p>
+        <p className="text-xs text-zinc-600">
+          No triggers yet — add one, or run the workflow manually with “Run now”.
+        </p>
       )}
 
       {triggers.map((trigger) => (

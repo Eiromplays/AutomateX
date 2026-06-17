@@ -1,12 +1,16 @@
 import { useState } from "react";
 import type { ActionDescriptor, CreateWorkflowStep } from "../lib/api";
-import { SchemaForm, type JsonSchema } from "./schema-form";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
-import { FanOutTargets, SwitchTargets, type KeyEdge, type SwitchRouting } from "./switch-routing";
-import { newDraftTrigger, triggerSummary, TriggerEditor, type DraftTrigger } from "./workflow-triggers";
-import { WorkflowGraph, type GraphSelection } from "./workflow-graph";
+import { type JsonSchema, SchemaForm } from "./schema-form";
+import { FanOutTargets, type KeyEdge, type SwitchRouting, SwitchTargets } from "./switch-routing";
+import { type GraphSelection, WorkflowGraph } from "./workflow-graph";
+import { type DraftTrigger, newDraftTrigger, TriggerEditor, triggerSummary } from "./workflow-triggers";
 
-type DraftStep = CreateWorkflowStep & { key: number; routing?: SwitchRouting; fanOut?: number[] };
+type DraftStep = CreateWorkflowStep & {
+  key: number;
+  routing?: SwitchRouting;
+  fanOut?: number[];
+};
 
 const fieldClass =
   "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
@@ -39,7 +43,8 @@ export function WorkflowCanvas({
 }) {
   const [selection, setSelection] = useState<GraphSelection>(steps[0]?.key ?? null);
 
-  const displayName = (actionType: string) => actions.find((a) => a.type === actionType)?.displayName ?? actionType;
+  const displayName = (actionType: string) =>
+    actions.find((a) => a.type === actionType)?.displayName ?? actionType;
 
   const addTrigger = () => {
     const draft = newDraftTrigger();
@@ -47,20 +52,26 @@ export function WorkflowCanvas({
     setSelection(`trigger:${draft.key}`);
   };
 
-  const graphSteps = steps.map((s) => ({ key: s.key, label: s.name || displayName(s.actionType), actionType: s.actionType }));
+  const graphSteps = steps.map((s) => ({
+    key: s.key,
+    label: s.name || displayName(s.actionType),
+    actionType: s.actionType,
+  }));
   const graphTriggers = triggers.map((t) => ({
     key: t.key,
     label: triggerSummary(t),
     entryStepKey: t.entryStepOrder != null ? steps[t.entryStepOrder]?.key : undefined,
   }));
 
-  const selectedStep = typeof selection === "number" ? steps.find((s) => s.key === selection) ?? null : null;
+  const selectedStep =
+    typeof selection === "number" ? (steps.find((s) => s.key === selection) ?? null) : null;
   const selectedIndex = selectedStep ? steps.findIndex((s) => s.key === selectedStep.key) : -1;
   const selectedTriggerKey =
     typeof selection === "string" && selection.startsWith("trigger:")
       ? Number(selection.slice("trigger:".length))
       : null;
-  const selectedTrigger = selectedTriggerKey != null ? triggers.find((t) => t.key === selectedTriggerKey) ?? null : null;
+  const selectedTrigger =
+    selectedTriggerKey != null ? (triggers.find((t) => t.key === selectedTriggerKey) ?? null) : null;
 
   return (
     <div className="grid gap-3 lg:grid-cols-[1fr_22rem]">
@@ -109,8 +120,20 @@ export function WorkflowCanvas({
             <div className="flex items-center justify-between text-xs text-zinc-500">
               <span>Step #{selectedIndex + 1}</span>
               <span className="flex gap-1">
-                <button type="button" onClick={() => onMoveStep(selectedIndex, -1)} className="px-1 hover:text-zinc-200">↑</button>
-                <button type="button" onClick={() => onMoveStep(selectedIndex, 1)} className="px-1 hover:text-zinc-200">↓</button>
+                <button
+                  type="button"
+                  onClick={() => onMoveStep(selectedIndex, -1)}
+                  className="px-1 hover:text-zinc-200"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onMoveStep(selectedIndex, 1)}
+                  className="px-1 hover:text-zinc-200"
+                >
+                  ↓
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -127,7 +150,12 @@ export function WorkflowCanvas({
               className={fieldClass}
               value={selectedStep.actionType}
               onChange={(e) =>
-                onUpdateStep(selectedStep.key, { actionType: e.target.value, config: {}, routing: undefined, fanOut: undefined })
+                onUpdateStep(selectedStep.key, {
+                  actionType: e.target.value,
+                  config: {},
+                  routing: undefined,
+                  fanOut: undefined,
+                })
               }
             >
               {groupBySource(actions).map(([source, items]) => (
@@ -174,7 +202,9 @@ export function WorkflowCanvas({
             )}
           </div>
         ) : (
-          <p className="text-xs text-zinc-600">Select a step to edit, a trigger node for info, or add a step.</p>
+          <p className="text-xs text-zinc-600">
+            Select a step to edit, a trigger node for info, or add a step.
+          </p>
         )}
       </div>
     </div>

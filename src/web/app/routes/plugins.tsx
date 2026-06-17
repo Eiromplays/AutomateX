@@ -1,17 +1,23 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type ActionDescriptor, type PluginInfo } from "../lib/api";
 import { groupBySource, SourceChip, sourceLabel } from "../components/action-source";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
+import { type ActionDescriptor, api, type PluginInfo } from "../lib/api";
 
 function configFields(raw: string | null): { name: string; required: boolean }[] {
   if (!raw) return [];
   try {
-    const schema = JSON.parse(raw) as { properties?: Record<string, unknown>; required?: string[] };
+    const schema = JSON.parse(raw) as {
+      properties?: Record<string, unknown>;
+      required?: string[];
+    };
     const required = new Set(schema.required ?? []);
-    return Object.keys(schema.properties ?? {}).map((name) => ({ name, required: required.has(name) }));
+    return Object.keys(schema.properties ?? {}).map((name) => ({
+      name,
+      required: required.has(name),
+    }));
   } catch {
     return [];
   }
@@ -54,10 +60,24 @@ function FieldChips({ fields }: { fields: { name: string; required: boolean }[] 
 function PluginManager() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
-  const { data: plugins } = useQuery({ queryKey: ["plugins"], queryFn: api.plugins.list });
-  const { data: actions } = useQuery({ queryKey: ["actions"], queryFn: api.actions.list });
-  const { data: triggerTypes } = useQuery({ queryKey: ["trigger-types"], queryFn: api.triggers.types, staleTime: 60_000 });
-  const { data: connectionTypes } = useQuery({ queryKey: ["connection-types"], queryFn: api.connections.types, staleTime: 60_000 });
+  const { data: plugins } = useQuery({
+    queryKey: ["plugins"],
+    queryFn: api.plugins.list,
+  });
+  const { data: actions } = useQuery({
+    queryKey: ["actions"],
+    queryFn: api.actions.list,
+  });
+  const { data: triggerTypes } = useQuery({
+    queryKey: ["trigger-types"],
+    queryFn: api.triggers.types,
+    staleTime: 60_000,
+  });
+  const { data: connectionTypes } = useQuery({
+    queryKey: ["connection-types"],
+    queryFn: api.connections.types,
+    staleTime: 60_000,
+  });
 
   // What a plugin contributes, by matching its source tag (plugin:<name> / workspace:<name>).
   const capabilities = (scope: "global" | "workspace", name: string) => {
@@ -105,7 +125,12 @@ function PluginManager() {
     onError: (error, variables) => {
       const message = String(error);
       if (message.includes("force=true")) {
-        confirm({ title: "Delete anyway?", body: message, confirmLabel: "Delete", destructive: true }).then((ok) => {
+        confirm({
+          title: "Delete anyway?",
+          body: message,
+          confirmLabel: "Delete",
+          destructive: true,
+        }).then((ok) => {
           if (ok) remove.mutate({ ...variables, force: true });
           else remove.reset();
         });
@@ -194,8 +219,8 @@ function PluginManager() {
       </div>
       {!plugins.uploadEnabled && (
         <p className="mt-2 text-xs text-zinc-600">
-          Uploads disabled — set <code>Engine__AllowPluginUpload=true</code> to manage plugins from
-          here, or drop folders into <code>plugins/</code> and reload.
+          Uploads disabled — set <code>Engine__AllowPluginUpload=true</code> to manage plugins from here, or
+          drop folders into <code>plugins/</code> and reload.
         </p>
       )}
       <CatalogPanel />
@@ -240,7 +265,10 @@ function CatalogPanel() {
       <h3 className="mb-2 text-sm font-medium text-zinc-300">Catalog</h3>
       <div className={cardGrid}>
         {catalog.entries.map((entry) => (
-          <div key={entry.name} className="flex items-center justify-between gap-3 rounded-md border border-zinc-800 px-3 py-2 text-sm">
+          <div
+            key={entry.name}
+            className="flex items-center justify-between gap-3 rounded-md border border-zinc-800 px-3 py-2 text-sm"
+          >
             <span>
               <span className="text-zinc-200">{entry.name}</span>{" "}
               <span className="text-[10px] text-zinc-600">v{entry.version}</span>
@@ -293,7 +321,9 @@ function ActionsPanel({ actions }: { actions: ActionDescriptor[] }) {
                 <div key={action.type} className="rounded-lg border border-zinc-800 p-4">
                   <div className="mb-1 flex items-center gap-2">
                     <span className="text-sm font-medium">{action.displayName}</span>
-                    <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">{action.type}</code>
+                    <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">
+                      {action.type}
+                    </code>
                   </div>
                   {action.description && <p className="mb-2 text-xs text-zinc-500">{action.description}</p>}
                   <FieldChips fields={configFields(action.configSchema)} />
@@ -310,7 +340,11 @@ function ActionsPanel({ actions }: { actions: ActionDescriptor[] }) {
 
 function TriggerTypesPanel() {
   const [search, setSearch] = useState("");
-  const { data: types } = useQuery({ queryKey: ["trigger-types"], queryFn: api.triggers.types, staleTime: 60_000 });
+  const { data: types } = useQuery({
+    queryKey: ["trigger-types"],
+    queryFn: api.triggers.types,
+    staleTime: 60_000,
+  });
   if (!types) return null;
 
   const filtered = types.filter((t) => matches(search, t.type, t.displayName, t.description));
@@ -335,7 +369,9 @@ function TriggerTypesPanel() {
                 <div key={trigger.type} className="rounded-lg border border-zinc-800 p-4">
                   <div className="mb-1 flex items-center gap-2">
                     <span className="text-sm font-medium">{trigger.displayName}</span>
-                    <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">{trigger.type}</code>
+                    <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">
+                      {trigger.type}
+                    </code>
                   </div>
                   {trigger.description && <p className="mb-2 text-xs text-zinc-500">{trigger.description}</p>}
                   <FieldChips fields={configFields(trigger.configSchema)} />
@@ -352,7 +388,11 @@ function TriggerTypesPanel() {
 
 function ConnectionTypesPanel() {
   const [search, setSearch] = useState("");
-  const { data: types } = useQuery({ queryKey: ["connection-types"], queryFn: api.connections.types, staleTime: 60_000 });
+  const { data: types } = useQuery({
+    queryKey: ["connection-types"],
+    queryFn: api.connections.types,
+    staleTime: 60_000,
+  });
   if (!types) return null;
 
   const filtered = types.filter((t) => matches(search, t.type, t.displayName, t.description));
@@ -366,7 +406,9 @@ function ConnectionTypesPanel() {
         onChange={(e) => setSearch(e.target.value)}
       />
       {types.length === 0 ? (
-        <p className="text-xs text-zinc-600">No connection types — plugins declare these to guide their setup.</p>
+        <p className="text-xs text-zinc-600">
+          No connection types — plugins declare these to guide their setup.
+        </p>
       ) : (
         <div className="space-y-6">
           {groupBySource(filtered).map(([source, items]) => (
@@ -380,7 +422,9 @@ function ConnectionTypesPanel() {
                   <div key={type.type} className="rounded-lg border border-zinc-800 p-4">
                     <div className="mb-1 flex items-center gap-2">
                       <span className="text-sm font-medium">{type.displayName}</span>
-                      <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">{type.type}</code>
+                      <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">
+                        {type.type}
+                      </code>
                       <Link
                         to={`/connections?type=${type.type}`}
                         className="ml-auto text-xs text-emerald-400 hover:underline"
@@ -405,7 +449,9 @@ function ConnectionTypesPanel() {
           ))}
         </div>
       )}
-      {types.length > 0 && filtered.length === 0 && <p className="text-sm text-zinc-500">No matching connection types.</p>}
+      {types.length > 0 && filtered.length === 0 && (
+        <p className="text-sm text-zinc-500">No matching connection types.</p>
+      )}
     </div>
   );
 }
@@ -415,9 +461,20 @@ type Tab = "installed" | "actions" | "triggers" | "connections";
 export default function Plugins() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("installed");
-  const { data: actions } = useQuery({ queryKey: ["actions"], queryFn: api.actions.list });
-  const { data: triggerTypes } = useQuery({ queryKey: ["trigger-types"], queryFn: api.triggers.types, staleTime: 60_000 });
-  const { data: connectionTypes } = useQuery({ queryKey: ["connection-types"], queryFn: api.connections.types, staleTime: 60_000 });
+  const { data: actions } = useQuery({
+    queryKey: ["actions"],
+    queryFn: api.actions.list,
+  });
+  const { data: triggerTypes } = useQuery({
+    queryKey: ["trigger-types"],
+    queryFn: api.triggers.types,
+    staleTime: 60_000,
+  });
+  const { data: connectionTypes } = useQuery({
+    queryKey: ["connection-types"],
+    queryFn: api.connections.types,
+    staleTime: 60_000,
+  });
 
   const reload = useMutation({
     mutationFn: api.plugins.reload,
@@ -426,7 +483,9 @@ export default function Plugins() {
       queryClient.invalidateQueries({ queryKey: ["plugins"] });
       queryClient.invalidateQueries({ queryKey: ["trigger-types"] });
       queryClient.invalidateQueries({ queryKey: ["connection-types"] });
-      toast.success(`Plugins reloaded: ${result.globalPlugins} global, ${result.workspacePlugins} workspace-scoped.`);
+      toast.success(
+        `Plugins reloaded: ${result.globalPlugins} global, ${result.workspacePlugins} workspace-scoped.`,
+      );
     },
     onError: (error) => toast.error(`Reload failed — ${String(error)}`),
   });
@@ -436,7 +495,10 @@ export default function Plugins() {
     { id: "installed", label: "Installed" },
     { id: "actions", label: `Actions${count(actions?.length)}` },
     { id: "triggers", label: `Triggers${count(triggerTypes?.length)}` },
-    { id: "connections", label: `Connections${count(connectionTypes?.length)}` },
+    {
+      id: "connections",
+      label: `Connections${count(connectionTypes?.length)}`,
+    },
   ];
 
   return (
@@ -471,7 +533,8 @@ export default function Plugins() {
       </div>
 
       {tab === "installed" && <PluginManager />}
-      {tab === "actions" && (actions ? <ActionsPanel actions={actions} /> : <p className="text-sm text-zinc-500">Loading…</p>)}
+      {tab === "actions" &&
+        (actions ? <ActionsPanel actions={actions} /> : <p className="text-sm text-zinc-500">Loading…</p>)}
       {tab === "triggers" && <TriggerTypesPanel />}
       {tab === "connections" && <ConnectionTypesPanel />}
     </div>

@@ -2,7 +2,10 @@ import type { WorkflowEdgeInput } from "../lib/api";
 
 // Switch routing is authored as "label → target step" (and a default). Targets are stored
 // as stable step keys (survive reordering); they're converted to step-order edges on submit.
-export type SwitchRouting = { byLabel: Record<string, number>; default: number | null };
+export type SwitchRouting = {
+  byLabel: Record<string, number>;
+  default: number | null;
+};
 
 export type RoutingStep = {
   key: number;
@@ -15,7 +18,11 @@ export type RoutingStep = {
   fanOut?: number[];
 };
 
-export type KeyEdge = { sourceKey: number; targetKey: number; label: string | null };
+export type KeyEdge = {
+  sourceKey: number;
+  targetKey: number;
+  label: string | null;
+};
 
 const SWITCH = "switch";
 const inputClass =
@@ -33,7 +40,10 @@ export function caseLabelsOf(config: Record<string, unknown>): string[] {
 
 // The routes that still correspond to a live case label (plus default). Routes for cases
 // that were deleted or renamed are dropped here, so a stale label can't emit a branch edge.
-function validRoutes(step: RoutingStep): { byLabel: [string, number][]; default: number | null } {
+function validRoutes(step: RoutingStep): {
+  byLabel: [string, number][];
+  default: number | null;
+} {
   if (step.actionType !== SWITCH || !step.routing) return { byLabel: [], default: null };
   const labels = new Set(caseLabelsOf(step.config));
   return {
@@ -70,7 +80,11 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
   if (!isBranched(steps)) {
     const edges: KeyEdge[] = [];
     for (let i = 0; i < steps.length - 1; i++) {
-      edges.push({ sourceKey: steps[i].key, targetKey: steps[i + 1].key, label: null });
+      edges.push({
+        sourceKey: steps[i].key,
+        targetKey: steps[i + 1].key,
+        label: null,
+      });
     }
     return edges;
   }
@@ -98,7 +112,11 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
         edges.push({ sourceKey: step.key, targetKey: key, label });
       }
       if (routes.default != null) {
-        edges.push({ sourceKey: step.key, targetKey: routes.default, label: "default" });
+        edges.push({
+          sourceKey: step.key,
+          targetKey: routes.default,
+          label: "default",
+        });
       }
     } else if (fanOut.length > 0) {
       for (const key of fanOut) edges.push({ sourceKey: step.key, targetKey: key, label: null });
@@ -119,7 +137,11 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
 export function backboneEdges(stepKeys: number[]): KeyEdge[] {
   const edges: KeyEdge[] = [];
   for (let i = 0; i < stepKeys.length - 1; i++) {
-    edges.push({ sourceKey: stepKeys[i], targetKey: stepKeys[i + 1], label: null });
+    edges.push({
+      sourceKey: stepKeys[i],
+      targetKey: stepKeys[i + 1],
+      label: null,
+    });
   }
   return edges;
 }
@@ -172,7 +194,10 @@ export function SwitchTargets({
   const optionLabel = (s: RoutingStep) => `#${indexOf(s.key) + 1} ${s.name || s.actionType}`;
 
   const setTarget = (key: string | "default", targetKey: number | null) => {
-    const next: SwitchRouting = { byLabel: { ...routing.byLabel }, default: routing.default };
+    const next: SwitchRouting = {
+      byLabel: { ...routing.byLabel },
+      default: routing.default,
+    };
     if (key === "default") {
       next.default = targetKey;
     } else if (targetKey == null) {
@@ -184,7 +209,11 @@ export function SwitchTargets({
   };
 
   const rows: { key: string; label: string; value: number | null }[] = [
-    ...labels.map((l) => ({ key: l, label: l, value: routing.byLabel[l] ?? null })),
+    ...labels.map((l) => ({
+      key: l,
+      label: l,
+      value: routing.byLabel[l] ?? null,
+    })),
     { key: "default", label: "default", value: routing.default },
   ];
 
@@ -192,7 +221,9 @@ export function SwitchTargets({
     <div className="space-y-2 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
       <p className="text-xs font-medium text-zinc-400">Routes</p>
       {labels.length === 0 && (
-        <p className="text-[11px] text-zinc-600">Add a case with a label above, then point it at a step here.</p>
+        <p className="text-[11px] text-zinc-600">
+          Add a case with a label above, then point it at a step here.
+        </p>
       )}
       {rows.map((row) => (
         <div key={row.key} className="flex items-center gap-2">
@@ -260,8 +291,8 @@ export function FanOutTargets({
         </label>
       ))}
       <p className="text-[11px] text-zinc-600">
-        Pick none to run the next step in order. Pick two or more to run them at once; point several
-        steps at the same one to join.
+        Pick none to run the next step in order. Pick two or more to run them at once; point several steps at
+        the same one to join.
       </p>
     </div>
   );

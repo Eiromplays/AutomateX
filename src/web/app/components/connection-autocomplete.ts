@@ -6,7 +6,10 @@ const OPEN = "{{connections.";
 
 // If the caret sits inside an unclosed {{connections.<partial> token, return where the token
 // starts and the partial text after the prefix ("git", "github." or "github.to"); else null.
-export function connectionAutocompleteQuery(text: string, caret: number): { start: number; query: string } | null {
+export function connectionAutocompleteQuery(
+  text: string,
+  caret: number,
+): { start: number; query: string } | null {
   const before = text.slice(0, caret);
   const start = before.lastIndexOf(OPEN);
   if (start === -1) {
@@ -30,7 +33,11 @@ export function connectionCompletions(connections: ConnectionLite[], query: stri
     for (const key of connection.secretKeys) {
       const candidate = `${connection.name}.${key}`;
       if (candidate.toLowerCase().startsWith(q)) {
-        out.push({ name: connection.name, key, token: `{{connections.${connection.name}.${key}}}` });
+        out.push({
+          name: connection.name,
+          key,
+          token: `{{connections.${connection.name}.${key}}}`,
+        });
       }
     }
   }

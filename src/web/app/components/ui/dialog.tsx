@@ -1,5 +1,5 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 // Thin shadcn-style wrappers over Radix Dialog, styled with our zinc Tailwind classes.
 export const Dialog = DialogPrimitive.Root;
@@ -16,7 +16,9 @@ export function DialogContent({ title, children }: { title: string; children: Re
       >
         <div className="mb-3 flex items-center justify-between gap-4">
           <DialogPrimitive.Title className="text-sm font-medium text-zinc-200">{title}</DialogPrimitive.Title>
-          <DialogPrimitive.Close className="shrink-0 text-zinc-500 hover:text-zinc-200">✕</DialogPrimitive.Close>
+          <DialogPrimitive.Close className="shrink-0 text-zinc-500 hover:text-zinc-200">
+            ✕
+          </DialogPrimitive.Close>
         </div>
         {children}
       </DialogPrimitive.Content>

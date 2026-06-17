@@ -49,7 +49,12 @@ export default function Connections() {
     onError: (error, variables) => {
       const message = String(error);
       if (message.includes("force=true")) {
-        confirm({ title: "Delete anyway?", body: message, confirmLabel: "Delete", destructive: true }).then((ok) => {
+        confirm({
+          title: "Delete anyway?",
+          body: message,
+          confirmLabel: "Delete",
+          destructive: true,
+        }).then((ok) => {
           if (ok) remove.mutate({ ...variables, force: true });
           else remove.reset();
         });
@@ -98,8 +103,8 @@ export default function Connections() {
         <h1 className="text-lg font-semibold">Connections</h1>
         <p className="text-sm text-zinc-500">
           Encrypted secret bundles — reference them in step configs as{" "}
-          <code className="text-emerald-400">{"{{connections.<name>.<field>}}"}</code>. Values are
-          write-only: never shown again after saving.
+          <code className="text-emerald-400">{"{{connections.<name>.<field>}}"}</code>. Values are write-only:
+          never shown again after saving.
         </p>
       </div>
 
@@ -166,10 +171,18 @@ export default function Connections() {
                   {test.isPending && test.variables === connection.id ? "Testing…" : "Test"}
                 </button>
               )}
-              <button type="button" onClick={() => edit(connection)} className="text-xs text-zinc-500 hover:text-zinc-100">
+              <button
+                type="button"
+                onClick={() => edit(connection)}
+                className="text-xs text-zinc-500 hover:text-zinc-100"
+              >
                 Edit
               </button>
-              <button type="button" onClick={() => remove.mutate({ id: connection.id })} className="text-xs text-zinc-500 hover:text-red-400">
+              <button
+                type="button"
+                onClick={() => remove.mutate({ id: connection.id })}
+                className="text-xs text-zinc-500 hover:text-red-400"
+              >
                 Delete
               </button>
             </div>
@@ -184,7 +197,9 @@ export default function Connections() {
       </ul>
 
       <div className="max-w-xl space-y-3 rounded-lg border border-zinc-800 p-4">
-        <h2 className="text-sm font-medium text-zinc-300">{editing ? `Edit ${editing.name}` : "New connection"}</h2>
+        <h2 className="text-sm font-medium text-zinc-300">
+          {editing ? `Edit ${editing.name}` : "New connection"}
+        </h2>
         <ConnectionForm
           editing={editing}
           initialType={initialType}

@@ -1,17 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { api, type ExecutionDetail as ExecutionDetailData, type ExecutionStep, type WorkflowTrigger } from "../lib/api";
 import { SourceBadge } from "../components/action-source";
-import { StatusBadge } from "../components/status-badge";
 import { CodeBlock } from "../components/code-block";
+import { StatusBadge } from "../components/status-badge";
+import { backboneEdges } from "../components/switch-routing";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
-import { useEngineEvents } from "../lib/use-engine-events";
-import { WorkflowGraph, type GraphTrigger } from "../components/workflow-graph";
-import { backboneEdges } from "../components/switch-routing";
-import { triggerSummary } from "../components/workflow-triggers";
 import { Dialog, DialogContent } from "../components/ui/dialog";
+import { type GraphTrigger, WorkflowGraph } from "../components/workflow-graph";
+import { triggerSummary } from "../components/workflow-triggers";
+import {
+  api,
+  type ExecutionDetail as ExecutionDetailData,
+  type ExecutionStep,
+  type WorkflowTrigger,
+} from "../lib/api";
+import { useEngineEvents } from "../lib/use-engine-events";
 
 function diffMs(start: string, end: string | null): number | null {
   if (!end) return null;
@@ -94,7 +99,10 @@ const STEP_COLOR: Record<string, string> = {
 function gateInfo(step: ExecutionStep): { open: boolean; reason: string } | null {
   if (step.actionType !== "gate" || !step.output) return null;
   try {
-    const parsed = JSON.parse(step.output) as { open?: boolean; reason?: string };
+    const parsed = JSON.parse(step.output) as {
+      open?: boolean;
+      reason?: string;
+    };
     return typeof parsed.open === "boolean" ? { open: parsed.open, reason: parsed.reason ?? "" } : null;
   } catch {
     return null;
@@ -152,7 +160,11 @@ export default function ExecutionDetail() {
     onError: (error) => toast.error(`Delete failed — ${String(error)}`),
   });
 
-  const { data: execution, isLoading, error } = useQuery({
+  const {
+    data: execution,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["execution", id],
     queryFn: () => api.executions.get(id),
     retry: false,
@@ -211,7 +223,14 @@ export default function ExecutionDetail() {
             <button
               type="button"
               onClick={async () => {
-                if (await confirm({ title: "Delete execution?", body: "This deletes the execution and its step history.", confirmLabel: "Delete", destructive: true })) {
+                if (
+                  await confirm({
+                    title: "Delete execution?",
+                    body: "This deletes the execution and its step history.",
+                    confirmLabel: "Delete",
+                    destructive: true,
+                  })
+                ) {
                   remove.mutate();
                 }
               }}
@@ -221,7 +240,10 @@ export default function ExecutionDetail() {
               Delete
             </button>
           )}
-          <Link to={`/workflows/${execution.workflowId}`} className="text-sm text-zinc-400 hover:text-zinc-100">
+          <Link
+            to={`/workflows/${execution.workflowId}`}
+            className="text-sm text-zinc-400 hover:text-zinc-100"
+          >
             View workflow →
           </Link>
         </div>
@@ -274,9 +296,15 @@ export default function ExecutionDetail() {
         </details>
       )}
 
-      <p className="text-xs text-zinc-600">Click a step in the graph to inspect its output, errors and timing.</p>
+      <p className="text-xs text-zinc-600">
+        Click a step in the graph to inspect its output, errors and timing.
+      </p>
 
-      <StepDialog execution={execution} order={selectedStepOrder} onClose={() => setSelectedStepOrder(null)} />
+      <StepDialog
+        execution={execution}
+        order={selectedStepOrder}
+        onClose={() => setSelectedStepOrder(null)}
+      />
     </div>
   );
 }
@@ -292,22 +320,29 @@ function StepDialog({
   order: number | null;
   onClose: () => void;
 }) {
-  const step = order != null ? execution.steps.find((s) => s.stepOrder === order) ?? null : null;
-  const versionStep = order != null ? execution.workflowSteps.find((s) => s.order === order) ?? null : null;
+  const step = order != null ? (execution.steps.find((s) => s.stepOrder === order) ?? null) : null;
+  const versionStep = order != null ? (execution.workflowSteps.find((s) => s.order === order) ?? null) : null;
   const title = versionStep
     ? `#${versionStep.order + 1} ${versionStep.name ?? versionStep.actionType}`
     : "Step";
   const gate = step ? gateInfo(step) : null;
 
   return (
-    <Dialog open={order != null} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open={order != null}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent title={title}>
         {!step ? (
           <p className="text-sm text-zinc-500">This step did not run in this execution.</p>
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">{step.actionType}</span>
+              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+                {step.actionType}
+              </span>
               <SourceBadge actionType={step.actionType} />
               <StatusBadge status={step.status} />
               <span className="text-xs text-zinc-500">
@@ -359,7 +394,11 @@ function ExecutionGraph({
   }));
   const stepEdges =
     execution.edges.length > 0
-      ? execution.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))
+      ? execution.edges.map((e) => ({
+          sourceKey: e.from,
+          targetKey: e.to,
+          label: e.label,
+        }))
       : backboneEdges(execution.workflowSteps.map((s) => s.order));
 
   return (

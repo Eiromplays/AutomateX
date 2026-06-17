@@ -1,20 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { api, type WorkflowTrigger } from "../lib/api";
-import { toast } from "../components/toast";
 import { CodeBlock } from "../components/code-block";
-import { WorkflowGraph } from "../components/workflow-graph";
 import { backboneEdges } from "../components/switch-routing";
-import { triggerSummary } from "../components/workflow-triggers";
-import { Dialog, DialogContent } from "../components/ui/dialog";
+import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
+import { Dialog, DialogContent } from "../components/ui/dialog";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import { WorkflowGraph } from "../components/workflow-graph";
+import { triggerSummary } from "../components/workflow-triggers";
+import { api, type WorkflowTrigger } from "../lib/api";
 
 function triggerNodeLabel(trigger: WorkflowTrigger): string {
   let config: Record<string, unknown> = {};
@@ -23,7 +23,12 @@ function triggerNodeLabel(trigger: WorkflowTrigger): string {
   } catch {
     config = {};
   }
-  return triggerSummary({ key: 0, type: trigger.type, config, enabled: trigger.enabled });
+  return triggerSummary({
+    key: 0,
+    type: trigger.type,
+    config,
+    enabled: trigger.enabled,
+  });
 }
 
 function prettyJson(json: string): string {
@@ -45,7 +50,11 @@ export default function WorkflowDetail() {
   const [selectedTriggerIndex, setSelectedTriggerIndex] = useState<number | null>(null);
   const [runOpen, setRunOpen] = useState(false);
 
-  const { data: workflow, isLoading, error } = useQuery({
+  const {
+    data: workflow,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["workflow", id],
     queryFn: () => api.workflows.get(id),
     retry: false,
@@ -77,7 +86,8 @@ export default function WorkflowDetail() {
   });
 
   const updateTrigger = useMutation({
-    mutationFn: (body: { id: string; enabled: boolean }) => api.triggers.update(body.id, { enabled: body.enabled }),
+    mutationFn: (body: { id: string; enabled: boolean }) =>
+      api.triggers.update(body.id, { enabled: body.enabled }),
     onSuccess: (_, body) => {
       queryClient.invalidateQueries({ queryKey: ["workflow", id] });
       toast.success(body.enabled ? "Trigger enabled." : "Trigger disabled.");
@@ -88,7 +98,9 @@ export default function WorkflowDetail() {
   const exportWorkflow = async () => {
     try {
       const doc = await api.workflows.export(id);
-      const blob = new Blob([JSON.stringify(doc, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(doc, null, 2)], {
+        type: "application/json",
+      });
       const anchor = document.createElement("a");
       anchor.href = URL.createObjectURL(blob);
       anchor.download = `${workflow?.name ?? "workflow"}.workflow.json`;
@@ -194,12 +206,13 @@ export default function WorkflowDetail() {
       <Dialog open={runOpen} onOpenChange={setRunOpen}>
         <DialogContent title="Run now">
           <p className="mb-2 text-xs text-zinc-500">
-            Optional JSON payload — available in steps as <code className="text-zinc-400">{"{{trigger.payload}}"}</code>.
+            Optional JSON payload — available in steps as{" "}
+            <code className="text-zinc-400">{"{{trigger.payload}}"}</code>.
           </p>
           <textarea
             className="w-full rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 font-mono text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
             rows={4}
-            placeholder='{ }'
+            placeholder="{ }"
             value={payload}
             onChange={(e) => setPayload(e.target.value)}
           />
@@ -215,7 +228,12 @@ export default function WorkflowDetail() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={selectedStepOrder != null} onOpenChange={(open) => { if (!open) setSelectedStepOrder(null); }}>
+      <Dialog
+        open={selectedStepOrder != null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedStepOrder(null);
+        }}
+      >
         <DialogContent
           title={(() => {
             const step = workflow.latestVersion.steps.find((s) => s.order === selectedStepOrder);
@@ -235,15 +253,22 @@ export default function WorkflowDetail() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={selectedTriggerIndex != null} onOpenChange={(open) => { if (!open) setSelectedTriggerIndex(null); }}>
+      <Dialog
+        open={selectedTriggerIndex != null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTriggerIndex(null);
+        }}
+      >
         <DialogContent
           title={(() => {
-            const trigger = selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
+            const trigger =
+              selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
             return trigger ? `${trigger.type} trigger` : "Trigger";
           })()}
         >
           {(() => {
-            const trigger = selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
+            const trigger =
+              selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
             if (!trigger) return null;
             return (
               <div className="space-y-2 text-xs">
@@ -252,10 +277,14 @@ export default function WorkflowDetail() {
                     {trigger.enabled ? "● enabled" : "● disabled"}
                   </span>
                   {trigger.nextRunAt && (
-                    <span className="text-zinc-500">next: {new Date(trigger.nextRunAt).toLocaleString()}</span>
+                    <span className="text-zinc-500">
+                      next: {new Date(trigger.nextRunAt).toLocaleString()}
+                    </span>
                   )}
                   {trigger.lastFiredAt && (
-                    <span className="text-zinc-500">last: {new Date(trigger.lastFiredAt).toLocaleString()}</span>
+                    <span className="text-zinc-500">
+                      last: {new Date(trigger.lastFiredAt).toLocaleString()}
+                    </span>
                   )}
                 </div>
                 {trigger.lastError && <p className="text-amber-400/80">⚠ {trigger.lastError}</p>}
@@ -297,7 +326,11 @@ export default function WorkflowDetail() {
           <WorkflowGraph
             steps={[...workflow.latestVersion.steps]
               .sort((a, b) => a.order - b.order)
-              .map((s) => ({ key: s.order, label: s.name ?? s.actionType, actionType: s.actionType }))}
+              .map((s) => ({
+                key: s.order,
+                label: s.name ?? s.actionType,
+                actionType: s.actionType,
+              }))}
             triggers={workflow.triggers.map((t, i) => ({
               key: i,
               label: triggerNodeLabel(t),
@@ -305,7 +338,11 @@ export default function WorkflowDetail() {
             }))}
             stepEdges={
               workflow.latestVersion.edges.length > 0
-                ? workflow.latestVersion.edges.map((e) => ({ sourceKey: e.from, targetKey: e.to, label: e.label }))
+                ? workflow.latestVersion.edges.map((e) => ({
+                    sourceKey: e.from,
+                    targetKey: e.to,
+                    label: e.label,
+                  }))
                 : backboneEdges(
                     [...workflow.latestVersion.steps].sort((a, b) => a.order - b.order).map((s) => s.order),
                   )
@@ -427,7 +464,12 @@ export default function WorkflowDetail() {
                 <div className="flex gap-3">
                   <button
                     type="button"
-                    onClick={() => updateTrigger.mutate({ id: trigger.id, enabled: !trigger.enabled })}
+                    onClick={() =>
+                      updateTrigger.mutate({
+                        id: trigger.id,
+                        enabled: !trigger.enabled,
+                      })
+                    }
                     className="text-xs text-zinc-500 hover:text-emerald-400"
                   >
                     {trigger.enabled ? "Disable" : "Enable"}
@@ -453,7 +495,11 @@ export default function WorkflowDetail() {
               {trigger.lastError && (
                 <p
                   className="mt-1.5 text-xs text-amber-400/80"
-                  title={trigger.lastErrorAt ? `Last failed ${new Date(trigger.lastErrorAt).toLocaleString()}` : undefined}
+                  title={
+                    trigger.lastErrorAt
+                      ? `Last failed ${new Date(trigger.lastErrorAt).toLocaleString()}`
+                      : undefined
+                  }
                 >
                   ⚠ {trigger.lastError}
                 </p>
@@ -474,29 +520,40 @@ export default function WorkflowDetail() {
         </p>
       </section>
 
-      <Dialog open={newWebhook != null} onOpenChange={(open) => { if (!open) setNewWebhook(null); }}>
+      <Dialog
+        open={newWebhook != null}
+        onOpenChange={(open) => {
+          if (!open) setNewWebhook(null);
+        }}
+      >
         <DialogContent title="Webhook URL">
-          {newWebhook && (() => {
-            const url = `POST ${newWebhook.startsWith("http") ? newWebhook : `${window.location.origin}${newWebhook}`}`;
-            return (
-              <div className="space-y-3">
-                <p className="text-xs text-amber-500/90">⚠ Copy this now — the secret is shown only once. If you lose it, rotate the secret to get a new one.</p>
-                <code className="block break-all rounded-md border border-zinc-800 bg-zinc-950 p-2 text-xs text-zinc-300">{url}</code>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(url.replace(/^POST /, "")).then(
-                      () => toast.success("Copied."),
-                      () => toast.error("Copy failed — select and copy manually."),
-                    );
-                  }}
-                  className="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
-                >
-                  Copy URL
-                </button>
-              </div>
-            );
-          })()}
+          {newWebhook &&
+            (() => {
+              const url = `POST ${newWebhook.startsWith("http") ? newWebhook : `${window.location.origin}${newWebhook}`}`;
+              return (
+                <div className="space-y-3">
+                  <p className="text-xs text-amber-500/90">
+                    ⚠ Copy this now — the secret is shown only once. If you lose it, rotate the secret to get
+                    a new one.
+                  </p>
+                  <code className="block break-all rounded-md border border-zinc-800 bg-zinc-950 p-2 text-xs text-zinc-300">
+                    {url}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard?.writeText(url.replace(/^POST /, "")).then(
+                        () => toast.success("Copied."),
+                        () => toast.error("Copy failed — select and copy manually."),
+                      );
+                    }}
+                    className="w-full rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+                  >
+                    Copy URL
+                  </button>
+                </div>
+              );
+            })()}
         </DialogContent>
       </Dialog>
 
@@ -514,7 +571,8 @@ function triggerLabel(trigger: WorkflowTrigger | undefined): string {
   } catch {
     // ignore
   }
-  const detail = typeof config.url === "string" ? config.url : typeof config.cron === "string" ? config.cron : "";
+  const detail =
+    typeof config.url === "string" ? config.url : typeof config.cron === "string" ? config.cron : "";
   return detail ? `${trigger.type} · ${detail}` : trigger.type;
 }
 
@@ -541,7 +599,8 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
   });
 
   const setEntry = useMutation({
-    mutationFn: ({ key, value }: { key: string; value: string }) => api.workflows.setState(workflowId, key, value),
+    mutationFn: ({ key, value }: { key: string; value: string }) =>
+      api.workflows.setState(workflowId, key, value),
     onSuccess: invalidate,
     onError: (error) => toast.error(`Save failed — ${String(error)}`),
   });
@@ -558,14 +617,30 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
   if (!entries || entries.length === 0) return null;
 
   // Group by the `trigger:<id>:` prefix; the remainder is the entry's own key.
-  const groups = new Map<string, { triggerId: string | null; rows: { key: string; rest: string; value: string; expiresAt: string | null }[] }>();
+  const groups = new Map<
+    string,
+    {
+      triggerId: string | null;
+      rows: {
+        key: string;
+        rest: string;
+        value: string;
+        expiresAt: string | null;
+      }[];
+    }
+  >();
   for (const entry of entries) {
     const match = /^trigger:([^:]+):(.+)$/.exec(entry.key);
     const triggerId = match ? match[1] : null;
     const rest = match ? match[2] : entry.key;
     const groupKey = triggerId ?? "__other__";
     const group = groups.get(groupKey) ?? { triggerId, rows: [] };
-    group.rows.push({ key: entry.key, rest, value: entry.value, expiresAt: entry.expiresAt });
+    group.rows.push({
+      key: entry.key,
+      rest,
+      value: entry.value,
+      expiresAt: entry.expiresAt,
+    });
     groups.set(groupKey, group);
   }
 
@@ -578,7 +653,14 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
         <button
           type="button"
           onClick={async () => {
-            if (await confirm({ title: "Clear all state?", body: "Feeds will re-process from scratch.", confirmLabel: "Clear", destructive: true })) {
+            if (
+              await confirm({
+                title: "Clear all state?",
+                body: "Feeds will re-process from scratch.",
+                confirmLabel: "Clear",
+                destructive: true,
+              })
+            ) {
               clear.mutate(undefined);
             }
           }}
@@ -607,7 +689,12 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        confirm({ title: "Reset this feed?", body: "Its items will re-process from scratch.", confirmLabel: "Reset", destructive: true }).then((ok) => {
+                        confirm({
+                          title: "Reset this feed?",
+                          body: "Its items will re-process from scratch.",
+                          confirmLabel: "Reset",
+                          destructive: true,
+                        }).then((ok) => {
                           if (ok) clear.mutate(`trigger:${group.triggerId}:`);
                         });
                       }}
@@ -642,7 +729,12 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
                           >
                             ✓
                           </button>
-                          <button type="button" title="Cancel" onClick={() => setEditingKey(null)} className="text-zinc-500 hover:text-zinc-200">
+                          <button
+                            type="button"
+                            title="Cancel"
+                            onClick={() => setEditingKey(null)}
+                            className="text-zinc-500 hover:text-zinc-200"
+                          >
                             ✕
                           </button>
                         </>
@@ -728,7 +820,10 @@ function ChainSummary({
   workflows: { id: string; name: string }[] | undefined;
 }) {
   try {
-    const config = JSON.parse(configJson) as { workflowId?: string; on?: string };
+    const config = JSON.parse(configJson) as {
+      workflowId?: string;
+      on?: string;
+    };
     const name = workflows?.find((w) => w.id === config.workflowId)?.name ?? config.workflowId;
     const on = config.on === "failed" ? "fails" : config.on === "any" ? "finishes" : "succeeds";
     return (
@@ -747,4 +842,3 @@ function ChainSummary({
 
 const onLabel = (on: string) =>
   on === "failed" ? "on failure" : on === "any" ? "on any finish" : "on success";
-

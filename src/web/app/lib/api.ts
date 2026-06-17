@@ -17,7 +17,10 @@ export function setWorkspaceId(id: string | null): void {
 // human sentences so toasts and confirms read cleanly.
 export function extractErrorMessage(body: string): string {
   try {
-    const parsed = JSON.parse(body) as { errors?: Record<string, string[]>; message?: string };
+    const parsed = JSON.parse(body) as {
+      errors?: Record<string, string[]>;
+      message?: string;
+    };
     const all = parsed.errors ? Object.values(parsed.errors).flat() : [];
     if (all.length > 0) return all.join(" ");
     if (parsed.message) return parsed.message;
@@ -47,7 +50,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
-export type WorkflowStateEntry = { key: string; value: string; expiresAt: string | null; updatedAt: string };
+export type WorkflowStateEntry = {
+  key: string;
+  value: string;
+  expiresAt: string | null;
+  updatedAt: string;
+};
 
 export type WorkflowSummary = {
   id: string;
@@ -169,7 +177,11 @@ export type CreateWorkflowStep = {
 
 // A branch edge between step orders. label = null is an unconditional link; a labelled
 // edge is a switch outcome. The backend validates from/to point at real steps.
-export type WorkflowEdgeInput = { from: number; to: number; label: string | null };
+export type WorkflowEdgeInput = {
+  from: number;
+  to: number;
+  label: string | null;
+};
 
 export type ConnectionSummary = {
   id: string;
@@ -201,7 +213,11 @@ export type ConnectionTypeInfo = {
 };
 
 // inputSchema is the tool's JSON-Schema arguments shape (rendered via SchemaForm).
-export type McpToolInfo = { name: string; description: string | null; inputSchema: string };
+export type McpToolInfo = {
+  name: string;
+  description: string | null;
+  inputSchema: string;
+};
 
 export type AuthMe = {
   mode: "open" | "apikey" | "oidc";
@@ -210,7 +226,12 @@ export type AuthMe = {
   email: string | null;
 };
 
-export type WorkspaceSummary = { id: string; name: string; role: string; isNew: boolean };
+export type WorkspaceSummary = {
+  id: string;
+  name: string;
+  role: string;
+  isNew: boolean;
+};
 
 export type PluginInfo = {
   name: string;
@@ -261,7 +282,12 @@ export type WorkspaceMember = {
   signedInBefore: boolean;
 };
 
-export type DayBucket = { date: string; total: number; succeeded: number; failed: number };
+export type DayBucket = {
+  date: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+};
 export type WorkflowStat = {
   workflowId: string;
   name: string;
@@ -270,7 +296,12 @@ export type WorkflowStat = {
   failed: number;
   avgDurationMs: number | null;
 };
-export type RecentFailure = { id: string; workflowId: string; name: string; startedAt: string };
+export type RecentFailure = {
+  id: string;
+  workflowId: string;
+  name: string;
+  startedAt: string;
+};
 export type ExecutionStats = {
   total: number;
   succeeded: number;
@@ -301,7 +332,9 @@ export const api = {
           body: JSON.stringify({ email, role }),
         }),
       remove: (id: string, memberId: string) =>
-        request<void>(`/workspaces/${id}/members/${memberId}`, { method: "DELETE" }),
+        request<void>(`/workspaces/${id}/members/${memberId}`, {
+          method: "DELETE",
+        }),
     },
   },
   connections: {
@@ -319,19 +352,31 @@ export const api = {
         body: JSON.stringify(body),
       }),
     remove: (id: string, force = false) =>
-      request<void>(`/connections/${id}${force ? "?force=true" : ""}`, { method: "DELETE" }),
-    test: (id: string) => request<{ ok: boolean; message: string }>(`/connections/${id}/test`, { method: "POST" }),
+      request<void>(`/connections/${id}${force ? "?force=true" : ""}`, {
+        method: "DELETE",
+      }),
+    test: (id: string) =>
+      request<{ ok: boolean; message: string }>(`/connections/${id}/test`, {
+        method: "POST",
+      }),
     // Returns the provider's consent URL; the caller redirects the browser there.
     oauthStart: (id: string) =>
-      request<{ authorizeUrl: string }>(`/connections/${id}/oauth/start`, { method: "POST" }),
+      request<{ authorizeUrl: string }>(`/connections/${id}/oauth/start`, {
+        method: "POST",
+      }),
     // Live tools/list against an MCP server connection (for the builder's tool picker).
     mcpTools: (id: string) =>
-      request<McpToolInfo[]>(`/connections/${id}/mcp/tools`, { method: "POST" }),
+      request<McpToolInfo[]>(`/connections/${id}/mcp/tools`, {
+        method: "POST",
+      }),
   },
   auth: {
     me: () => request<AuthMe>("/auth/me"),
     login: (key: string) =>
-      request<void>("/auth/session", { method: "POST", body: JSON.stringify({ key }) }),
+      request<void>("/auth/session", {
+        method: "POST",
+        body: JSON.stringify({ key }),
+      }),
     logout: () => request<void>("/auth/session", { method: "DELETE" }),
   },
   actions: {
@@ -360,10 +405,15 @@ export const api = {
     },
     catalog: () => request<PluginCatalogInfo>("/plugins/catalog"),
     installFromCatalog: (name: string) =>
-      request<{ name: string; version: string; previousFingerprint: string | null; fingerprint: string | null }>(
-        "/plugins/catalog/install",
-        { method: "POST", body: JSON.stringify({ name }) },
-      ),
+      request<{
+        name: string;
+        version: string;
+        previousFingerprint: string | null;
+        fingerprint: string | null;
+      }>("/plugins/catalog/install", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
     remove: (scope: "global" | "workspace", name: string, force = false) =>
       request<void>(`/plugins/${scope}/${encodeURIComponent(name)}${force ? "?force=true" : ""}`, {
         method: "DELETE",
@@ -372,7 +422,13 @@ export const api = {
   workflows: {
     list: () => request<WorkflowSummary[]>("/workflows"),
     get: (id: string) => request<WorkflowDetail>(`/workflows/${id}`),
-    create: (body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[]; continueOnFailure?: boolean }) =>
+    create: (body: {
+      name: string;
+      description: string | null;
+      steps: CreateWorkflowStep[];
+      edges?: WorkflowEdgeInput[];
+      continueOnFailure?: boolean;
+    }) =>
       request<{ id: string; versionId: string; version: number }>("/workflows", {
         method: "POST",
         body: JSON.stringify(body),
@@ -380,7 +436,13 @@ export const api = {
     // Appends an immutable new version — past executions keep the version they ran.
     update: (
       id: string,
-      body: { name: string; description: string | null; steps: CreateWorkflowStep[]; edges?: WorkflowEdgeInput[]; continueOnFailure?: boolean },
+      body: {
+        name: string;
+        description: string | null;
+        steps: CreateWorkflowStep[];
+        edges?: WorkflowEdgeInput[];
+        continueOnFailure?: boolean;
+      },
     ) =>
       request<{ id: string; versionId: string; version: number }>(`/workflows/${id}`, {
         method: "PUT",
@@ -395,7 +457,9 @@ export const api = {
       ),
     // Deletes a past version. Guarded server-side: not the latest, and not referenced by any execution.
     deleteVersion: (id: string, version: number) =>
-      request<void>(`/workflows/${id}/versions/${version}`, { method: "DELETE" }),
+      request<void>(`/workflows/${id}/versions/${version}`, {
+        method: "DELETE",
+      }),
     // Portable document — secrets excluded by construction (cron triggers only,
     // connections as name references). Import needs same-named connections.
     export: (id: string) => request<Record<string, unknown>>(`/workflows/${id}/export`),
@@ -415,13 +479,26 @@ export const api = {
         method: "DELETE",
       }),
     setState: (id: string, key: string, value: string) =>
-      request<void>(`/workflows/${id}/state`, { method: "PUT", body: JSON.stringify({ key, value }) }),
+      request<void>(`/workflows/${id}/state`, {
+        method: "PUT",
+        body: JSON.stringify({ key, value }),
+      }),
     removeState: (id: string, key: string) =>
-      request<void>(`/workflows/${id}/state/entry`, { method: "DELETE", body: JSON.stringify({ key }) }),
+      request<void>(`/workflows/${id}/state/entry`, {
+        method: "DELETE",
+        body: JSON.stringify({ key }),
+      }),
   },
   triggers: {
     types: () => request<TriggerTypeInfo[]>("/trigger-types"),
-    create: (workflowId: string, body: { type: string; config: Record<string, unknown>; entryStepOrder?: number | null }) =>
+    create: (
+      workflowId: string,
+      body: {
+        type: string;
+        config: Record<string, unknown>;
+        entryStepOrder?: number | null;
+      },
+    ) =>
       request<{
         id: string;
         type: string;
@@ -429,20 +506,31 @@ export const api = {
         nextRunAt: string | null;
         webhookSecret: string | null;
         webhookUrl: string | null;
-      }>(`/workflows/${workflowId}/triggers`, { method: "POST", body: JSON.stringify(body) }),
+      }>(`/workflows/${workflowId}/triggers`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     rotateSecret: (id: string) =>
-      request<{ id: string; webhookSecret: string; webhookUrl: string }>(
-        `/triggers/${id}/rotate-secret`,
-        { method: "POST" },
-      ),
+      request<{ id: string; webhookSecret: string; webhookUrl: string }>(`/triggers/${id}/rotate-secret`, {
+        method: "POST",
+      }),
     update: (
       id: string,
-      body: { config?: Record<string, unknown>; enabled?: boolean; entryStepOrder?: number | null },
+      body: {
+        config?: Record<string, unknown>;
+        enabled?: boolean;
+        entryStepOrder?: number | null;
+      },
     ) =>
-      request<{ id: string; type: string; enabled: boolean; nextRunAt: string | null }>(
-        `/triggers/${id}`,
-        { method: "PUT", body: JSON.stringify(body) },
-      ),
+      request<{
+        id: string;
+        type: string;
+        enabled: boolean;
+        nextRunAt: string | null;
+      }>(`/triggers/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
     remove: (id: string) => request<void>(`/triggers/${id}`, { method: "DELETE" }),
   },
   executions: {
@@ -451,11 +539,12 @@ export const api = {
     remove: (id: string) => request<void>(`/executions/${id}`, { method: "DELETE" }),
     // Replay with the byte-identical original payload, on the latest version.
     retry: (id: string) =>
-      request<{ executionId: string }>(`/executions/${id}/retry`, { method: "POST" }),
+      request<{ executionId: string }>(`/executions/${id}/retry`, {
+        method: "POST",
+      }),
   },
   stats: {
-    get: (days?: number) =>
-      request<ExecutionStats>(`/stats${days ? `?days=${days}` : ""}`),
+    get: (days?: number) => request<ExecutionStats>(`/stats${days ? `?days=${days}` : ""}`),
   },
   meta: {
     version: () => request<{ version: string }>("/version"),

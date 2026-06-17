@@ -1,12 +1,30 @@
+import {
+  Background,
+  Controls,
+  type Edge,
+  Handle,
+  type Node,
+  type NodeProps,
+  Position,
+  ReactFlow,
+} from "@xyflow/react";
 import { useMemo } from "react";
-import { ReactFlow, Background, Controls, Handle, Position, type Node, type Edge, type NodeProps } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { type KeyEdge } from "./switch-routing";
+import type { KeyEdge } from "./switch-routing";
 
 // status (optional) tints the node for the execution inspector: succeeded/failed/skipped/running.
-export type GraphStep = { key: number; label: string; actionType: string; status?: string };
+export type GraphStep = {
+  key: number;
+  label: string;
+  actionType: string;
+  status?: string;
+};
 // entryStepKey = the step this trigger feeds; undefined falls back to the first step.
-export type GraphTrigger = { key: number; label: string; entryStepKey?: number };
+export type GraphTrigger = {
+  key: number;
+  label: string;
+  entryStepKey?: number;
+};
 // number = step key; string = a trigger node id ("trigger:<key>").
 export type GraphSelection = number | string | null;
 
@@ -34,7 +52,7 @@ function StepNode(props: NodeProps) {
   const data = props.data as StepNodeData;
   const base = data.selected
     ? "border-emerald-500 bg-zinc-800"
-    : (data.status && STATUS_CLASS[data.status]) ?? "border-zinc-700 bg-zinc-900";
+    : ((data.status && STATUS_CLASS[data.status]) ?? "border-zinc-700 bg-zinc-900");
   return (
     <div
       className={`min-w-44 rounded-lg border px-3 py-2 text-left ${base} ${
@@ -47,7 +65,9 @@ function StepNode(props: NodeProps) {
         <span className="truncate text-sm text-zinc-100">{data.label}</span>
       </div>
       <div className="mt-0.5 truncate text-xs text-zinc-500">{data.actionType}</div>
-      {data.unreachable && <div className="mt-0.5 text-[10px] text-amber-500/80">⚠ not reached — won’t run</div>}
+      {data.unreachable && (
+        <div className="mt-0.5 text-[10px] text-amber-500/80">⚠ not reached — won’t run</div>
+      )}
       <Handle type="source" position={Position.Bottom} className="!bg-zinc-600" />
     </div>
   );
@@ -90,9 +110,10 @@ function layoutPositions(steps: GraphStep[], stepEdges: KeyEdge[]) {
     visited.add(key);
     maxDepth = Math.max(maxDepth, depth);
     const kids = children.get(key) ?? [];
-    const x = kids.length === 0
-      ? nextColumn++ * COLUMN
-      : kids.map((k) => place(k, depth + 1)).reduce((a, b) => a + b, 0) / kids.length;
+    const x =
+      kids.length === 0
+        ? nextColumn++ * COLUMN
+        : kids.map((k) => place(k, depth + 1)).reduce((a, b) => a + b, 0) / kids.length;
     positions.set(key, { x, y: (depth + 1) * ROW });
     return x;
   };
@@ -104,7 +125,10 @@ function layoutPositions(steps: GraphStep[], stepEdges: KeyEdge[]) {
   for (const step of steps) {
     if (visited.has(step.key)) continue;
     unreachable.add(step.key);
-    positions.set(step.key, { x: orphanColumn++ * COLUMN, y: (maxDepth + 3) * ROW });
+    positions.set(step.key, {
+      x: orphanColumn++ * COLUMN,
+      y: (maxDepth + 3) * ROW,
+    });
   }
 
   return { positions, unreachable };
@@ -130,7 +154,7 @@ export function WorkflowGraph({
   const { positions, unreachable } = useMemo(() => layoutPositions(steps, stepEdges), [steps, stepEdges]);
 
   const nodes = useMemo<Node[]>(() => {
-    const entryX = steps[0] ? positions.get(steps[0].key)?.x ?? 0 : 0;
+    const entryX = steps[0] ? (positions.get(steps[0].key)?.x ?? 0) : 0;
     const triggerNodes: Node[] = triggers.map((t, i) => {
       // Sit a trigger over the step it feeds (falls back to the entry column).
       const targetX = t.entryStepKey != null ? positions.get(t.entryStepKey)?.x : undefined;
@@ -164,8 +188,13 @@ export function WorkflowGraph({
       const stepKeys = new Set(steps.map((s) => s.key));
       for (const t of triggers) {
         // Edge into the step the trigger feeds, or the first step when unset / stale.
-        const target = t.entryStepKey != null && stepKeys.has(t.entryStepKey) ? String(t.entryStepKey) : firstId;
-        list.push({ id: `e-trigger-${t.key}-${target}`, source: `trigger:${t.key}`, target });
+        const target =
+          t.entryStepKey != null && stepKeys.has(t.entryStepKey) ? String(t.entryStepKey) : firstId;
+        list.push({
+          id: `e-trigger-${t.key}-${target}`,
+          source: `trigger:${t.key}`,
+          target,
+        });
       }
     }
     for (const edge of stepEdges) {
@@ -191,7 +220,9 @@ export function WorkflowGraph({
         nodesDraggable={false}
         nodesConnectable={false}
         proOptions={{ hideAttribution: true }}
-        onNodeClick={onSelect ? (_, node) => onSelect(node.type === "trigger" ? node.id : Number(node.id)) : undefined}
+        onNodeClick={
+          onSelect ? (_, node) => onSelect(node.type === "trigger" ? node.id : Number(node.id)) : undefined
+        }
         fitView
       >
         <Background />
