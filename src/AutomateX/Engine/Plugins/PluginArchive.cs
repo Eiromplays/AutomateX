@@ -33,13 +33,12 @@ public static class PluginArchive
         }
 
         var targetDir = Path.GetFullPath(Path.Combine(pluginsRoot, pluginName));
+
+        // Fail-fast: reject any zip-slip entry before deleting the existing plugin folder,
+        // so a malicious upload can't destroy the installed plugin on its way to failing.
         foreach (var entry in archive.Entries)
         {
-            var destination = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
-            if (!destination.StartsWith(targetDir + Path.DirectorySeparatorChar, StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException($"Archive entry '{entry.FullName}' escapes the plugin folder.");
-            }
+            _ = SafeDestination(targetDir, entry.FullName);
         }
 
         if (Directory.Exists(targetDir))
@@ -55,11 +54,23 @@ public static class PluginArchive
                 continue;
             }
 
-            var destination = Path.GetFullPath(Path.Combine(targetDir, entry.FullName));
+            // Re-validate on the write path itself so the guard sits on the same dataflow as the sink.
+            var destination = SafeDestination(targetDir, entry.FullName);
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             entry.ExtractToFile(destination, overwrite: true);
         }
 
         return targetDir;
+    }
+
+    private static string SafeDestination(string targetDir, string entryName)
+    {
+        var destination = Path.GetFullPath(Path.Combine(targetDir, entryName));
+        if (!destination.StartsWith(targetDir + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Archive entry '{entryName}' escapes the plugin folder.");
+        }
+
+        return destination;
     }
 }
