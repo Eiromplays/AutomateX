@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { Toasts, toast } from "./components/toast";
 import { ConfirmProvider, usePrompt } from "./components/ui/confirm";
@@ -158,6 +158,18 @@ function WorkspaceSwitcher() {
     queryFn: api.workspaces.list,
     staleTime: 60_000,
   });
+
+  // The stored id is a UI-preference cache, not a source of truth. If it points at a
+  // workspace that no longer exists (deleted, or a wiped dev DB), drop it so requests
+  // fall back to Default instead of silently scoping every query to a dead id.
+  useEffect(() => {
+    if (!workspaces) return;
+    const stored = getWorkspaceId();
+    if (stored && !workspaces.some((w) => w.id === stored)) {
+      setWorkspaceId(null);
+      window.location.reload();
+    }
+  }, [workspaces]);
 
   if (!workspaces || workspaces.length === 0) return null;
 
