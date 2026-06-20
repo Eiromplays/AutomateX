@@ -87,3 +87,19 @@ export function rewriteIndexRefs(value: string, steps: StepLite[]): string {
     return key ? `${head}${key}${tail}` : match;
   });
 }
+
+// Same rewrite across a whole config object — refs only ever live inside string values, and
+// the token braces aren't escaped by JSON.stringify, so a serialize-rewrite-parse round-trip
+// is safe and structure-preserving.
+export function rewriteConfigIndexRefs(
+  config: Record<string, unknown>,
+  steps: StepLite[],
+): Record<string, unknown> {
+  return JSON.parse(rewriteIndexRefs(JSON.stringify(config), steps)) as Record<string, unknown>;
+}
+
+// Does any string value in the config carry a numeric (index-based) step ref? Uses a
+// non-global regex — INDEX_RE is stateful (/g) and reserved for replace.
+export function configHasIndexRef(config: Record<string, unknown>): boolean {
+  return /\{\{\s*steps\.\d+\.output[^}]*\}\}/.test(JSON.stringify(config));
+}

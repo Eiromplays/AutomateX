@@ -7,6 +7,7 @@ import { ConnectionForm } from "./connection-form";
 import { filterConnections } from "./connection-form-logic";
 import { checkConnectionRefs, hasConnectionRef } from "./connection-refs";
 import { fieldKind, type JsonSchema } from "./schema-fields";
+import { checkStepRefs, type StepLite } from "./step-refs";
 import { Dialog, DialogContent } from "./ui/dialog";
 
 // Renders a form from the JSON Schema the engine exports for each action's config
@@ -22,6 +23,8 @@ type SchemaFormProps = {
   // The active action type, so a few actions (e.g. switch) can swap in a purpose-built
   // editor for a field instead of the generic JSON fallback.
   actionType?: string;
+  // Sibling steps (keys + orders) for validating {{steps.<key>.output…}} references.
+  stepRefs?: StepLite[];
 };
 
 const inputClass =
@@ -625,7 +628,7 @@ function LlmAgentEditor({
   );
 }
 
-export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormProps) {
+export function SchemaForm({ schema, value, onChange, actionType, stepRefs }: SchemaFormProps) {
   // For validating {{connections.…}} refs in field values. undefined while loading → neutral chip.
   const { data: connections } = useQuery({
     queryKey: ["connections"],
@@ -685,6 +688,7 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
         }
         const kind = fieldKind(property);
         const refCheck = connections ? checkConnectionRefs(value[key], connections) : null;
+        const stepCheck = stepRefs ? checkStepRefs(value[key], stepRefs) : null;
         const isEmptyRequired =
           required.has(key) && kind !== "boolean" && (value[key] === undefined || value[key] === "");
         return (
@@ -709,6 +713,27 @@ export function SchemaForm({ schema, value, onChange, actionType }: SchemaFormPr
                   title={`Unknown connection or key: ${refCheck.unknown.join(", ")}`}
                 >
                   🔗 unknown: {refCheck.unknown.join(", ")}
+                </span>
+              )}
+              {stepCheck?.status === "ok" && (
+                <span className="text-[10px] text-emerald-400" title="Step reference resolves">
+                  ⛓ step
+                </span>
+              )}
+              {stepCheck?.status === "fragile" && (
+                <span
+                  className="text-[10px] text-amber-400"
+                  title={`Index-based step reference (#${stepCheck.fragile.join(", #")}) — breaks on reorder. Convert to names.`}
+                >
+                  ⛓ index — convert to name
+                </span>
+              )}
+              {stepCheck?.status === "unknown" && (
+                <span
+                  className="text-[10px] text-red-400"
+                  title={`Unknown step: ${stepCheck.unknown.join(", ")}`}
+                >
+                  ⛓ unknown step: {stepCheck.unknown.join(", ")}
                 </span>
               )}
             </span>

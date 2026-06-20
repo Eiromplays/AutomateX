@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api, type CreateWorkflowStep, type WorkflowEdgeInput } from "../lib/api";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { type JsonSchema, SchemaForm } from "./schema-form";
+import { assignStepKeys, configHasIndexRef, rewriteConfigIndexRefs, type StepLite } from "./step-refs";
 import {
   FanOutTargets,
   keyEdges,
@@ -80,6 +81,19 @@ export function WorkflowForm({
     actions?.find((a) => a.type === actionType)?.displayName ?? actionType;
   const stepLabels = steps.map((s, i) => `#${i + 1} ${s.name || displayName(s.actionType)}`);
 
+  // Derived reference identities (key per step), matching the server's slug + dedup, so the
+  // builder can validate {{steps.<key>.output…}} refs and convert index-based ones.
+  const stepKeys = assignStepKeys(steps.map((s) => ({ name: s.name })));
+  const stepRefs: StepLite[] = steps.map((s, i) => ({ key: stepKeys[i], order: i, name: s.name ?? null }));
+  const hasIndexRefs = steps.some((s) => configHasIndexRef(s.config));
+
+  const convertIndexRefs = () =>
+    setSteps((current) => {
+      const keys = assignStepKeys(current.map((s) => ({ name: s.name })));
+      const refs: StepLite[] = current.map((s, i) => ({ key: keys[i], order: i, name: s.name ?? null }));
+      return current.map((s) => ({ ...s, config: rewriteConfigIndexRefs(s.config, refs) }));
+    });
+
   const updateStep = (key: number, patch: Partial<DraftStep>) =>
     setSteps((current) => current.map((s) => (s.key === key ? { ...s, ...patch } : s)));
 
@@ -140,6 +154,16 @@ export function WorkflowForm({
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium text-zinc-300">Steps</h2>
           <div className="flex items-center gap-2">
+            {hasIndexRefs && (
+              <button
+                type="button"
+                onClick={convertIndexRefs}
+                title="Rewrite {{steps.N.output…}} references to use step names — stable across reorder."
+                className="rounded-md border border-amber-700/60 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-950/40"
+              >
+                Convert index refs → names
+              </button>
+            )}
             <div className="flex overflow-hidden rounded-md border border-zinc-700 text-xs">
               <button type="button" onClick={() => setMode("canvas")} className={tabClass(mode === "canvas")}>
                 Canvas
@@ -173,6 +197,7 @@ export function WorkflowForm({
             triggers={triggerDrafts}
             onTriggersChange={setTriggerDrafts}
             stepLabels={stepLabels}
+            stepRefs={stepRefs}
           />
         )}
 
@@ -242,6 +267,7 @@ export function WorkflowForm({
                 schema={schemaFor(step.actionType)}
                 value={step.config}
                 actionType={step.actionType}
+                stepRefs={stepRefs}
                 onChange={(config) => updateStep(step.key, { config })}
               />
               <div className="mt-3">

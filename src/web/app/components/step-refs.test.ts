@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   assignStepKeys,
   checkStepRefs,
+  configHasIndexRef,
   hasStepRef,
+  rewriteConfigIndexRefs,
   rewriteIndexRefs,
   type StepLite,
   slugifyStepKey,
@@ -90,5 +92,20 @@ describe("rewriteIndexRefs", () => {
   it("leaves key refs and unknown orders alone", () => {
     expect(rewriteIndexRefs("{{steps.ssh-deploy.output.x}}", steps)).toBe("{{steps.ssh-deploy.output.x}}");
     expect(rewriteIndexRefs("{{steps.9.output}}", steps)).toBe("{{steps.9.output}}");
+  });
+});
+
+describe("config helpers", () => {
+  it("detects index refs anywhere in a config", () => {
+    expect(configHasIndexRef({ message: "got {{steps.1.output.stdout}}" })).toBe(true);
+    expect(configHasIndexRef({ message: "{{steps.ssh-deploy.output.stdout}}" })).toBe(false);
+    expect(configHasIndexRef({ message: "plain" })).toBe(false);
+  });
+
+  it("rewrites index refs across a config object, preserving structure", () => {
+    expect(rewriteConfigIndexRefs({ message: "{{steps.1.output.stdout}}", priority: 2 }, steps)).toEqual({
+      message: "{{steps.ssh-deploy.output.stdout}}",
+      priority: 2,
+    });
   });
 });
