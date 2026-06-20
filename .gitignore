@@ -17,3 +17,7 @@ TestResults/
 
 # Local env / secrets for self-host
 .env
+
+# Claude Code per-machine local settings (permissions/overrides) — never shared.
+# Keep shared .claude/ config (settings.json, commands, etc.) trackable.
+**/.claude/settings.local.json

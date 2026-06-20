@@ -10,9 +10,10 @@ public static class RateLimitPolicies
 }
 
 // Defense-in-depth rate limiting for the public, unauthenticated endpoints (webhook fire and the
-// API-key session exchange). Partitioned per client IP — best-effort behind a reverse proxy, where
-// it prefers the first X-Forwarded-For hop and falls back to the socket address. Not the primary
-// control (webhook secrets / the API key are), just a brake on brute force and abuse.
+// API-key session exchange). Partitioned per client IP via the connection's RemoteIpAddress —
+// behind the reverse proxy, forwarded-headers processing (trusted proxies only) resolves that to
+// the real client, and an untrusted caller can't rotate it the way a raw X-Forwarded-For header
+// could. Not the primary control (webhook secrets / the API key are), just a brake on abuse.
 public static class RateLimitingExtensions
 {
     public static IServiceCollection AddAutomateXRateLimiting(this IServiceCollection services)
@@ -29,10 +30,7 @@ public static class RateLimitingExtensions
 
     private static RateLimitPartition<string> Partition(HttpContext context, string policy, int permitLimit)
     {
-        var forwarded = context.Request.Headers["X-Forwarded-For"].FirstOrDefault()?.Split(',')[0].Trim();
-        var client = string.IsNullOrEmpty(forwarded)
-            ? context.Connection.RemoteIpAddress?.ToString() ?? "unknown"
-            : forwarded;
+        var client = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 
         return RateLimitPartition.GetFixedWindowLimiter(
             $"{policy}:{client}",
