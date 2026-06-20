@@ -47,13 +47,13 @@ public static class UpdateWorkflow
 
             var edges = CreateWorkflow.BuildEdges(req.Edges, req.Steps.Count, message => ThrowError(message));
 
+            var steps = req.Steps
+                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
+                .ToList();
+            StepReferences.Validate(steps, message => ThrowError(message));
+
             workflow.Rename(req.Name, req.Description);
-            var version = workflow.AddVersion(
-                req.Steps
-                    .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
-                    .ToList(),
-                edges,
-                req.ContinueOnFailure);
+            var version = workflow.AddVersion(steps, edges, req.ContinueOnFailure);
 
             // Explicit Add — see ExecuteStepHandler: discovered children with client-set keys track as Modified.
             dbContext.WorkflowVersions.Add(version);

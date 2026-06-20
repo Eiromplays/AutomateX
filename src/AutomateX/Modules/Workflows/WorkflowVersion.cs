@@ -38,14 +38,10 @@ public sealed class WorkflowVersion
             ContinueOnFailure = continueOnFailure,
         };
 
-        var takenKeys = new HashSet<string>(StringComparer.Ordinal);
+        var keys = StepKey.AssignAll(steps);
         for (var order = 0; order < steps.Count; order++)
         {
-            var definition = steps[order];
-            var baseKey = StepKey.Slugify(
-                string.IsNullOrWhiteSpace(definition.Key) ? definition.Name : definition.Key, order);
-            var key = StepKey.Unique(baseKey, takenKeys);
-            workflowVersion.Steps.Add(WorkflowStep.Create(workflowVersion.Id, order, definition, key));
+            workflowVersion.Steps.Add(WorkflowStep.Create(workflowVersion.Id, order, steps[order], keys[order]));
         }
 
         foreach (var edge in edges ?? [])

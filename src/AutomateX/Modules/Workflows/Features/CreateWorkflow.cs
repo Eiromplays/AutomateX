@@ -36,13 +36,13 @@ public static class CreateWorkflow
 
             var edges = BuildEdges(req.Edges, req.Steps.Count, message => ThrowError(message));
 
+            var steps = req.Steps
+                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
+                .ToList();
+            StepReferences.Validate(steps, message => ThrowError(message));
+
             var workflow = Workflow.Create(req.Name, req.Description, ws);
-            var version = workflow.AddVersion(
-                req.Steps
-                    .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
-                    .ToList(),
-                edges,
-                req.ContinueOnFailure);
+            var version = workflow.AddVersion(steps, edges, req.ContinueOnFailure);
 
             dbContext.Workflows.Add(workflow);
             await dbContext.SaveChangesAsync(ct);
