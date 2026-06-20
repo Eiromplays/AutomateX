@@ -2,14 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
-import { DEFAULT_WORKSPACE_ID, api, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
+import { api, DEFAULT_WORKSPACE_ID, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
   "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
-
-const DEFAULT_WORKSPACE_ID = "00000000-0000-0000-0000-000000000001";
-
 export default function WorkspaceSettings() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();

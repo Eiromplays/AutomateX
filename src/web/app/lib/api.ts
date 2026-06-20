@@ -545,8 +545,7 @@ export const api = {
     remove: (id: string) => request<void>(`/triggers/${id}`, { method: "DELETE" }),
   },
   executions: {
-    list: (take?: number) =>
-      request<ExecutionSummary[]>(`/executions${take ? `?take=${take}` : ""}`),
+    list: (take?: number) => request<ExecutionSummary[]>(`/executions${take ? `?take=${take}` : ""}`),
     get: (id: string) => request<ExecutionDetail>(`/executions/${id}`),
     remove: (id: string) => request<void>(`/executions/${id}`, { method: "DELETE" }),
     // Replay with the byte-identical original payload, on the latest version.

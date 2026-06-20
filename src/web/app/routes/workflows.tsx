@@ -81,43 +81,47 @@ export default function Workflows() {
       )}
 
       {!isLoading && (
-      <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-        {filtered.map((workflow) => (
-          <li key={workflow.id}>
-            <Link
-              to={`/workflows/${workflow.id}`}
-              className="flex items-center justify-between px-4 py-3 hover:bg-zinc-900"
-            >
-              <div>
-                <div className="text-sm font-medium">{workflow.name}</div>
-                {workflow.description && <div className="text-xs text-zinc-500">{workflow.description}</div>}
-                {workflow.runsAfter.length > 0 && (
-                  <div className="text-xs text-violet-400">⛓ runs after {workflow.runsAfter.join(", ")}</div>
-                )}
-                {workflow.feeds.length > 0 && (
-                  <div className="text-xs text-violet-400">⛓ feeds {workflow.feeds.join(", ")}</div>
-                )}
-              </div>
-              <span className="flex items-center gap-2 text-xs text-zinc-500">
-                {!workflow.enabled && <span className="text-amber-400">⏸ paused</span>}
-                v{workflow.latestVersion}
-              </span>
-            </Link>
-          </li>
-        ))}
-        {workflows?.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-zinc-500">
-            No workflows yet — create the first one, or{" "}
-            <Link to="/templates" className="text-emerald-400 hover:underline">
-              start from a template
-            </Link>
-            .
-          </li>
-        )}
-        {(workflows?.length ?? 0) > 0 && filtered.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-zinc-500">No workflows match “{query}”.</li>
-        )}
-      </ul>
+        <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+          {filtered.map((workflow) => (
+            <li key={workflow.id}>
+              <Link
+                to={`/workflows/${workflow.id}`}
+                className="flex items-center justify-between px-4 py-3 hover:bg-zinc-900"
+              >
+                <div>
+                  <div className="text-sm font-medium">{workflow.name}</div>
+                  {workflow.description && (
+                    <div className="text-xs text-zinc-500">{workflow.description}</div>
+                  )}
+                  {workflow.runsAfter.length > 0 && (
+                    <div className="text-xs text-violet-400">
+                      ⛓ runs after {workflow.runsAfter.join(", ")}
+                    </div>
+                  )}
+                  {workflow.feeds.length > 0 && (
+                    <div className="text-xs text-violet-400">⛓ feeds {workflow.feeds.join(", ")}</div>
+                  )}
+                </div>
+                <span className="flex items-center gap-2 text-xs text-zinc-500">
+                  {!workflow.enabled && <span className="text-amber-400">⏸ paused</span>}v
+                  {workflow.latestVersion}
+                </span>
+              </Link>
+            </li>
+          ))}
+          {workflows?.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-zinc-500">
+              No workflows yet — create the first one, or{" "}
+              <Link to="/templates" className="text-emerald-400 hover:underline">
+                start from a template
+              </Link>
+              .
+            </li>
+          )}
+          {(workflows?.length ?? 0) > 0 && filtered.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-zinc-500">No workflows match “{query}”.</li>
+          )}
+        </ul>
       )}
     </div>
   );
