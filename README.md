@@ -9,6 +9,22 @@ extend everything with plugins. Think Zapier/n8n, but yours: your hardware, your
 Release history is in [CHANGELOG.md](CHANGELOG.md). v1 is archived at
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## Screenshots
+
+The visual builder — `switch` routing into parallel lanes that rejoin, with continue-on-failure:
+
+![Workflow builder with branching canvas](docs/img/builder-branching.png)
+
+The dashboard (execution metrics + per-workflow health) and a live execution run graph:
+
+![Dashboard](docs/img/dashboard.png)
+![Execution run graph](docs/img/execution-graph.png)
+
+Every action renders a form from its JSON Schema, with inline `{{connections.…}}` autocomplete on
+config fields:
+
+![Form editor with connection autocomplete](docs/img/form-editor.png)
+
 ## Highlights
 
 - **Durable engine** — each step is a Postgres-backed Wolverine message with per-step retries and
