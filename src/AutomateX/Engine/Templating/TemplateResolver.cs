@@ -12,6 +12,7 @@ public sealed record TemplateContext(
     Guid ExecutionId,
     Guid WorkflowId,
     IReadOnlyDictionary<string, JsonElement>? Connections = null,
+    IReadOnlyDictionary<string, int>? StepKeys = null,
     ISet<string>? SecretSink = null);
 
 // Resolves {{path}} tokens in step configs before execution. Roots:
@@ -121,6 +122,20 @@ public static partial class TemplateResolver
         return current;
     }
 
+    // A numeric segment is a step order; anything else is a step key resolved via StepKeys.
+    private static int ResolveStepOrder(string segment, string path, TemplateContext context)
+    {
+        if (int.TryParse(segment, out var order))
+        {
+            return order;
+        }
+
+        return context.StepKeys is { } keys && keys.TryGetValue(segment, out var keyed)
+            ? keyed
+            : throw new TemplateResolutionException(
+                $"Path '{path}' could not be resolved: unknown step '{segment}'.");
+    }
+
     private static (JsonElement Root, int ConsumedSegments, bool IsSecret) ResolveRoot(
         string[] segments, string path, TemplateContext context)
     {
@@ -132,13 +147,12 @@ public static partial class TemplateResolver
                     : throw new TemplateResolutionException(
                         $"Path '{path}' could not be resolved: this execution has no trigger payload.");
 
-            case "steps" when segments.Length >= 3
-                && int.TryParse(segments[1], out var order)
-                && segments[2] == "output":
+            case "steps" when segments.Length >= 3 && segments[2] == "output":
+                var order = ResolveStepOrder(segments[1], path, context);
                 return context.StepOutputs.TryGetValue(order, out var output)
                     ? (output, 3, false)
                     : throw new TemplateResolutionException(
-                        $"Path '{path}' could not be resolved: no completed step with order {order}.");
+                        $"Path '{path}' could not be resolved: no completed step '{segments[1]}'.");
 
             case "execution" when segments.Length == 2 && segments[1] == "id":
                 return (JsonSerializer.SerializeToElement(context.ExecutionId.ToString()), 2, false);

@@ -47,7 +47,7 @@ public static class GetWorkflow
                             v.ContinueOnFailure,
                             v.Steps
                                 .OrderBy(s => s.Order)
-                                .Select(s => new StepResponse(s.Id, s.Order, s.Name, s.ActionType, s.ConfigJson))
+                                .Select(s => new StepResponse(s.Id, s.Order, s.Key, s.Name, s.ActionType, s.ConfigJson))
                                 .ToList(),
                             v.Edges
                                 .Select(e => new EdgeResponse(e.FromOrder, e.ToOrder, e.Label))
@@ -158,7 +158,7 @@ public static class GetWorkflow
 
     public sealed record VersionSummary(Guid Id, int Version, DateTimeOffset CreatedAt, int StepCount);
 
-    public sealed record StepResponse(Guid Id, int Order, string? Name, string ActionType, string ConfigJson);
+    public sealed record StepResponse(Guid Id, int Order, string Key, string? Name, string ActionType, string ConfigJson);
 
     public sealed record EdgeResponse(int From, int To, string? Label);
 

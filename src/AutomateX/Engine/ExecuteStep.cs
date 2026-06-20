@@ -281,12 +281,24 @@ public static class ExecuteStepHandler
             connections = await connectionResolver.ResolveAsync(workspaceConnections, cancellationToken);
         }
 
+        // Only needed when a config references a step by key; numeric refs resolve from StepOutputs.
+        Dictionary<string, int>? stepKeys = null;
+        if (configJson.Contains("{{steps.", StringComparison.Ordinal))
+        {
+            stepKeys = await dbContext.WorkflowSteps
+                .AsNoTracking()
+                .Where(x => x.WorkflowVersionId == execution.WorkflowVersionId)
+                .Select(x => new { x.Key, x.Order })
+                .ToDictionaryAsync(x => x.Key, x => x.Order, cancellationToken);
+        }
+
         return new TemplateContext(
             ParseOptionalJson(execution.TriggerPayload),
             stepOutputs,
             execution.Id,
             execution.WorkflowId,
-            connections);
+            connections,
+            stepKeys);
     }
 
     private static JsonElement ParseOutput(string? output)

@@ -25,6 +25,7 @@ public static class WorkflowTransfer
             {
                 ["actionType"] = step.ActionType,
                 ["name"] = step.Name,
+                ["key"] = step.Key,
                 ["config"] = ParseOrEmpty(step.ConfigJson),
             })
             .ToArray());
@@ -98,7 +99,8 @@ public static class WorkflowTransfer
             }
 
             var stepName = node?["name"] is JsonValue value ? value.GetValue<string>() : null;
-            steps.Add(new StepDefinition(actionType, stepName, node?["config"]?.ToJsonString() ?? "{}"));
+            var stepKey = node?["key"] is JsonValue keyValue ? keyValue.GetValue<string>() : null;
+            steps.Add(new StepDefinition(actionType, stepName, node?["config"]?.ToJsonString() ?? "{}", stepKey));
         }
 
         // Edges are optional — pre-branching documents simply have none (linear by Order).

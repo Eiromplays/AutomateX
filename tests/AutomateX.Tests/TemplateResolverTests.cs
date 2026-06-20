@@ -125,7 +125,47 @@ public sealed class TemplateResolverTests
         var ex = Assert.Throws<TemplateResolutionException>(() =>
             TemplateResolver.Resolve("""{"x":"{{steps.3.output}}"}""", Context()));
 
-        Assert.Contains("order 3", ex.Message);
+        Assert.Contains("step '3'", ex.Message);
+    }
+
+    [Fact]
+    public void Step_output_resolves_by_key()
+    {
+        var context = Context(outputs: (2, """{"stdout":"deployed"}""")) with
+        {
+            StepKeys = new Dictionary<string, int> { ["ssh-deploy"] = 2 },
+        };
+
+        var result = Resolve("""{"x":"{{steps.ssh-deploy.output.stdout}}"}""", context);
+
+        Assert.Equal("deployed", result.GetProperty("x").GetString());
+    }
+
+    [Fact]
+    public void Numeric_and_key_refs_address_the_same_step()
+    {
+        var context = Context(outputs: (2, """{"stdout":"deployed"}""")) with
+        {
+            StepKeys = new Dictionary<string, int> { ["ssh-deploy"] = 2 },
+        };
+
+        Assert.Equal(
+            Resolve("""{"x":"{{steps.2.output.stdout}}"}""", context).GetProperty("x").GetString(),
+            Resolve("""{"x":"{{steps.ssh-deploy.output.stdout}}"}""", context).GetProperty("x").GetString());
+    }
+
+    [Fact]
+    public void Unknown_step_key_throws()
+    {
+        var context = Context(outputs: (0, "{}")) with
+        {
+            StepKeys = new Dictionary<string, int> { ["probe"] = 0 },
+        };
+
+        var ex = Assert.Throws<TemplateResolutionException>(() =>
+            TemplateResolver.Resolve("""{"x":"{{steps.nope.output}}"}""", context));
+
+        Assert.Contains("unknown step 'nope'", ex.Message);
     }
 
     [Fact]

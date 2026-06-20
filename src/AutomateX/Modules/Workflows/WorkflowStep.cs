@@ -1,6 +1,8 @@
 namespace AutomateX.Modules.Workflows;
 
-public sealed record StepDefinition(string ActionType, string? Name, string ConfigJson);
+// Key is the stable reference identity ({{steps.<key>.output…}}); null lets the version
+// auto-derive a slug from Name. Display Name stays freely editable without breaking refs.
+public sealed record StepDefinition(string ActionType, string? Name, string ConfigJson, string? Key = null);
 
 public sealed class WorkflowStep
 {
@@ -16,16 +18,20 @@ public sealed class WorkflowStep
 
     public string? Name { get; private set; }
 
+    // Stable per-version slug used by templating; references bind to this, not Order or Name.
+    public string Key { get; private set; } = null!;
+
     public string ActionType { get; private set; } = null!;
 
     public string ConfigJson { get; private set; } = null!;
 
-    internal static WorkflowStep Create(Guid workflowVersionId, int order, StepDefinition definition) => new()
+    internal static WorkflowStep Create(Guid workflowVersionId, int order, StepDefinition definition, string key) => new()
     {
         Id = Guid.CreateVersion7(),
         WorkflowVersionId = workflowVersionId,
         Order = order,
         Name = definition.Name,
+        Key = key,
         ActionType = definition.ActionType,
         ConfigJson = definition.ConfigJson,
     };

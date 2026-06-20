@@ -47,7 +47,7 @@ public static class ExportWorkflow
             var latest = workflow.Versions.OrderByDescending(x => x.Version).First();
             var steps = latest.Steps
                 .OrderBy(x => x.Order)
-                .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson))
+                .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson, x.Key))
                 .ToList();
             var edges = latest.Edges
                 .Select(x => new EdgeDefinition(x.FromOrder, x.ToOrder, x.Label))
