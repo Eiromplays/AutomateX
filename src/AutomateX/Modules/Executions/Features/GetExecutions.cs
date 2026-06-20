@@ -24,11 +24,15 @@ public static class GetExecutions
                 return;
             }
 
+            // Page size: newest-first, capped so a long-lived instance never streams its whole
+            // history. The UI bumps `take` for "Load more".
+            var take = Math.Clamp(Query<int?>("take", isRequired: false) ?? 50, 1, 500);
+
             var rows = await dbContext.Executions
                 .AsNoTracking()
                 .Where(x => x.WorkspaceId == ws)
                 .OrderByDescending(x => x.StartedAt)
-                .Take(50)
+                .Take(take)
                 .Select(x => new
                 {
                     x.Id,

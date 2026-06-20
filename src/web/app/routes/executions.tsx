@@ -36,9 +36,10 @@ function buildTree(executions: ExecutionSummary[]) {
 export default function Executions() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
+  const [take, setTake] = useState(50);
   const { data: executions, isLoading } = useQuery({
-    queryKey: ["executions"],
-    queryFn: api.executions.list,
+    queryKey: ["executions", take],
+    queryFn: () => api.executions.list(take),
   });
 
   // Events are workspace-scoped now, so patch the row's status in place; only fetch
@@ -53,13 +54,13 @@ export default function Executions() {
             ? "Failed"
             : null;
 
-    const current = queryClient.getQueryData<ExecutionSummary[]>(["executions"]);
+    const current = queryClient.getQueryData<ExecutionSummary[]>(["executions", take]);
     if (!current?.some((x) => x.id === event.payload.executionId)) {
       queryClient.invalidateQueries({ queryKey: ["executions"] });
       return;
     }
     if (!status) return;
-    queryClient.setQueryData<ExecutionSummary[]>(["executions"], (rows) =>
+    queryClient.setQueryData<ExecutionSummary[]>(["executions", take], (rows) =>
       rows?.map((x) => (x.id === event.payload.executionId ? { ...x, status } : x)),
     );
   });
@@ -198,6 +199,17 @@ export default function Executions() {
             <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions match your filter.</li>
           )}
         </ul>
+      )}
+
+      {/* The list is capped server-side (newest first); reveal older runs on demand. */}
+      {!isLoading && (executions?.length ?? 0) >= take && (
+        <button
+          type="button"
+          onClick={() => setTake((current) => current + 50)}
+          className="mt-3 w-full rounded-md border border-zinc-800 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-900"
+        >
+          Load more
+        </button>
       )}
     </div>
   );
