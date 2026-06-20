@@ -4,6 +4,10 @@
 
 export type StepLite = { key: string; order: number; name: string | null };
 
+// StepLite plus the output field names from the step's action result schema ([] when the
+// schema is open/unknown). Drives output-field autocomplete.
+export type StepOutput = StepLite & { fields: string[] };
+
 export type StepRefCheck = {
   status: "none" | "ok" | "fragile" | "unknown";
   unknown: string[]; // ids that resolve to no step

@@ -7,11 +7,15 @@ import {
   connectionCompletions,
 } from "./connection-autocomplete";
 import type { ConnectionLite } from "./connection-refs";
+import { stepAutocompleteQuery, stepCompletions } from "./step-autocomplete";
+import type { StepOutput } from "./step-refs";
 
 type Props = {
   value: string;
   onChange: (value: string) => void;
   connections: ConnectionLite[];
+  steps?: StepOutput[];
+  stepOrder?: number;
   multiline?: boolean;
   className?: string;
   placeholder?: string;
@@ -24,6 +28,8 @@ export function ConnectionAutocompleteField({
   value,
   onChange,
   connections,
+  steps,
+  stepOrder,
   multiline,
   className,
   placeholder,
@@ -50,8 +56,19 @@ export function ConnectionAutocompleteField({
   const close = () => setCompletions([]);
 
   const refresh = (text: string, at: number) => {
-    const active = connectionAutocompleteQuery(text, at);
-    const matches = active ? connectionCompletions(connections, active.query).slice(0, 8) : [];
+    // {{connections.…}} and {{steps.…}} are distinct prefixes, so at most one is active.
+    const conn = connectionAutocompleteQuery(text, at);
+    let step: { start: number; query: string } | null = null;
+    if (!conn && steps) {
+      step = stepAutocompleteQuery(text, at);
+    }
+    const active = conn ?? step;
+    let matches: Completion[] = [];
+    if (conn) {
+      matches = connectionCompletions(connections, conn.query).slice(0, 8);
+    } else if (step && steps) {
+      matches = stepCompletions(steps, step.query, stepOrder).slice(0, 8);
+    }
     if (!active || matches.length === 0) {
       close();
       return;

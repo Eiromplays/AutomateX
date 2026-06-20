@@ -7,7 +7,7 @@ import { ConnectionForm } from "./connection-form";
 import { filterConnections } from "./connection-form-logic";
 import { checkConnectionRefs, hasConnectionRef } from "./connection-refs";
 import { fieldKind, type JsonSchema } from "./schema-fields";
-import { checkStepRefs, type StepLite } from "./step-refs";
+import { checkStepRefs, type StepOutput } from "./step-refs";
 import { Dialog, DialogContent } from "./ui/dialog";
 
 // Renders a form from the JSON Schema the engine exports for each action's config
@@ -23,8 +23,10 @@ type SchemaFormProps = {
   // The active action type, so a few actions (e.g. switch) can swap in a purpose-built
   // editor for a field instead of the generic JSON fallback.
   actionType?: string;
-  // Sibling steps (keys + orders) for validating {{steps.<key>.output…}} references.
-  stepRefs?: StepLite[];
+  // Sibling steps (keys + orders + output fields) for validating and autocompleting
+  // {{steps.<key>.output…}} references; stepOrder is this step's order (upstream filter).
+  stepRefs?: StepOutput[];
+  stepOrder?: number;
 };
 
 const inputClass =
@@ -628,7 +630,7 @@ function LlmAgentEditor({
   );
 }
 
-export function SchemaForm({ schema, value, onChange, actionType, stepRefs }: SchemaFormProps) {
+export function SchemaForm({ schema, value, onChange, actionType, stepRefs, stepOrder }: SchemaFormProps) {
   // For validating {{connections.…}} refs in field values. undefined while loading → neutral chip.
   const { data: connections } = useQuery({
     queryKey: ["connections"],
@@ -772,6 +774,8 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs }: Sc
                   value={value[key] === undefined ? "" : String(value[key])}
                   onChange={(v) => set(key, v === "" ? undefined : v)}
                   connections={connections ?? []}
+                  steps={stepRefs}
+                  stepOrder={stepOrder}
                 />
                 <div className="absolute right-1.5 top-1.5 flex items-center">
                   <ConnectionInserter onInsert={(token) => append(key, token)} />
@@ -784,6 +788,8 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs }: Sc
                   value={value[key] === undefined ? "" : String(value[key])}
                   onChange={(v) => set(key, v === "" ? undefined : v)}
                   connections={connections ?? []}
+                  steps={stepRefs}
+                  stepOrder={stepOrder}
                 />
                 <div className="absolute inset-y-0 right-1.5 flex items-center">
                   <ConnectionInserter onInsert={(token) => append(key, token)} />

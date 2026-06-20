@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api, type CreateWorkflowStep, type WorkflowEdgeInput } from "../lib/api";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { type JsonSchema, SchemaForm } from "./schema-form";
-import { assignStepKeys, configHasIndexRef, rewriteConfigIndexRefs, type StepLite } from "./step-refs";
+import { assignStepKeys, configHasIndexRef, rewriteConfigIndexRefs, type StepOutput } from "./step-refs";
 import {
   FanOutTargets,
   keyEdges,
@@ -81,16 +81,34 @@ export function WorkflowForm({
     actions?.find((a) => a.type === actionType)?.displayName ?? actionType;
   const stepLabels = steps.map((s, i) => `#${i + 1} ${s.name || displayName(s.actionType)}`);
 
+  // Output field names from an action's result schema (GET /api/actions); [] when the schema
+  // is open/unknown — autocomplete then offers only the whole-output token.
+  const outputFields = (actionType: string): string[] => {
+    const raw = actions?.find((a) => a.type === actionType)?.resultSchema;
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw) as { properties?: Record<string, unknown> };
+      return parsed.properties ? Object.keys(parsed.properties) : [];
+    } catch {
+      return [];
+    }
+  };
+
   // Derived reference identities (key per step), matching the server's slug + dedup, so the
-  // builder can validate {{steps.<key>.output…}} refs and convert index-based ones.
+  // builder can validate/autocomplete {{steps.<key>.output…}} refs and convert index-based ones.
   const stepKeys = assignStepKeys(steps.map((s) => ({ name: s.name })));
-  const stepRefs: StepLite[] = steps.map((s, i) => ({ key: stepKeys[i], order: i, name: s.name ?? null }));
+  const stepRefs: StepOutput[] = steps.map((s, i) => ({
+    key: stepKeys[i],
+    order: i,
+    name: s.name ?? null,
+    fields: outputFields(s.actionType),
+  }));
   const hasIndexRefs = steps.some((s) => configHasIndexRef(s.config));
 
   const convertIndexRefs = () =>
     setSteps((current) => {
       const keys = assignStepKeys(current.map((s) => ({ name: s.name })));
-      const refs: StepLite[] = current.map((s, i) => ({ key: keys[i], order: i, name: s.name ?? null }));
+      const refs = current.map((s, i) => ({ key: keys[i], order: i, name: s.name ?? null }));
       return current.map((s) => ({ ...s, config: rewriteConfigIndexRefs(s.config, refs) }));
     });
 
@@ -268,6 +286,7 @@ export function WorkflowForm({
                 value={step.config}
                 actionType={step.actionType}
                 stepRefs={stepRefs}
+                stepOrder={index}
                 onChange={(config) => updateStep(step.key, { config })}
               />
               <div className="mt-3">

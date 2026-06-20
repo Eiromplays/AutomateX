@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ActionDescriptor, CreateWorkflowStep } from "../lib/api";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { type JsonSchema, SchemaForm } from "./schema-form";
-import type { StepLite } from "./step-refs";
+import type { StepOutput } from "./step-refs";
 import { FanOutTargets, type KeyEdge, type SwitchRouting, SwitchTargets } from "./switch-routing";
 import { type GraphSelection, WorkflowGraph } from "./workflow-graph";
 import { type DraftTrigger, newDraftTrigger, TriggerEditor, triggerSummary } from "./workflow-triggers";
@@ -42,7 +42,7 @@ export function WorkflowCanvas({
   triggers: DraftTrigger[];
   onTriggersChange: (triggers: DraftTrigger[]) => void;
   stepLabels: string[];
-  stepRefs: StepLite[];
+  stepRefs: StepOutput[];
 }) {
   const [selection, setSelection] = useState<GraphSelection>(steps[0]?.key ?? null);
 
@@ -189,6 +189,7 @@ export function WorkflowCanvas({
               value={selectedStep.config}
               actionType={selectedStep.actionType}
               stepRefs={stepRefs}
+              stepOrder={steps.findIndex((s) => s.key === selectedStep.key)}
               onChange={(config) => onUpdateStep(selectedStep.key, { config })}
             />
             {selectedStep.actionType === "switch" ? (
