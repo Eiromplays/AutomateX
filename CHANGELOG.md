@@ -27,8 +27,15 @@ the browser.
   connection picker and Connections-list search; multiline config fields (`[Multiline]`) as
   auto-growing textareas; connection-reference validation (green resolves / amber unknown);
   required-field hints; and inline `{{connections.…}}` autocomplete in text and multiline fields.
-- **Workflow lifecycle.** Cancel/back on the edit page; delete unreferenced past versions
-  (the latest and any execution-referenced version are protected).
+- **Workflow lifecycle.** Enable/disable as a true pause (disabled workflows are dropped at the
+  engine, so no trigger fires them); clone; cancel/back on the edit page; delete unreferenced past
+  versions (the latest and any execution-referenced version are protected); loading skeletons.
+- **Security hardening.** Webhook auth moved to HMAC (`X-Webhook-Signature: sha256=<hex>` over the
+  raw body, or the `X-Webhook-Secret` header; the `?secret=` query param was removed); opt-in SSRF
+  guard (`Engine__BlockPrivateNetworkRequests`) over loopback/RFC1918/ULA/link-local/`0.0.0.0/8`
+  with a DNS-rebinding-safe connect callback (CGNAT `100.64/10` stays allowed for Tailscale);
+  per-client-IP rate limiting with forwarded headers trusted from known proxies in all auth modes;
+  zip-slip guard on plugin extraction; and CI hardening (Biome lint, Dependabot, CodeQL).
 
 ## v2.9 — convergence
 
