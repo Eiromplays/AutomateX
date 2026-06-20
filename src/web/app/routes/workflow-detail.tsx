@@ -169,6 +169,16 @@ export default function WorkflowDetail() {
     onError: (error) => toast.error(`Clone failed — ${String(error)}`),
   });
 
+  const setEnabled = useMutation({
+    mutationFn: (enabled: boolean) => api.workflows.setEnabled(id, enabled),
+    onSuccess: (_result, enabled) => {
+      queryClient.invalidateQueries({ queryKey: ["workflow", id] });
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast.success(enabled ? "Workflow enabled." : "Workflow disabled — runs are paused.");
+    },
+    onError: (error) => toast.error(`Failed — ${String(error)}`),
+  });
+
   if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
   if (error || !workflow) {
     return (
@@ -186,7 +196,14 @@ export default function WorkflowDetail() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">{workflow.name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-semibold">{workflow.name}</h1>
+            {!workflow.enabled && (
+              <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400">
+                ⏸ paused
+              </span>
+            )}
+          </div>
           {workflow.description && <p className="text-sm text-zinc-500">{workflow.description}</p>}
         </div>
         <div className="flex items-center gap-2">
@@ -210,6 +227,9 @@ export default function WorkflowDetail() {
             <DropdownMenuContent>
               <DropdownMenuItem onSelect={() => navigate(`/workflows/${id}/edit`)}>Edit</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => clone.mutate()}>Clone</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setEnabled.mutate(!workflow.enabled)}>
+                {workflow.enabled ? "Disable" : "Enable"}
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={exportWorkflow}>Export</DropdownMenuItem>
               <DropdownMenuItem
                 destructive

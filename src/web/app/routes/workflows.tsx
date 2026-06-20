@@ -98,7 +98,10 @@ export default function Workflows() {
                   <div className="text-xs text-violet-400">⛓ feeds {workflow.feeds.join(", ")}</div>
                 )}
               </div>
-              <span className="text-xs text-zinc-500">v{workflow.latestVersion}</span>
+              <span className="flex items-center gap-2 text-xs text-zinc-500">
+                {!workflow.enabled && <span className="text-amber-400">⏸ paused</span>}
+                v{workflow.latestVersion}
+              </span>
             </Link>
           </li>
         ))}

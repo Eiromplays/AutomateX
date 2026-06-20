@@ -62,6 +62,7 @@ export type WorkflowSummary = {
   name: string;
   description: string | null;
   createdAt: string;
+  enabled: boolean;
   latestVersion: number;
   runsAfter: string[];
   feeds: string[];
@@ -105,6 +106,7 @@ export type WorkflowDetail = {
   name: string;
   description: string | null;
   createdAt: string;
+  enabled: boolean;
   latestVersion: {
     id: string;
     version: number;
@@ -459,6 +461,12 @@ export const api = {
     deleteVersion: (id: string, version: number) =>
       request<void>(`/workflows/${id}/versions/${version}`, {
         method: "DELETE",
+      }),
+    // Pause/resume: a disabled workflow won't run from any trigger, chain, schedule, or manual call.
+    setEnabled: (id: string, enabled: boolean) =>
+      request<void>(`/workflows/${id}/enabled`, {
+        method: "PUT",
+        body: JSON.stringify({ enabled }),
       }),
     // Portable document — secrets excluded by construction (cron triggers only,
     // connections as name references). Import needs same-named connections.

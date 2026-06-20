@@ -25,9 +25,9 @@ public static class RunWorkflowHandler
             return null;
         }
 
-        var workspaceId = await dbContext.Workflows
+        var workflow = await dbContext.Workflows
             .Where(x => x.Id == message.WorkflowId)
-            .Select(x => (Guid?)x.WorkspaceId)
+            .Select(x => new { x.WorkspaceId, x.Enabled })
             .FirstOrDefaultAsync(cancellationToken);
 
         var version = await dbContext.WorkflowVersions
@@ -37,11 +37,20 @@ public static class RunWorkflowHandler
             .OrderByDescending(x => x.Version)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (workspaceId is null || version is null)
+        if (workflow is null || version is null)
         {
             logger.LogWarning("Workflow {WorkflowId} is missing or has no versions, skipping run", message.WorkflowId);
             return null;
         }
+
+        // Disabled = paused at the source: drop the run regardless of how it was triggered.
+        if (!workflow.Enabled)
+        {
+            logger.LogInformation("Workflow {WorkflowId} is disabled — skipping run", message.WorkflowId);
+            return null;
+        }
+
+        var workspaceId = workflow.WorkspaceId;
 
         var execution = Execution.Start(
             message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload, workspaceId,

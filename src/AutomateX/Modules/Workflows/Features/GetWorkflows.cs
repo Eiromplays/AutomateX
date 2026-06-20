@@ -36,6 +36,7 @@ public static class GetWorkflows
                     x.Name,
                     x.Description,
                     x.CreatedAt,
+                    x.Enabled,
                     LatestVersion = x.Versions.Max(v => v.Version),
                 })
                 .ToListAsync(ct);
@@ -79,6 +80,7 @@ public static class GetWorkflows
                     x.Name,
                     x.Description,
                     x.CreatedAt,
+                    x.Enabled,
                     x.LatestVersion,
                     runsAfter.TryGetValue(x.Id, out var ra) ? ra : [],
                     feeds.TryGetValue(x.Id, out var fi) ? fi : []))
@@ -91,6 +93,7 @@ public static class GetWorkflows
         string Name,
         string? Description,
         DateTimeOffset CreatedAt,
+        bool Enabled,
         int LatestVersion,
         List<string> RunsAfter,
         List<string> Feeds);

@@ -29,9 +29,21 @@ public static class ExecuteWorkflow
 
             var id = Route<Guid>("id");
 
-            if (!await dbContext.Workflows.AnyAsync(x => x.Id == id && x.WorkspaceId == ws, ct))
+            var workflow = await dbContext.Workflows
+                .Where(x => x.Id == id && x.WorkspaceId == ws)
+                .Select(x => new { x.Enabled })
+                .FirstOrDefaultAsync(ct);
+
+            if (workflow is null)
             {
                 await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            // The engine drops disabled runs silently; surface a clear error for the manual path.
+            if (!workflow.Enabled)
+            {
+                ThrowError("This workflow is disabled — enable it before running.");
                 return;
             }
 

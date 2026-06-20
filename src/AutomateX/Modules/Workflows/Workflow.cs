@@ -18,6 +18,10 @@ public sealed class Workflow
 
     public DateTimeOffset CreatedAt { get; private set; }
 
+    // A disabled workflow is paused at the source: the engine refuses to start runs for it, so
+    // triggers, chains, scheduled and manual runs are all blocked until re-enabled.
+    public bool Enabled { get; private set; } = true;
+
     public List<WorkflowVersion> Versions { get; } = [];
 
     public static Workflow Create(string name, string? description, Guid? workspaceId = null) => new()
@@ -28,6 +32,8 @@ public sealed class Workflow
         Description = description,
         CreatedAt = DateTimeOffset.UtcNow,
     };
+
+    public void SetEnabled(bool enabled) => Enabled = enabled;
 
     public WorkflowVersion AddVersion(
         IReadOnlyList<StepDefinition> steps,

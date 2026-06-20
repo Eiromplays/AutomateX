@@ -37,6 +37,7 @@ public static class GetWorkflow
                     x.Name,
                     x.Description,
                     x.CreatedAt,
+                    x.Enabled,
                     LatestVersion = x.Versions
                         .OrderByDescending(v => v.Version)
                         .Select(v => new VersionResponse(
@@ -76,7 +77,7 @@ public static class GetWorkflow
 
             await Send.OkAsync(
                 new Response(
-                    workflow.Id, workflow.Name, workflow.Description, workflow.CreatedAt,
+                    workflow.Id, workflow.Name, workflow.Description, workflow.CreatedAt, workflow.Enabled,
                     workflow.LatestVersion, workflow.Versions, triggers, runsAfter, feeds),
                 ct);
         }
@@ -143,6 +144,7 @@ public static class GetWorkflow
         string Name,
         string? Description,
         DateTimeOffset CreatedAt,
+        bool Enabled,
         VersionResponse LatestVersion,
         List<VersionSummary> Versions,
         List<TriggerResponse> Triggers,
