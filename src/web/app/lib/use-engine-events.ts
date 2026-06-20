@@ -1,10 +1,6 @@
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { useEffect, useRef } from "react";
-import { getWorkspaceId } from "./api";
-
-// The server treats an absent X-Workspace-Id as the Default workspace; match it here
-// so the live stream joins the same group that requests are scoped to.
-const DEFAULT_WORKSPACE_ID = "00000000-0000-0000-0000-000000000001";
+import { DEFAULT_WORKSPACE_ID, getWorkspaceId } from "./api";
 
 export type EngineEvent = {
   type: "ExecutionStarted" | "StepCompleted" | "StepFailed" | "ExecutionCompleted" | "ExecutionFailed";

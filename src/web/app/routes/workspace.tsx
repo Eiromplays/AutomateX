@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
-import { api, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
+import { DEFAULT_WORKSPACE_ID, api, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
 
 const inputClass =
   "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +

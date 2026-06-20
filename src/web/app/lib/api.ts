@@ -1,6 +1,9 @@
 const API = "/api";
 const WORKSPACE_STORAGE = "automatex.workspace";
 
+// The server resolves an absent X-Workspace-Id to this well-known id (Workspace.DefaultId).
+export const DEFAULT_WORKSPACE_ID = "00000000-0000-0000-0000-000000000001";
+
 export function getWorkspaceId(): string | null {
   return localStorage.getItem(WORKSPACE_STORAGE);
 }
