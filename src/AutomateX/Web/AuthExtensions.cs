@@ -28,6 +28,39 @@ public static class AuthExtensions
             .PersistKeysToDbContext<AutomateXDbContext>()
             .SetApplicationName("AutomateX");
 
+        // Forwarded headers are processed in every auth mode — recovering the real client IP/proto/
+        // host from the proxy is for logging, rate limiting and webhook URLs, none OIDC-specific
+        // (OIDC additionally needs proto/host for its redirect URI). Only trust them from the proxy,
+        // never from arbitrary clients (spoofed Host/proto = redirect/host poisoning; spoofed XFF =
+        // dodging rate-limit windows). Default to private ranges (the proxy shares the container/LAN
+        // network); pin tighter with ForwardedHeaders:KnownProxies (CSV of the proxy's IPs).
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders =
+                ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedFor;
+            options.KnownIPNetworks.Clear();
+            options.KnownProxies.Clear();
+
+            var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>();
+            if (knownProxies is { Length: > 0 })
+            {
+                foreach (var proxy in knownProxies)
+                {
+                    if (IPAddress.TryParse(proxy, out var address))
+                    {
+                        options.KnownProxies.Add(address);
+                    }
+                }
+            }
+            else
+            {
+                foreach (var network in PrivateNetworks)
+                {
+                    options.KnownIPNetworks.Add(network);
+                }
+            }
+        });
+
         var auth = builder.Configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
         if (!auth.OidcConfigured)
         {
@@ -88,37 +121,6 @@ public static class AuthExtensions
         builder.Services.AddSingleton<CookieTokenRefresher>();
         builder.Services.AddAuthorization();
 
-        // Behind Caddy/Vite the OIDC redirect URI is built from forwarded Host/proto — but only
-        // trust those headers from the proxy, never from arbitrary clients (spoofed Host/proto =
-        // OIDC redirect/host poisoning). Default to private ranges (the proxy shares the container/
-        // LAN network); pin tighter with ForwardedHeaders:KnownProxies (CSV of the proxy's IPs).
-        builder.Services.Configure<ForwardedHeadersOptions>(options =>
-        {
-            options.ForwardedHeaders =
-                ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedFor;
-            options.KnownIPNetworks.Clear();
-            options.KnownProxies.Clear();
-
-            var knownProxies = builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>();
-            if (knownProxies is { Length: > 0 })
-            {
-                foreach (var proxy in knownProxies)
-                {
-                    if (IPAddress.TryParse(proxy, out var address))
-                    {
-                        options.KnownProxies.Add(address);
-                    }
-                }
-            }
-            else
-            {
-                foreach (var network in PrivateNetworks)
-                {
-                    options.KnownIPNetworks.Add(network);
-                }
-            }
-        });
-
         return builder;
     }
 
@@ -126,9 +128,12 @@ public static class AuthExtensions
     {
         var auth = app.Services.GetRequiredService<IOptions<AuthOptions>>().Value;
 
+        // Unconditional: every mode needs the real client IP (rate limiting, logging) and proto/host
+        // (webhook URLs) recovered from the proxy — must run before the rate limiter and the gate.
+        app.UseForwardedHeaders();
+
         if (auth.OidcConfigured)
         {
-            app.UseForwardedHeaders();
             app.UseAuthentication();
 
             app.MapGet("/auth/login", (string? returnUrl) =>
