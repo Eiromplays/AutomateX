@@ -94,7 +94,8 @@ public static class AuthExtensions
         // LAN network); pin tighter with ForwardedHeaders:KnownProxies (CSV of the proxy's IPs).
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
-            options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+            options.ForwardedHeaders =
+                ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedFor;
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
 

@@ -85,10 +85,13 @@ public static class SsrfGuard
         }
 
         var bytes = address.GetAddressBytes();
+        // Note: 100.64.0.0/10 (CGNAT) is deliberately NOT blocked — Tailscale node IPs live there,
+        // and reaching Tailscale targets is a normal, intended use of this self-hosted tool.
         return address.AddressFamily switch
         {
             AddressFamily.InterNetwork =>
-                bytes[0] == 10
+                bytes[0] == 0 // 0.0.0.0/8 "this network"
+                || bytes[0] == 10
                 || (bytes[0] == 172 && bytes[1] is >= 16 and <= 31)
                 || (bytes[0] == 192 && bytes[1] == 168)
                 || (bytes[0] == 169 && bytes[1] == 254),

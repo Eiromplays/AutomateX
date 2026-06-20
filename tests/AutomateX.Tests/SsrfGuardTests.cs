@@ -10,6 +10,8 @@ public sealed class SsrfGuardTests
     [InlineData("127.0.0.1", true)]      // loopback
     [InlineData("::1", true)]            // loopback v6
     [InlineData("0.0.0.0", true)]        // unspecified
+    [InlineData("0.1.2.3", true)]        // 0.0.0.0/8 "this network"
+    [InlineData("100.64.0.1", false)]    // CGNAT / Tailscale — intentionally allowed
     [InlineData("10.1.2.3", true)]       // RFC1918
     [InlineData("172.16.0.1", true)]     // RFC1918 lower bound
     [InlineData("172.31.255.255", true)] // RFC1918 upper bound
