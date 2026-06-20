@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "../components/toast";
+import { ListSkeleton } from "../components/ui/skeleton";
 import { api } from "../lib/api";
 
 export default function Workflows() {
@@ -66,7 +67,7 @@ export default function Workflows() {
         </div>
       </div>
 
-      {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+      {isLoading && <ListSkeleton />}
       {error && <p className="text-sm text-red-400">{String(error)}</p>}
 
       {(workflows?.length ?? 0) > 0 && (
@@ -79,6 +80,7 @@ export default function Workflows() {
         />
       )}
 
+      {!isLoading && (
       <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
         {filtered.map((workflow) => (
           <li key={workflow.id}>
@@ -113,6 +115,7 @@ export default function Workflows() {
           <li className="px-4 py-6 text-center text-sm text-zinc-500">No workflows match “{query}”.</li>
         )}
       </ul>
+      )}
     </div>
   );
 }

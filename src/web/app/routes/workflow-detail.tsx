@@ -139,6 +139,36 @@ export default function WorkflowDetail() {
     onError: (error) => toast.error(`Delete failed — ${String(error)}`),
   });
 
+  // Clone the current version's definition into a new workflow (triggers are not copied — they
+  // hold secrets / per-trigger webhook identity; wire them up fresh on the copy).
+  const clone = useMutation({
+    mutationFn: () => {
+      if (!workflow) {
+        throw new Error("Workflow not loaded.");
+      }
+
+      return api.workflows.create({
+        name: `${workflow.name} (copy)`,
+        description: workflow.description,
+        steps: [...workflow.latestVersion.steps]
+          .sort((a, b) => a.order - b.order)
+          .map((s) => ({
+            actionType: s.actionType,
+            name: s.name,
+            config: JSON.parse(s.configJson) as Record<string, unknown>,
+          })),
+        edges: workflow.latestVersion.edges,
+        continueOnFailure: workflow.latestVersion.continueOnFailure,
+      });
+    },
+    onSuccess: (created) => {
+      queryClient.invalidateQueries({ queryKey: ["workflows"] });
+      toast.success("Workflow cloned.");
+      navigate(`/workflows/${created.id}`);
+    },
+    onError: (error) => toast.error(`Clone failed — ${String(error)}`),
+  });
+
   if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
   if (error || !workflow) {
     return (
@@ -179,6 +209,7 @@ export default function WorkflowDetail() {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem onSelect={() => navigate(`/workflows/${id}/edit`)}>Edit</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => clone.mutate()}>Clone</DropdownMenuItem>
               <DropdownMenuItem onSelect={exportWorkflow}>Export</DropdownMenuItem>
               <DropdownMenuItem
                 destructive

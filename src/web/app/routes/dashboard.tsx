@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
+import { Skeleton } from "../components/ui/skeleton";
 import { api, type ExecutionStats } from "../lib/api";
 
 function StatCard({
@@ -77,7 +78,23 @@ export default function Dashboard() {
     queryFn: api.workflows.list,
   });
 
-  if (isLoading) return <div className="text-sm text-zinc-500">Loading…</div>;
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-7 w-40" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-[88px]" />
+          ))}
+        </div>
+        <Skeleton className="h-40" />
+        <div className="grid gap-6 md:grid-cols-2">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+        </div>
+      </div>
+    );
+  }
   if (!data) return <div className="text-sm text-zinc-500">No data.</div>;
 
   const statByWorkflow = new Map(data.topWorkflows.map((w) => [w.workflowId, w]));

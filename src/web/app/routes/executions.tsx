@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { StatusBadge } from "../components/status-badge";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
+import { ListSkeleton } from "../components/ui/skeleton";
 import { api, type ExecutionSummary } from "../lib/api";
 import { useEngineEvents } from "../lib/use-engine-events";
 
@@ -162,7 +163,7 @@ export default function Executions() {
         Executions <span className="ml-2 text-xs font-normal text-emerald-400">● live</span>
       </h1>
 
-      {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+      {isLoading && <ListSkeleton />}
 
       {(executions?.length ?? 0) > 0 && (
         <div className="mb-3 flex items-center gap-2">
@@ -187,15 +188,17 @@ export default function Executions() {
         </div>
       )}
 
-      <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-        {roots.map((execution) => renderRow(execution, 0))}
-        {executions?.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions yet.</li>
-        )}
-        {(executions?.length ?? 0) > 0 && filteredExecutions.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions match your filter.</li>
-        )}
-      </ul>
+      {!isLoading && (
+        <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+          {roots.map((execution) => renderRow(execution, 0))}
+          {executions?.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions yet.</li>
+          )}
+          {(executions?.length ?? 0) > 0 && filteredExecutions.length === 0 && (
+            <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions match your filter.</li>
+          )}
+        </ul>
+      )}
     </div>
   );
 }
