@@ -3,6 +3,24 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.1.0
+
+- **Named step references.** Steps get a stable `key` (slugged from the name, unique per version)
+  as the reference identity, so `{{steps.<key>.output.<field>}}` survives both rename and reorder —
+  the positional `{{steps.<order>…}}` form still works. The builder validates refs inline (resolves
+  / fragile-index / unknown), offers a one-click "convert index refs → names", and autocompletes
+  `{{steps.<key>.output.<field>}}` from each upstream action's result schema. The save path rejects
+  references that can never resolve. See [docs/steps-references-design.md](docs/steps-references-design.md).
+- **transform action.** Built-in `transform` reshapes/extracts JSON between steps with a JMESPath
+  query (filters, multiselect hashes, functions) — the result becomes the step output directly.
+- **webhook.send action.** Built-in outbound webhook: POST a payload with optional HMAC-SHA256
+  signing that matches AutomateX's own inbound verification (`X-Webhook-Signature: sha256=<hex>`),
+  SSRF-guarded, fails on non-2xx. See [docs/recipes/transform-and-webhooks.md](docs/recipes/transform-and-webhooks.md).
+- **Slack & Telegram.** `slack.send` (incoming webhook) and `telegram.send` (Bot API, token verified
+  via `getMe`) join the notification plugins.
+- **React Router v8.** Web app upgraded to React Router 8 (Vite 8, TypeScript 6, Node baseline 22.22);
+  unified the builder's `{{…}}` reference inserter (step outputs + connections in one tabbed panel).
+
 ## v3.0.0
 
 The release-candidate line that turned the v2 engine into a product you run 24/7 and extend from

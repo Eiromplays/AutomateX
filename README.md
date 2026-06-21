@@ -137,10 +137,12 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
 - Deployment: [homelab guide](docs/deploy-homelab.md)
 - Recipes: [self-deploy](docs/recipes/self-deploy.md) ·
   [dedup & durable state](docs/recipes/dedup-and-state.md) ·
+  [transform & webhooks](docs/recipes/transform-and-webhooks.md) ·
   [conditional gate](docs/recipes/conditional-gate.md) · [reminders](docs/recipes/reminders.md) ·
   [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md)
 - Design notes: [branching](docs/branching-design.md) ·
   [trigger → lane routing](docs/trigger-lane-routing-design.md) ·
+  [named step references](docs/steps-references-design.md) ·
   [OAuth connections](docs/oauth-connections-design.md) · [llm.agent](docs/llm-agent-design.md) ·
   [mcp.call](docs/mcp-call-design.md)
 
