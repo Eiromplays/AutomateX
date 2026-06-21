@@ -3,6 +3,19 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.3.0
+
+- **Durable wait / human approval.** A new `wait` step suspends the run into a `Waiting` status —
+  resumed by a timer (`delaySeconds`/`until`), or by an external signal (an approval) with an optional
+  `timeoutSeconds`. The run survives restarts (it rides the durable scheduler) and the resume payload
+  becomes the wait step's output, so a downstream `gate`/`switch` can branch on the decision. Resume
+  from the UI (a Resume button on the execution page) or `POST /api/executions/{id}/resume`. See
+  [docs/recipes/approvals-and-waits.md](docs/recipes/approvals-and-waits.md) and
+  [docs/durable-wait-design.md](docs/durable-wait-design.md).
+- **Retry from a step.** Re-run a finished execution starting at a chosen step, reusing the earlier
+  steps' outputs (pinned to that run's version) — a "↻ Retry from here" action in the step inspector,
+  or `POST /api/executions/{id}/retry-from/{order}`.
+
 ## v3.2.0
 
 - **Try/catch error branches.** A step can have an **error edge** — give it an "on error → step"
