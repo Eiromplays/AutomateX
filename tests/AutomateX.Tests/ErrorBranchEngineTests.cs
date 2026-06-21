@@ -50,6 +50,25 @@ public sealed class ErrorBranchEngineTests(EngineFixture fixture) : IClassFixtur
     }
 
     [Fact]
+    public async Task Error_handler_can_reference_the_failure_message()
+    {
+        fixture.ProbeAction.Reset();
+        var workflowId = await SeedAsync(
+            [
+                new StepDefinition("test.fail", "boom", "{}"),
+                new StepDefinition("test.probe", "handle", """{"msg":"caught: {{steps.boom.error.message}}"}"""),
+            ],
+            [new EdgeDefinition(0, 1, "error")]);
+
+        var execution = await RunAsync(workflowId);
+
+        Assert.Equal(ExecutionStatus.Succeeded, execution.Status);
+        Assert.Contains(
+            fixture.ProbeAction.ReceivedConfigs,
+            c => c.Contains("caught: test.fail always fails", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Unhandled_failure_on_the_error_lane_fails_the_execution()
     {
         var workflowId = await SeedAsync(

@@ -155,6 +155,37 @@ public sealed class TemplateResolverTests
     }
 
     [Fact]
+    public void Step_error_resolves_on_the_error_lane()
+    {
+        var context = Context() with
+        {
+            StepKeys = new Dictionary<string, int> { ["deploy"] = 1 },
+            StepErrors = new Dictionary<int, JsonElement>
+            {
+                [1] = JsonSerializer.Deserialize<JsonElement>("""{"message":"boom"}"""),
+            },
+        };
+
+        var result = Resolve("""{"x":"Deploy failed: {{steps.deploy.error.message}}"}""", context);
+
+        Assert.Equal("Deploy failed: boom", result.GetProperty("x").GetString());
+    }
+
+    [Fact]
+    public void Step_error_throws_when_the_step_did_not_fail()
+    {
+        var context = Context(outputs: (0, "{}")) with
+        {
+            StepKeys = new Dictionary<string, int> { ["probe"] = 0 },
+        };
+
+        var ex = Assert.Throws<TemplateResolutionException>(() =>
+            TemplateResolver.Resolve("""{"x":"{{steps.probe.error.message}}"}""", context));
+
+        Assert.Contains("no error", ex.Message);
+    }
+
+    [Fact]
     public void Unknown_step_key_throws()
     {
         var context = Context(outputs: (0, "{}")) with

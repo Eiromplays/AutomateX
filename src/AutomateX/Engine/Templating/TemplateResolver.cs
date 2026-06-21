@@ -13,6 +13,7 @@ public sealed record TemplateContext(
     Guid WorkflowId,
     IReadOnlyDictionary<string, JsonElement>? Connections = null,
     IReadOnlyDictionary<string, int>? StepKeys = null,
+    IReadOnlyDictionary<int, JsonElement>? StepErrors = null,
     ISet<string>? SecretSink = null);
 
 // Resolves {{path}} tokens in step configs before execution. Roots:
@@ -147,8 +148,16 @@ public static partial class TemplateResolver
                     : throw new TemplateResolutionException(
                         $"Path '{path}' could not be resolved: this execution has no trigger payload.");
 
-            case "steps" when segments.Length >= 3 && segments[2] == "output":
+            case "steps" when segments.Length >= 3 && segments[2] is "output" or "error":
                 var order = ResolveStepOrder(segments[1], path, context);
+                if (segments[2] == "error")
+                {
+                    return context.StepErrors is { } errors && errors.TryGetValue(order, out var failure)
+                        ? (failure, 3, false)
+                        : throw new TemplateResolutionException(
+                            $"Path '{path}' could not be resolved: step '{segments[1]}' has no error (it didn't fail).");
+                }
+
                 return context.StepOutputs.TryGetValue(order, out var output)
                     ? (output, 3, false)
                     : throw new TemplateResolutionException(

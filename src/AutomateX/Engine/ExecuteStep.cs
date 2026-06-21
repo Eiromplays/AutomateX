@@ -289,6 +289,14 @@ public static class ExecuteStepHandler
             stepOutputs[step.StepOrder] = ParseOutput(step.Output);
         }
 
+        // A failed/caught step's error is addressable on the error lane as {{steps.<key>.error}}.
+        Dictionary<int, JsonElement> stepErrors = [];
+        foreach (var step in execution.Steps.Where(
+            x => x.Error is not null && x.Status is ExecutionStatus.Failed or ExecutionStatus.Caught))
+        {
+            stepErrors[step.StepOrder] = JsonSerializer.SerializeToElement(new { message = step.Error });
+        }
+
         // Decrypt connections only when the config can possibly reference them — and only the
         // workflow's own workspace's connections (isolation boundary). OAuth tokens that are
         // expired get refreshed here, before the step runs.
@@ -319,7 +327,8 @@ public static class ExecuteStepHandler
             execution.Id,
             execution.WorkflowId,
             connections,
-            stepKeys);
+            stepKeys,
+            stepErrors);
     }
 
     private static JsonElement ParseOutput(string? output)
