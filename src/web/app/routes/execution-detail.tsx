@@ -162,6 +162,15 @@ export default function ExecutionDetail() {
     onError: (resumeError) => toast.error(`Resume failed — ${String(resumeError)}`),
   });
 
+  const retryFrom = useMutation({
+    mutationFn: (order: number) => api.executions.retryFrom(id, order),
+    onSuccess: ({ executionId }) => {
+      toast.success("Retried from the selected step.");
+      navigate(`/executions/${executionId}`);
+    },
+    onError: (retryError) => toast.error(`Retry failed — ${String(retryError)}`),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.executions.remove(id),
     onSuccess: () => {
@@ -326,6 +335,9 @@ export default function ExecutionDetail() {
       <StepDialog
         execution={execution}
         order={selectedStepOrder}
+        canRetry={execution.status === "Succeeded" || execution.status === "Failed"}
+        retrying={retryFrom.isPending}
+        onRetryFrom={(order) => retryFrom.mutate(order)}
         onClose={() => setSelectedStepOrder(null)}
       />
     </div>
@@ -337,10 +349,16 @@ export default function ExecutionDetail() {
 function StepDialog({
   execution,
   order,
+  canRetry,
+  retrying,
+  onRetryFrom,
   onClose,
 }: {
   execution: ExecutionDetailData;
   order: number | null;
+  canRetry: boolean;
+  retrying: boolean;
+  onRetryFrom: (order: number) => void;
   onClose: () => void;
 }) {
   const step = order != null ? (execution.steps.find((s) => s.stepOrder === order) ?? null) : null;
@@ -386,6 +404,17 @@ function StepDialog({
               step.output && <CodeBlock text={prettyJson(step.output)} />
             )}
             {step.error && <CodeBlock text={step.error} tone="error" />}
+            {canRetry && order != null && (
+              <button
+                type="button"
+                onClick={() => onRetryFrom(order)}
+                disabled={retrying}
+                title="Re-run from this step, reusing the earlier steps' outputs"
+                className="text-sm text-zinc-400 hover:text-emerald-400 disabled:opacity-50"
+              >
+                {retrying ? "Retrying…" : "↻ Retry from here"}
+              </button>
+            )}
           </div>
         )}
       </DialogContent>

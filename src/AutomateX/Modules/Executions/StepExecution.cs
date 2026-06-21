@@ -38,6 +38,22 @@ public sealed class StepExecution
         StartedAt = DateTimeOffset.UtcNow,
     };
 
+    // A copy of a prior run's step, seeded into a retry-from-step execution so templating and
+    // readiness see the upstream state without re-running those steps.
+    internal static StepExecution Seed(
+        Guid executionId, int stepOrder, string actionType, ExecutionStatus status, string? output) => new()
+    {
+        Id = Guid.CreateVersion7(),
+        ExecutionId = executionId,
+        StepOrder = stepOrder,
+        ActionType = actionType,
+        Status = status,
+        Output = output,
+        Attempts = status == ExecutionStatus.Succeeded ? 1 : 0,
+        StartedAt = DateTimeOffset.UtcNow,
+        CompletedAt = DateTimeOffset.UtcNow,
+    };
+
     // A step that never ran — recorded so history shows why the chain stopped.
     internal static StepExecution Skipped(Guid executionId, string actionType, int stepOrder) => new()
     {

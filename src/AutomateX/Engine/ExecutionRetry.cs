@@ -17,10 +17,19 @@ public static class ExecutionRetry
         $"retry:{original.Id}",
         original.TriggerPayload);
 
-    // Lineage for read models — the original's id rides the triggeredBy marker.
-    public static Guid? GetOriginalExecutionId(string triggeredBy) =>
-        triggeredBy.StartsWith("retry:", StringComparison.Ordinal)
-            && Guid.TryParse(triggeredBy["retry:".Length..], out var id)
-                ? id
-                : null;
+    // Lineage for read models — the original's id rides the triggeredBy marker
+    // ("retry:<id>" for a full replay, "retry-from:<id>" for a retry from a step).
+    public static Guid? GetOriginalExecutionId(string triggeredBy)
+    {
+        foreach (var prefix in (string[])["retry:", "retry-from:"])
+        {
+            if (triggeredBy.StartsWith(prefix, StringComparison.Ordinal)
+                && Guid.TryParse(triggeredBy[prefix.Length..], out var id))
+            {
+                return id;
+            }
+        }
+
+        return null;
+    }
 }

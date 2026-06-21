@@ -559,6 +559,11 @@ export const api = {
         method: "POST",
         body: payload === undefined ? undefined : JSON.stringify(payload),
       }),
+    // Re-run from a step, reusing the prior run's upstream outputs (on the source's version).
+    retryFrom: (id: string, order: number) =>
+      request<{ executionId: string }>(`/executions/${id}/retry-from/${order}`, {
+        method: "POST",
+      }),
   },
   stats: {
     get: (days?: number) => request<ExecutionStats>(`/stats${days ? `?days=${days}` : ""}`),
