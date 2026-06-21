@@ -55,9 +55,12 @@ function ReferenceInserter({
     refetchOnWindowFocus: true,
   });
 
+  const hasStepOptions = steps ? stepInsertGroups(steps, stepOrder, "").length > 0 : false;
+
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"steps" | "connections">(hasStepOptions ? "steps" : "connections");
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -65,6 +68,7 @@ function ReferenceInserter({
   const usable = (connections ?? []).filter((c) => c.secretKeys.length > 0);
   const matches = filterConnections(usable, query);
   const stepGroups = steps ? stepInsertGroups(steps, stepOrder, query) : [];
+  const showSteps = hasStepOptions && tab === "steps";
 
   // Anchor the (portaled) panel to the trigger, clamped into the viewport so it never renders
   // off-screen near a low/right-edge field.
@@ -119,11 +123,11 @@ function ReferenceInserter({
     setOpen(false);
   };
 
-  // Enter in the search box inserts the first visible item — steps render first, then connections.
+  // Enter in the search box inserts the first item of the active tab.
   const insertFirstMatch = () => {
-    const firstStep = stepGroups[0]?.items[0];
-    if (firstStep) {
-      insert(firstStep.token);
+    if (showSteps) {
+      const firstStep = stepGroups[0]?.items[0];
+      if (firstStep) insert(firstStep.token);
       return;
     }
     const key = matches[0]?.secretKeys[0];
@@ -156,6 +160,20 @@ function ReferenceInserter({
             }}
             className="z-50 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-xl"
           >
+            {hasStepOptions && (
+              <div className="mb-1 flex overflow-hidden rounded border border-zinc-700 text-xs">
+                {(["steps", "connections"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTab(t)}
+                    className={`flex-1 px-2 py-1 ${tab === t ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+                  >
+                    {t === "steps" ? "⛓ Steps" : "🔗 Connections"}
+                  </button>
+                ))}
+              </div>
+            )}
             <input
               autoFocus
               value={query}
@@ -166,65 +184,72 @@ function ReferenceInserter({
                   insertFirstMatch();
                 }
               }}
-              placeholder={steps && steps.length > 0 ? "Search steps & connections…" : "Search connections…"}
+              placeholder={showSteps ? "Search step outputs…" : "Search connections…"}
               className="mb-1 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
             />
             <div className="max-h-56 overflow-y-auto">
-              {matches.length === 0 && stepGroups.length === 0 && (
-                <p className="px-2 py-1.5 text-xs text-zinc-600">
-                  {usable.length === 0 && (steps?.length ?? 0) === 0
-                    ? "No connections or step outputs yet."
-                    : "No matches."}
-                </p>
-              )}
-              {stepGroups.map((group) => (
-                <div key={group.key} className="mb-1">
-                  <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                    ⛓ {group.name || group.key}
-                  </div>
-                  {group.items.map((item) => (
-                    <button
-                      type="button"
-                      key={item.token}
-                      onClick={() => insert(item.token)}
-                      className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
-                    >
-                      {item.label}
-                    </button>
+              {showSteps ? (
+                <>
+                  {stepGroups.length === 0 && (
+                    <p className="px-2 py-1.5 text-xs text-zinc-600">No matches.</p>
+                  )}
+                  {stepGroups.map((group) => (
+                    <div key={group.key} className="mb-1">
+                      <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                        ⛓ {group.name || group.key}
+                      </div>
+                      {group.items.map((item) => (
+                        <button
+                          type="button"
+                          key={item.token}
+                          onClick={() => insert(item.token)}
+                          className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
                   ))}
-                </div>
-              ))}
-              {stepGroups.length > 0 && matches.length > 0 && (
-                <div className="my-1 border-t border-zinc-800" />
-              )}
-              {matches.map((c) => (
-                <div key={c.id} className="mb-1">
-                  <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                    🔗 {c.name}
-                  </div>
-                  {c.secretKeys.map((k) => (
-                    <button
-                      type="button"
-                      key={k}
-                      onClick={() => insert(`{{connections.${c.name}.${k}}}`)}
-                      className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
-                    >
-                      {k}
-                    </button>
+                </>
+              ) : (
+                <>
+                  {matches.length === 0 && (
+                    <p className="px-2 py-1.5 text-xs text-zinc-600">
+                      {usable.length === 0 ? "No connections with secrets yet." : "No matches."}
+                    </p>
+                  )}
+                  {matches.map((c) => (
+                    <div key={c.id} className="mb-1">
+                      <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                        {c.name}
+                      </div>
+                      {c.secretKeys.map((k) => (
+                        <button
+                          type="button"
+                          key={k}
+                          onClick={() => insert(`{{connections.${c.name}.${k}}}`)}
+                          className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
+                        >
+                          {k}
+                        </button>
+                      ))}
+                    </div>
                   ))}
-                </div>
-              ))}
+                </>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                setCreating(true);
-              }}
-              className="mt-1 block w-full rounded border-t border-zinc-800 px-2 py-1.5 text-left text-xs text-emerald-400 hover:bg-zinc-800"
-            >
-              ＋ New connection…
-            </button>
+            {!showSteps && (
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setCreating(true);
+                }}
+                className="mt-1 block w-full rounded border-t border-zinc-800 px-2 py-1.5 text-left text-xs text-emerald-400 hover:bg-zinc-800"
+              >
+                ＋ New connection…
+              </button>
+            )}
           </div>,
           document.body,
         )}
