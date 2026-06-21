@@ -94,7 +94,14 @@ export function ConnectionAutocompleteField({
   const pick = (token: string) => {
     const next = applyConnectionCompletion(value, caret.current, tokenStart.current, token);
     onChange(next.value);
-    close();
+    // An open token (e.g. picking a step → {{steps.<key>.output) keeps the menu going so the
+    // next level — whole-output + fields — appears immediately instead of a dangling token.
+    const stillOpen = !token.endsWith("}}");
+    if (stillOpen) {
+      refresh(next.value, next.caret);
+    } else {
+      close();
+    }
     requestAnimationFrame(() => {
       const el = elRef.current;
       if (el) {
@@ -116,6 +123,11 @@ export function ConnectionAutocompleteField({
         close();
       }
     },
+    // Re-open when the caret lands inside an existing token via focus or click (not just typing).
+    onFocus: (e: { currentTarget: HTMLInputElement | HTMLTextAreaElement }) =>
+      refresh(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length),
+    onClick: (e: { currentTarget: HTMLInputElement | HTMLTextAreaElement }) =>
+      refresh(e.currentTarget.value, e.currentTarget.selectionStart ?? e.currentTarget.value.length),
     onBlur: () => setTimeout(close, 120),
   };
 

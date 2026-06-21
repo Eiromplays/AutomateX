@@ -50,5 +50,11 @@ export function stepCompletions(steps: StepOutput[], query: string, currentOrder
   const q = query.toLowerCase();
   return upstream
     .filter((s) => s.key.toLowerCase().startsWith(q))
-    .map((s) => ({ name: "steps", key: s.key, token: `{{steps.${s.key}.output` }));
+    .map((s) => ({
+      name: "steps",
+      key: s.key,
+      // Steps with known fields insert an open token so the field menu can follow; steps with
+      // an open/unknown schema have nothing to drill into, so close to the whole-output token.
+      token: s.fields.length > 0 ? `{{steps.${s.key}.output` : `{{steps.${s.key}.output}}`,
+    }));
 }

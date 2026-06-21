@@ -26,9 +26,14 @@ describe("stepAutocompleteQuery", () => {
 });
 
 describe("stepCompletions", () => {
-  it("suggests upstream step keys for a bare prefix", () => {
+  it("suggests upstream step keys for a bare prefix (open token to drill into fields)", () => {
     const out = stepCompletions(steps, "ssh", 2);
     expect(out).toEqual([{ name: "steps", key: "ssh-deploy", token: "{{steps.ssh-deploy.output" }]);
+  });
+
+  it("closes the token at the step when its schema is open (nothing to drill)", () => {
+    const out = stepCompletions(steps, "open", 3);
+    expect(out).toEqual([{ name: "steps", key: "open-output", token: "{{steps.open-output.output}}" }]);
   });
 
   it("excludes the current and later steps", () => {
