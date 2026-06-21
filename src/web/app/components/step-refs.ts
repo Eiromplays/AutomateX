@@ -50,6 +50,39 @@ export function hasStepRef(value: unknown): boolean {
   return typeof value === "string" && value.includes("{{steps.");
 }
 
+export type StepInsertItem = { label: string; token: string };
+export type StepInsertGroup = { key: string; name: string | null; items: StepInsertItem[] };
+
+// Groups for the reference inserter panel: upstream steps, each with a whole-output entry plus
+// its result-schema fields. A query matches a step by key/name (keeps all its items) or matches
+// individual field/"output" labels. Steps with no matching items drop out.
+export function stepInsertGroups(
+  steps: StepOutput[],
+  currentOrder: number | undefined,
+  query: string,
+): StepInsertGroup[] {
+  const upstream = currentOrder === undefined ? steps : steps.filter((s) => s.order < currentOrder);
+  const q = query.trim().toLowerCase();
+  const groups: StepInsertGroup[] = [];
+  for (const step of upstream) {
+    const stepMatches =
+      q === "" || step.key.toLowerCase().includes(q) || (step.name ?? "").toLowerCase().includes(q);
+    const items: StepInsertItem[] = [];
+    if (stepMatches || "output".includes(q)) {
+      items.push({ label: "output", token: `{{steps.${step.key}.output}}` });
+    }
+    for (const field of step.fields) {
+      if (stepMatches || field.toLowerCase().includes(q)) {
+        items.push({ label: field, token: `{{steps.${step.key}.output.${field}}}` });
+      }
+    }
+    if (items.length > 0) {
+      groups.push({ key: step.key, name: step.name, items });
+    }
+  }
+  return groups;
+}
+
 export function checkStepRefs(value: unknown, steps: StepLite[]): StepRefCheck {
   if (typeof value !== "string") {
     return { status: "none", unknown: [], fragile: [] };

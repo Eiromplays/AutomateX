@@ -7,7 +7,7 @@ import { ConnectionForm } from "./connection-form";
 import { filterConnections } from "./connection-form-logic";
 import { checkConnectionRefs, hasConnectionRef } from "./connection-refs";
 import { fieldKind, type JsonSchema } from "./schema-fields";
-import { checkStepRefs, type StepOutput } from "./step-refs";
+import { checkStepRefs, type StepOutput, stepInsertGroups } from "./step-refs";
 import { Dialog, DialogContent } from "./ui/dialog";
 
 // Renders a form from the JSON Schema the engine exports for each action's config
@@ -39,7 +39,15 @@ const inputClass =
 const PANEL_WIDTH = 256;
 const PANEL_MAX_HEIGHT = 320;
 
-function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void }) {
+function ReferenceInserter({
+  onInsert,
+  steps,
+  stepOrder,
+}: {
+  onInsert: (token: string) => void;
+  steps?: StepOutput[];
+  stepOrder?: number;
+}) {
   const { data: connections } = useQuery({
     queryKey: ["connections"],
     queryFn: api.connections.list,
@@ -56,6 +64,7 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
 
   const usable = (connections ?? []).filter((c) => c.secretKeys.length > 0);
   const matches = filterConnections(usable, query);
+  const stepGroups = steps ? stepInsertGroups(steps, stepOrder, query) : [];
 
   // Anchor the (portaled) panel to the trigger, clamped into the viewport so it never renders
   // off-screen near a low/right-edge field.
@@ -110,8 +119,13 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
     setOpen(false);
   };
 
-  // Enter in the search box inserts the first match's first key — fast keyboard path.
+  // Enter in the search box inserts the first visible item — steps render first, then connections.
   const insertFirstMatch = () => {
+    const firstStep = stepGroups[0]?.items[0];
+    if (firstStep) {
+      insert(firstStep.token);
+      return;
+    }
     const key = matches[0]?.secretKeys[0];
     if (matches[0] && key) insert(`{{connections.${matches[0].name}.${key}}}`);
   };
@@ -122,7 +136,7 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
       <button
         ref={triggerRef}
         type="button"
-        title="Insert a connection reference"
+        title="Insert a step output or connection reference"
         onClick={toggle}
         className="w-6 text-center text-sm text-zinc-500 hover:text-emerald-400 focus:outline-none"
       >
@@ -152,19 +166,41 @@ function ConnectionInserter({ onInsert }: { onInsert: (token: string) => void })
                   insertFirstMatch();
                 }
               }}
-              placeholder="Search connections…"
+              placeholder={steps && steps.length > 0 ? "Search steps & connections…" : "Search connections…"}
               className="mb-1 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
             />
             <div className="max-h-56 overflow-y-auto">
-              {matches.length === 0 && (
+              {matches.length === 0 && stepGroups.length === 0 && (
                 <p className="px-2 py-1.5 text-xs text-zinc-600">
-                  {usable.length === 0 ? "No connections with secrets yet." : "No matches."}
+                  {usable.length === 0 && (steps?.length ?? 0) === 0
+                    ? "No connections or step outputs yet."
+                    : "No matches."}
                 </p>
+              )}
+              {stepGroups.map((group) => (
+                <div key={group.key} className="mb-1">
+                  <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                    ⛓ {group.name || group.key}
+                  </div>
+                  {group.items.map((item) => (
+                    <button
+                      type="button"
+                      key={item.token}
+                      onClick={() => insert(item.token)}
+                      className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              ))}
+              {stepGroups.length > 0 && matches.length > 0 && (
+                <div className="my-1 border-t border-zinc-800" />
               )}
               {matches.map((c) => (
                 <div key={c.id} className="mb-1">
                   <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                    {c.name}
+                    🔗 {c.name}
                   </div>
                   {c.secretKeys.map((k) => (
                     <button
@@ -778,7 +814,11 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
                   stepOrder={stepOrder}
                 />
                 <div className="absolute right-1.5 top-1.5 flex items-center">
-                  <ConnectionInserter onInsert={(token) => append(key, token)} />
+                  <ReferenceInserter
+                    onInsert={(token) => append(key, token)}
+                    steps={stepRefs}
+                    stepOrder={stepOrder}
+                  />
                 </div>
               </div>
             ) : (
@@ -792,7 +832,11 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
                   stepOrder={stepOrder}
                 />
                 <div className="absolute inset-y-0 right-1.5 flex items-center">
-                  <ConnectionInserter onInsert={(token) => append(key, token)} />
+                  <ReferenceInserter
+                    onInsert={(token) => append(key, token)}
+                    steps={stepRefs}
+                    stepOrder={stepOrder}
+                  />
                 </div>
               </div>
             )}

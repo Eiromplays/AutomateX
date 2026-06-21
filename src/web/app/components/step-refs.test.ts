@@ -7,7 +7,9 @@ import {
   rewriteConfigIndexRefs,
   rewriteIndexRefs,
   type StepLite,
+  type StepOutput,
   slugifyStepKey,
+  stepInsertGroups,
 } from "./step-refs";
 
 const steps: StepLite[] = [
@@ -107,5 +109,38 @@ describe("config helpers", () => {
       message: "{{steps.ssh-deploy.output.stdout}}",
       priority: 2,
     });
+  });
+});
+
+describe("stepInsertGroups", () => {
+  const outputs: StepOutput[] = [
+    { key: "probe-api", order: 0, name: "Probe API", fields: ["statusCode", "body"] },
+    { key: "ssh-deploy", order: 1, name: "SSH deploy", fields: ["exitCode", "stdout"] },
+  ];
+
+  it("lists upstream steps with whole-output + fields", () => {
+    const groups = stepInsertGroups(outputs, 2, "");
+    expect(groups.map((g) => g.key)).toEqual(["probe-api", "ssh-deploy"]);
+    expect(groups[1].items.map((i) => i.token)).toEqual([
+      "{{steps.ssh-deploy.output}}",
+      "{{steps.ssh-deploy.output.exitCode}}",
+      "{{steps.ssh-deploy.output.stdout}}",
+    ]);
+  });
+
+  it("excludes the current and later steps", () => {
+    expect(stepInsertGroups(outputs, 1, "").map((g) => g.key)).toEqual(["probe-api"]);
+  });
+
+  it("filters by field when the query matches a field, not the step", () => {
+    const groups = stepInsertGroups(outputs, 2, "stdout");
+    expect(groups.map((g) => g.key)).toEqual(["ssh-deploy"]);
+    expect(groups[0].items.map((i) => i.label)).toEqual(["stdout"]);
+  });
+
+  it("keeps all of a step's items when the query matches its name", () => {
+    const groups = stepInsertGroups(outputs, 2, "ssh");
+    expect(groups.map((g) => g.key)).toEqual(["ssh-deploy"]);
+    expect(groups[0].items.map((i) => i.label)).toEqual(["output", "exitCode", "stdout"]);
   });
 });
