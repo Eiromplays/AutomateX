@@ -35,8 +35,9 @@ config fields:
   join, and continue-on-failure.
 - **Triggers** — cron, webhook (per-trigger capability secrets), manual, workflow-chaining, and
   plugin triggers (`rss`, `http.poll`, `matrix.onMessage`).
-- **Actions** — built-in `http.request`, `gate`, `switch`, `transform` (JMESPath), `kv.*`,
-  `schedule.workflow`, `llm.prompt`, `llm.agent`, `mcp.call`; first-party plugins `ssh.command`, `matrix.send`, `discord.send`,
+- **Actions** — built-in `http.request`, `webhook.send` (HMAC-signed), `gate`, `switch`,
+  `transform` (JMESPath), `kv.*`, `schedule.workflow`, `llm.prompt`, `llm.agent`, `mcp.call`;
+  first-party plugins `ssh.command`, `matrix.send`, `discord.send`,
   `slack.send`, `telegram.send`, `pushover.send`, `email.send`.
 - **Durable KV store** — per-workflow state via `kv.*`; `setIfAbsent` + `gate` gives run-once dedup
   ([recipe](docs/recipes/dedup-and-state.md)).
