@@ -66,6 +66,7 @@ public static class CreateWorkflow
     internal static List<EdgeDefinition> BuildEdges(IReadOnlyList<EdgeRequest>? edges, int stepCount, Action<string> fail)
     {
         List<EdgeDefinition> result = [];
+        HashSet<int> errorSources = [];
         foreach (var edge in edges ?? [])
         {
             if (edge.From < 0 || edge.From >= stepCount || edge.To < 0 || edge.To >= stepCount)
@@ -73,7 +74,15 @@ public static class CreateWorkflow
                 fail($"Edge {edge.From}->{edge.To} references a step that doesn't exist.");
             }
 
-            result.Add(new EdgeDefinition(edge.From, edge.To, string.IsNullOrWhiteSpace(edge.Label) ? null : edge.Label));
+            var label = string.IsNullOrWhiteSpace(edge.Label) ? null : edge.Label;
+
+            // "error" is the reserved failure-path label: a step can have at most one error edge.
+            if (label == AutomateX.Engine.Edges.ErrorLabel && !errorSources.Add(edge.From))
+            {
+                fail($"Step {edge.From} has more than one error edge — only one is allowed.");
+            }
+
+            result.Add(new EdgeDefinition(edge.From, edge.To, label));
         }
 
         return result;

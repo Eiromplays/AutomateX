@@ -90,6 +90,8 @@ function triggerNodes(execution: ExecutionDetailData, triggers: WorkflowTrigger[
 const STEP_COLOR: Record<string, string> = {
   Succeeded: "bg-green-500/70",
   Failed: "bg-red-500/70",
+  // Caught: failed but handled by an error edge — amber, distinct from a hard failure.
+  Caught: "bg-orange-500/70",
   Skipped: "bg-zinc-600/60",
   Running: "bg-amber-500/70",
   Pending: "bg-zinc-700/50",
