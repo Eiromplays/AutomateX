@@ -67,6 +67,11 @@ public sealed class Execution
         return step;
     }
 
+    // Pause at a wait step; resumed by a timer or external signal (see ResumeExecution).
+    public void Suspend() => Status = ExecutionStatus.Waiting;
+
+    public void Resume() => Status = ExecutionStatus.Running;
+
     public void Complete()
     {
         Status = ExecutionStatus.Succeeded;

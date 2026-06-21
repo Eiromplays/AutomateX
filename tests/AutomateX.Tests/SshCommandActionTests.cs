@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Renci.SshNet.Common;
 using Xunit;
+using Wait = DotNet.Testcontainers.Builders.Wait;
 
 namespace AutomateX.Tests;
 

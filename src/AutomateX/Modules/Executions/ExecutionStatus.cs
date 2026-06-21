@@ -7,6 +7,10 @@ public enum ExecutionStatus
     Succeeded,
     Failed,
 
+    // Paused at a wait step until resumed by a timer or an external signal (durable wait/approval).
+    // Not running, but not terminal — the sweeper leaves it alone.
+    Waiting,
+
     // Step-only: a later step that never ran because a gate closed before it.
     Skipped,
 

@@ -100,6 +100,13 @@ public static class ExecuteStepHandler
             return Cascade(chains);
         }
 
+        // wait is engine-handled: suspend the run instead of invoking an action.
+        if (step.ActionType == Wait.ActionType)
+        {
+            return await SuspendForWaitAsync(
+                execution, stepExecution, message.StepOrder, resolvedConfig, dbContext, eventBus, options, logger, cancellationToken);
+        }
+
         string? output;
         try
         {
@@ -223,10 +230,63 @@ public static class ExecuteStepHandler
             execution, message.StepOrder, step.ActionType, output, dbContext, eventBus, options, logger, cancellationToken);
     }
 
+    // Suspend the run at a wait step: record the step + execution Waiting and schedule a timer wake
+    // (delay, or signal timeout). An indefinite signal wait returns nothing and waits for an external
+    // ResumeExecution. A bad wait config fails deterministically, like a template error.
+    private static async Task<object?> SuspendForWaitAsync(
+        Execution execution,
+        StepExecution stepExecution,
+        int stepOrder,
+        string resolvedConfig,
+        AutomateXDbContext dbContext,
+        EngineEventBus eventBus,
+        EngineOptions options,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        WaitConfig config;
+        var now = DateTimeOffset.UtcNow;
+        DateTimeOffset? wakeAt;
+        try
+        {
+            config = JsonSerializer.Deserialize<WaitConfig>(resolvedConfig, JsonSerializerOptions.Web) ?? new WaitConfig();
+            wakeAt = Wait.WakeAt(config, now);
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException)
+        {
+            stepExecution.Fail(ex.Message);
+            execution.Fail();
+            var chains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await eventBus.PublishAsync(
+                new StepFailed(execution.Id, stepOrder, Wait.ActionType, ex.Message, stepExecution.Attempts, WillRetry: false),
+                cancellationToken);
+            await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
+            return Cascade(chains);
+        }
+
+        stepExecution.Suspend();
+        execution.Suspend();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation(
+            "Execution {ExecutionId} waiting at step {StepOrder} (wake {Wake})",
+            execution.Id, stepOrder, wakeAt?.ToString("o") ?? "on signal");
+
+        if (wakeAt is { } when)
+        {
+            var reason = Wait.IsSignal(config) ? "timeout" : "timer";
+            var delay = when - now;
+            return new ResumeExecution(execution.Id, stepOrder, reason, null)
+                .DelayedFor(delay < TimeSpan.Zero ? TimeSpan.Zero : delay);
+        }
+
+        return null; // indefinite signal wait — resumed by an external ResumeExecution
+    }
+
     // Advance past a finished step. No edges → run linearly by Order with inline completion
     // (unchanged, single-in-flight). With edges → hand off to AdvanceExecution, which does the
     // routing, ready-successor dispatch and completion post-commit (so parallel joins are correct).
-    private static async Task<object?> AdvanceAsync(
+    internal static async Task<object?> AdvanceAsync(
         Execution execution,
         int currentOrder,
         string actionType,

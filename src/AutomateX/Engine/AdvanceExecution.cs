@@ -61,9 +61,13 @@ public static class AdvanceExecutionHandler
         // Running, so a dispatch keeps the execution open). A failed step (continue-on-failure mode)
         // makes the final status Failed; otherwise Succeeded. The status read sits just before the
         // guarded UPDATE — benign, since a failing step emits its own AdvanceExecution.
-        var anyRunning = await dbContext.StepExecutions
-            .AnyAsync(s => s.ExecutionId == message.ExecutionId && s.Status == ExecutionStatus.Running, cancellationToken);
-        if (anyRunning)
+        // A Running or Waiting (durably paused) step keeps the run open — don't settle past a wait.
+        var anyOpen = await dbContext.StepExecutions
+            .AnyAsync(
+                s => s.ExecutionId == message.ExecutionId
+                    && (s.Status == ExecutionStatus.Running || s.Status == ExecutionStatus.Waiting),
+                cancellationToken);
+        if (anyOpen)
         {
             return outgoing;
         }
@@ -75,7 +79,9 @@ public static class AdvanceExecutionHandler
         var settled = await dbContext.Executions
             .Where(x => x.Id == message.ExecutionId
                 && x.Status == ExecutionStatus.Running
-                && !dbContext.StepExecutions.Any(s => s.ExecutionId == message.ExecutionId && s.Status == ExecutionStatus.Running))
+                && !dbContext.StepExecutions.Any(
+                    s => s.ExecutionId == message.ExecutionId
+                        && (s.Status == ExecutionStatus.Running || s.Status == ExecutionStatus.Waiting)))
             .ExecuteUpdateAsync(
                 setters => setters
                     .SetProperty(x => x.Status, finalStatus)

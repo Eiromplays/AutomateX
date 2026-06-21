@@ -56,6 +56,9 @@ public sealed class StepExecution
         Error = error;
     }
 
+    // Park the step at a durable wait; Complete(payload) on resume turns it Succeeded.
+    public void Suspend() => Status = ExecutionStatus.Waiting;
+
     public void Complete(string? output)
     {
         Attempts++;

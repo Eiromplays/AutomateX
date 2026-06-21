@@ -41,7 +41,18 @@ internal static class TestData
         return executionId;
     }
 
-    public static async Task<Execution> WaitForTerminalAsync(IHost host, Guid executionId, TimeSpan timeout)
+    public static Task<Execution> WaitForTerminalAsync(IHost host, Guid executionId, TimeSpan timeout) =>
+        WaitForAsync(host, executionId, timeout, s => s is not ExecutionStatus.Running, "a non-running state");
+
+    // Completed = settled for good (Succeeded/Failed), past any intermediate Waiting pause.
+    public static Task<Execution> WaitForCompletedAsync(IHost host, Guid executionId, TimeSpan timeout) =>
+        WaitForAsync(host, executionId, timeout, s => s is ExecutionStatus.Succeeded or ExecutionStatus.Failed, "completion");
+
+    public static Task<Execution> WaitForStatusAsync(IHost host, Guid executionId, ExecutionStatus status, TimeSpan timeout) =>
+        WaitForAsync(host, executionId, timeout, s => s == status, status.ToString());
+
+    private static async Task<Execution> WaitForAsync(
+        IHost host, Guid executionId, TimeSpan timeout, Func<ExecutionStatus, bool> done, string what)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
         while (DateTimeOffset.UtcNow < deadline)
@@ -53,7 +64,7 @@ internal static class TestData
                 .Include(x => x.Steps)
                 .FirstOrDefaultAsync(x => x.Id == executionId);
 
-            if (execution is not null && execution.Status is not ExecutionStatus.Running)
+            if (execution is not null && done(execution.Status))
             {
                 return execution;
             }
@@ -61,6 +72,13 @@ internal static class TestData
             await Task.Delay(100);
         }
 
-        throw new TimeoutException($"Execution {executionId} did not reach a terminal state within {timeout}.");
+        throw new TimeoutException($"Execution {executionId} did not reach {what} within {timeout}.");
+    }
+
+    public static async Task PublishAsync(IHost host, object message)
+    {
+        await using var scope = host.Services.CreateAsyncScope();
+        var bus = scope.ServiceProvider.GetRequiredService<IMessageBus>();
+        await bus.PublishAsync(message);
     }
 }
