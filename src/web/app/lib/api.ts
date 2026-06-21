@@ -553,6 +553,12 @@ export const api = {
       request<{ executionId: string }>(`/executions/${id}/retry`, {
         method: "POST",
       }),
+    // Resume a waiting execution; payload (if any) becomes the wait step's output.
+    resume: (id: string, payload?: unknown) =>
+      request<{ executionId: string; stepOrder: number }>(`/executions/${id}/resume`, {
+        method: "POST",
+        body: payload === undefined ? undefined : JSON.stringify(payload),
+      }),
   },
   stats: {
     get: (days?: number) => request<ExecutionStats>(`/stats${days ? `?days=${days}` : ""}`),

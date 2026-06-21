@@ -92,6 +92,7 @@ const STEP_COLOR: Record<string, string> = {
   Failed: "bg-red-500/70",
   // Caught: failed but handled by an error edge — amber, distinct from a hard failure.
   Caught: "bg-orange-500/70",
+  Waiting: "bg-sky-500/70",
   Skipped: "bg-zinc-600/60",
   Running: "bg-amber-500/70",
   Pending: "bg-zinc-700/50",
@@ -152,6 +153,15 @@ export default function ExecutionDetail() {
     onError: (retryError) => toast.error(`Retry failed — ${String(retryError)}`),
   });
 
+  const resume = useMutation({
+    mutationFn: () => api.executions.resume(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["execution", id] });
+      toast.success("Resumed.");
+    },
+    onError: (resumeError) => toast.error(`Resume failed — ${String(resumeError)}`),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.executions.remove(id),
     onSuccess: () => {
@@ -210,6 +220,17 @@ export default function ExecutionDetail() {
           <span className="text-xs font-normal text-emerald-400">● live</span>
         </div>
         <div className="flex items-center gap-4">
+          {execution.status === "Waiting" && (
+            <button
+              type="button"
+              onClick={() => resume.mutate()}
+              disabled={resume.isPending}
+              title="Resume this paused run (the wait step continues)"
+              className="text-sm text-sky-400 hover:text-sky-300 disabled:opacity-50"
+            >
+              {resume.isPending ? "Resuming…" : "▶ Resume"}
+            </button>
+          )}
           {(execution.status === "Succeeded" || execution.status === "Failed") && (
             <button
               type="button"
