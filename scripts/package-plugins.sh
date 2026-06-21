@@ -16,6 +16,8 @@ declare -A DESCRIPTIONS=(
   [AutomateX.Plugins.Llm]="Prompt any OpenAI-compatible LLM endpoint (OpenAI, OpenRouter, Ollama, local)."
   [AutomateX.Plugins.Feed]="Watch RSS/Atom feeds or any URL and fire workflows on new items (durable dedup)."
   [AutomateX.Plugins.Discord]="Post messages to a Discord channel webhook."
+  [AutomateX.Plugins.Slack]="Post messages to a Slack channel via an incoming webhook."
+  [AutomateX.Plugins.Telegram]="Send messages via the Telegram Bot API."
   [AutomateX.Plugins.Pushover]="Send mobile push notifications via Pushover."
   [AutomateX.Plugins.Email]="Send email notifications over SMTP."
 )

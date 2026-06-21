@@ -21,6 +21,7 @@
     <Project Path="src/Plugins/AutomateX.Plugins.Pushover/AutomateX.Plugins.Pushover.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Slack/AutomateX.Plugins.Slack.csproj" />
     <Project Path="src/Plugins/AutomateX.Plugins.Ssh/AutomateX.Plugins.Ssh.csproj" />
+    <Project Path="src/Plugins/AutomateX.Plugins.Telegram/AutomateX.Plugins.Telegram.csproj" />
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/AutomateX.SamplePlugin/AutomateX.SamplePlugin.csproj" />
