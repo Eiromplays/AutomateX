@@ -93,6 +93,41 @@ public sealed class WorkflowRouterTests
         Assert.Equal([1, 2], decision.Skipped.Order());
     }
 
+    [Fact]
+    public void Error_routing_takes_the_error_edge_and_skips_the_success_branch()
+    {
+        // 0 → 1 (success, unconditional) and 0 → 2 ("error").
+        var edges = new[] { Edge(0, 1), Edge(0, 2, "error") };
+
+        var decision = WorkflowRouter.Route(0, edges, chosenLabel: null, onError: true);
+
+        Assert.Equal([2], decision.Next);
+        Assert.Equal([1], decision.Skipped);
+    }
+
+    [Fact]
+    public void Success_skips_the_error_edge_target()
+    {
+        var edges = new[] { Edge(0, 1), Edge(0, 2, "error") };
+
+        var decision = WorkflowRouter.Route(0, edges, chosenLabel: null);
+
+        Assert.Equal([1], decision.Next);
+        Assert.Equal([2], decision.Skipped);
+    }
+
+    [Fact]
+    public void Error_routing_has_no_default_fallback()
+    {
+        // No "error" edge present — a failure routes nowhere (the engine then halts/continues).
+        var edges = new[] { Edge(0, 1), Edge(0, 2, "default") };
+
+        var decision = WorkflowRouter.Route(0, edges, chosenLabel: null, onError: true);
+
+        Assert.Empty(decision.Next);
+        Assert.Equal([1, 2], decision.Skipped.Order());
+    }
+
     // A diamond/join: 1 and 2 both feed 3.
     private static readonly WorkflowEdgeDef[] Join = [Edge(0, 1), Edge(0, 2), Edge(1, 3), Edge(2, 3)];
 

@@ -3,8 +3,14 @@ using AutomateX.Engine.Actions;
 namespace AutomateX.Engine;
 
 // A directed edge between two steps (by Order). A null Label is an unconditional ("always")
-// link; labelled edges are the outcomes of a switch step.
+// link; labelled edges are the outcomes of a switch step ("default" is the fallback); the
+// reserved "error" label is the failure path a step takes when it fails after its retries.
 public sealed record WorkflowEdgeDef(int From, int To, string? Label);
+
+public static class Edges
+{
+    public const string ErrorLabel = "error";
+}
 
 // Next = the step orders to run after the current one. Skipped = steps reachable only
 // through a not-taken edge (recorded Skipped for the timeline, mirroring the gate).
@@ -23,7 +29,8 @@ public enum StepReadiness
 // and (for a switch) the label its output chose, decide what runs next and what is skipped.
 public static class WorkflowRouter
 {
-    public static RoutingDecision Route(int currentOrder, IReadOnlyList<WorkflowEdgeDef> edges, string? chosenLabel)
+    public static RoutingDecision Route(
+        int currentOrder, IReadOnlyList<WorkflowEdgeDef> edges, string? chosenLabel, bool onError = false)
     {
         var outgoing = edges.Where(e => e.From == currentOrder).ToList();
         if (outgoing.Count == 0)
@@ -32,7 +39,12 @@ public static class WorkflowRouter
         }
 
         List<WorkflowEdgeDef> taken;
-        if (chosenLabel is not null)
+        if (onError)
+        {
+            // A failed step routes down its error edge only — no "default" fallback.
+            taken = outgoing.Where(e => e.Label == Edges.ErrorLabel).ToList();
+        }
+        else if (chosenLabel is not null)
         {
             // Switch: the edge matching the chosen label, else the "default" edge.
             taken = outgoing.Where(e => e.Label == chosenLabel).ToList();
@@ -43,7 +55,7 @@ public static class WorkflowRouter
         }
         else
         {
-            // Plain step: unconditional edges only.
+            // Plain step: unconditional edges only (error edges fire only on failure).
             taken = outgoing.Where(e => e.Label is null).ToList();
         }
 

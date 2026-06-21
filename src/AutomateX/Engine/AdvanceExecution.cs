@@ -43,14 +43,15 @@ public static class AdvanceExecutionHandler
 
         var outgoing = new OutgoingMessages();
 
-        // Route from the finished step whether it succeeded or failed: a Succeeded step dispatches
-        // its ready successors; a Failed step (continue-on-failure) propagates skips to the
-        // successors that depended on it, so downstream joins resolve instead of orphaning.
+        // Route from the finished step whether it succeeded, failed, or was caught: a Succeeded step
+        // dispatches its ready successors; a Failed step (continue-on-failure) propagates skips to the
+        // successors that depended on it; a Caught step routes its error lane.
         var finished = execution.Steps.FirstOrDefault(x => x.StepOrder == message.FromOrder);
-        if (finished is { Status: ExecutionStatus.Succeeded or ExecutionStatus.Failed })
+        if (finished is { Status: ExecutionStatus.Succeeded or ExecutionStatus.Failed or ExecutionStatus.Caught })
         {
             foreach (var order in await DispatchFromAsync(
-                dbContext, execution, finished.StepOrder, finished.ActionType, finished.Output, edges, cancellationToken))
+                dbContext, execution, finished.StepOrder, finished.ActionType, finished.Output,
+                finished.Status == ExecutionStatus.Caught, edges, cancellationToken))
             {
                 outgoing.Add(new ExecuteStep(execution.Id, order));
             }
@@ -119,13 +120,14 @@ public static class AdvanceExecutionHandler
         int finishedOrder,
         string actionType,
         string? output,
+        bool onError,
         IReadOnlyList<WorkflowEdgeDef> edges,
         CancellationToken cancellationToken)
     {
-        var chosenLabel = actionType == Switch.ActionType
+        var chosenLabel = !onError && actionType == Switch.ActionType
             ? Switch.ChosenLabel(output) ?? Switch.DefaultLabel
             : null;
-        var decision = WorkflowRouter.Route(finishedOrder, edges, chosenLabel);
+        var decision = WorkflowRouter.Route(finishedOrder, edges, chosenLabel, onError);
 
         var actionByOrder = await dbContext.WorkflowSteps
             .AsNoTracking()
@@ -139,6 +141,23 @@ public static class AdvanceExecutionHandler
             {
                 await ClaimAsync(dbContext, execution.Id, skipOrder, skipAction, ExecutionStatus.Skipped, cancellationToken);
             }
+        }
+
+        // The error lane is triggered by the failure itself: dispatch its target(s) directly rather
+        // than through join-readiness, whose "failed/caught predecessor → skip" rule would block it.
+        if (onError)
+        {
+            List<int> caught = [];
+            foreach (var target in decision.Next)
+            {
+                if (actionByOrder.TryGetValue(target, out var action)
+                    && await ClaimAsync(dbContext, execution.Id, target, action, ExecutionStatus.Running, cancellationToken))
+                {
+                    caught.Add(target);
+                }
+            }
+
+            return caught;
         }
 
         // A local overlay over the committed statuses: claims made in this pass are reflected here
@@ -155,7 +174,8 @@ public static class AdvanceExecutionHandler
         }
 
         bool Terminal(int order) =>
-            local.TryGetValue(order, out var s) && s is ExecutionStatus.Succeeded or ExecutionStatus.Skipped or ExecutionStatus.Failed;
+            local.TryGetValue(order, out var s)
+            && s is ExecutionStatus.Succeeded or ExecutionStatus.Skipped or ExecutionStatus.Failed or ExecutionStatus.Caught;
         bool Succeeded(int order) => local.TryGetValue(order, out var s) && s == ExecutionStatus.Succeeded;
         bool Failed(int order) => local.TryGetValue(order, out var s) && s == ExecutionStatus.Failed;
 

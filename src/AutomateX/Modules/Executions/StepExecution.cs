@@ -71,4 +71,13 @@ public sealed class StepExecution
         Error = error;
         CompletedAt = DateTimeOffset.UtcNow;
     }
+
+    // The step failed but an error edge handles it: the run continues down the error lane and
+    // the failure is addressable as {{steps.<key>.error}}. Doesn't fail the execution.
+    public void Catch(string error)
+    {
+        Status = ExecutionStatus.Caught;
+        Error = error;
+        CompletedAt = DateTimeOffset.UtcNow;
+    }
 }

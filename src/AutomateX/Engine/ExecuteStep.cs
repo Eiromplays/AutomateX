@@ -131,7 +131,28 @@ public static class ExecuteStepHandler
                 return new ExecuteStep(message.ExecutionId, message.StepOrder).DelayedFor(delay);
             }
 
-            // Out of retries — this step has failed for good.
+            // Out of retries — this step has failed for good. An error edge handles it: record
+            // Caught (not Failed), route the error lane, don't fail the execution. Error handling
+            // wins over both halt and continue-on-failure.
+            var hasErrorEdge = await dbContext.WorkflowEdges.AnyAsync(
+                x => x.WorkflowVersionId == execution.WorkflowVersionId
+                    && x.FromOrder == message.StepOrder
+                    && x.Label == Edges.ErrorLabel,
+                cancellationToken);
+
+            if (hasErrorEdge)
+            {
+                stepExecution.Catch(error);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await eventBus.PublishAsync(
+                    new StepFailed(execution.Id, message.StepOrder, step.ActionType, error, stepExecution.Attempts, WillRetry: false),
+                    cancellationToken);
+                logger.LogWarning(
+                    "Execution {ExecutionId} step {StepOrder} failed and was caught by an error edge",
+                    execution.Id, message.StepOrder);
+                return new AdvanceExecution(execution.Id, message.StepOrder);
+            }
+
             stepExecution.Fail(error);
 
             // Continue-on-failure: only this lane dies; other lanes finish and the execution
