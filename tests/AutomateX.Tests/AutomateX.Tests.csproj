@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Llm\AutomateX.Plugins.Llm.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Matrix\AutomateX.Plugins.Matrix.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Ssh\AutomateX.Plugins.Ssh.csproj" />
+    <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Slack\AutomateX.Plugins.Slack.csproj" />
   </ItemGroup>
 
 </Project>

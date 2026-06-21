@@ -37,7 +37,7 @@ config fields:
   plugin triggers (`rss`, `http.poll`, `matrix.onMessage`).
 - **Actions** — built-in `http.request`, `gate`, `switch`, `kv.*`, `schedule.workflow`, `llm.prompt`,
   `llm.agent`, `mcp.call`; first-party plugins `ssh.command`, `matrix.send`, `discord.send`,
-  `pushover.send`, `email.send`.
+  `slack.send`, `pushover.send`, `email.send`.
 - **Durable KV store** — per-workflow state via `kv.*`; `setIfAbsent` + `gate` gives run-once dedup
   ([recipe](docs/recipes/dedup-and-state.md)).
 - **Encrypted connections** — AES-256-GCM secret bundles + OAuth2 connections, referenced as
