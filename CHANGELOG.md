@@ -3,6 +3,17 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.2.0
+
+- **Try/catch error branches.** A step can have an **error edge** — give it an "on error → step"
+  target in the builder and a failure (after its retries) routes down that lane instead of failing
+  the run. The caught step is recorded `Caught` (not `Failed`, shown orange in the timeline), and the
+  failure is addressable on the error lane as `{{steps.<key>.error.message}}`. Error handling wins
+  over both halt and continue-on-failure; the execution settles on the error lane's outcome. No
+  schema change — `"error"` is a reserved edge label (like switch's `"default"`), one per step. See
+  [docs/recipes/error-handling.md](docs/recipes/error-handling.md) and
+  [docs/error-branches-design.md](docs/error-branches-design.md).
+
 ## v3.1.0
 
 - **Named step references.** Steps get a stable `key` (slugged from the name, unique per version)

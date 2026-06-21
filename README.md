@@ -32,7 +32,8 @@ config fields:
 - **Visual builder** — graph + forms generated from each action's JSON Schema, with connection-ref
   validation, required-field hints, and inline `{{connections.…}}` autocomplete.
 - **Branching & parallel** — `switch`/`gate` routing over an edge-DAG, parallel fan-out lanes that
-  join, and continue-on-failure.
+  join, continue-on-failure, and **try/catch error branches** (an "on error →" edge catches a step's
+  failure into a handler lane, with `{{steps.<key>.error}}`).
 - **Triggers** — cron, webhook (per-trigger capability secrets), manual, workflow-chaining, and
   plugin triggers (`rss`, `http.poll`, `matrix.onMessage`).
 - **Actions** — built-in `http.request`, `webhook.send` (HMAC-signed), `gate`, `switch`,
@@ -138,11 +139,13 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
 - Recipes: [self-deploy](docs/recipes/self-deploy.md) ·
   [dedup & durable state](docs/recipes/dedup-and-state.md) ·
   [transform & webhooks](docs/recipes/transform-and-webhooks.md) ·
+  [error handling](docs/recipes/error-handling.md) ·
   [conditional gate](docs/recipes/conditional-gate.md) · [reminders](docs/recipes/reminders.md) ·
   [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md)
 - Design notes: [branching](docs/branching-design.md) ·
   [trigger → lane routing](docs/trigger-lane-routing-design.md) ·
   [named step references](docs/steps-references-design.md) ·
+  [error branches](docs/error-branches-design.md) ·
   [OAuth connections](docs/oauth-connections-design.md) · [llm.agent](docs/llm-agent-design.md) ·
   [mcp.call](docs/mcp-call-design.md)
 

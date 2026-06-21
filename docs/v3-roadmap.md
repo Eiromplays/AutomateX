@@ -25,6 +25,11 @@ Build it well.
 
 ## v3.2 — Control flow & resilience
 
+> **Shipped in v3.2.0:** try/catch error branches (below). **Durable wait / human approval** and
+> **retry-from-a-step** roll into v3.3 — they share the suspend/resume keystone, so they sequence
+> together.
+
+
 The deterministic core has `gate` (linear halt) and `switch` (conditional fork). What's missing is
 **failure as a routable outcome** and **time/human as a first-class step**.
 
