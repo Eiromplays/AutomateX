@@ -7,6 +7,7 @@ import {
   routingFromEdges,
   submitEdges,
   validFanOut,
+  validOnError,
 } from "./switch-routing";
 
 // Keys are deliberately not equal to indices, so any code that confuses the two is caught.
@@ -124,6 +125,41 @@ describe("switch lane backbone", () => {
       { from: 0, to: 2, label: "default" },
       { from: 2, to: 3, label: null },
     ]);
+  });
+
+  it("round-trips through persisted edges", () => {
+    const original = submitEdges(build());
+    const loaded = reload(build());
+    routingFromEdges(loaded, original);
+    expect(submitEdges(loaded)).toEqual(original);
+  });
+});
+
+describe("error edges", () => {
+  // 0 deploy (on error → 2 notify-failure), 1 notify-success, 2 notify-failure.
+  function build(): RoutingStep[] {
+    const steps = [probe(0, "deploy"), probe(1, "notify-success"), probe(2, "notify-failure")];
+    steps[0].onError = KEY[2];
+    return steps;
+  }
+
+  it("is branched once a step has an error target", () => {
+    expect(isBranched(build())).toBe(true);
+  });
+
+  it("keeps the success backbone and adds the error edge; the error target is a terminal lane head", () => {
+    expect(submitEdges(build())).toEqual([
+      { from: 0, to: 1, label: null }, // deploy → notify-success (success path, unchanged)
+      { from: 0, to: 2, label: "error" }, // deploy → notify-failure (failure path)
+      // no 1 → 2 edge: notify-failure is an error lane head, not chained from notify-success
+    ]);
+  });
+
+  it("drops a self/deleted error target", () => {
+    const steps = [probe(0, "a"), probe(1, "b")];
+    steps[0].onError = 999;
+    expect(isBranched(steps)).toBe(false);
+    expect(validOnError(steps[0], new Set(steps.map((s) => s.key)))).toBeNull();
   });
 
   it("round-trips through persisted edges", () => {

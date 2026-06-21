@@ -3,7 +3,13 @@ import type { ActionDescriptor, CreateWorkflowStep } from "../lib/api";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { type JsonSchema, SchemaForm } from "./schema-form";
 import type { StepOutput } from "./step-refs";
-import { FanOutTargets, type KeyEdge, type SwitchRouting, SwitchTargets } from "./switch-routing";
+import {
+  ErrorTarget,
+  FanOutTargets,
+  type KeyEdge,
+  type SwitchRouting,
+  SwitchTargets,
+} from "./switch-routing";
 import { type GraphSelection, WorkflowGraph } from "./workflow-graph";
 import { type DraftTrigger, newDraftTrigger, TriggerEditor, triggerSummary } from "./workflow-triggers";
 
@@ -11,6 +17,7 @@ type DraftStep = CreateWorkflowStep & {
   key: number;
   routing?: SwitchRouting;
   fanOut?: number[];
+  onError?: number;
 };
 
 const fieldClass =
@@ -205,6 +212,11 @@ export function WorkflowCanvas({
                 onChange={(fanOut) => onUpdateStep(selectedStep.key, { fanOut })}
               />
             )}
+            <ErrorTarget
+              step={selectedStep}
+              steps={steps}
+              onChange={(onError) => onUpdateStep(selectedStep.key, { onError })}
+            />
           </div>
         ) : (
           <p className="text-xs text-zinc-600">

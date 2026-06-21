@@ -198,13 +198,16 @@ export function WorkflowGraph({
       }
     }
     for (const edge of stepEdges) {
+      const isError = edge.label === "error";
       list.push({
         id: `e-${edge.sourceKey}-${edge.targetKey}-${edge.label ?? ""}`,
         source: String(edge.sourceKey),
         target: String(edge.targetKey),
         label: edge.label ?? undefined,
-        labelStyle: { fill: "#a1a1aa", fontSize: 11 },
+        labelStyle: { fill: isError ? "#f87171" : "#a1a1aa", fontSize: 11 },
         labelBgStyle: { fill: "#18181b" },
+        // The error edge is drawn red/dashed to set the failure path apart from success routing.
+        ...(isError ? { style: { stroke: "#f87171", strokeDasharray: "5 4" }, animated: false } : {}),
       });
     }
     return list;

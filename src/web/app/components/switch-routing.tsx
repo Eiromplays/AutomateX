@@ -16,6 +16,9 @@ export type RoutingStep = {
   // Explicit unconditional successors (parallel lanes / joins), authored as stable step keys.
   // When set they replace this step's implicit order backbone.
   fanOut?: number[];
+  // The step to run if this one fails after its retries (the "error" edge). Additive: the
+  // success path is unchanged; the error target is a terminal lane head off the main flow.
+  onError?: number;
 };
 
 export type KeyEdge = {
@@ -62,6 +65,12 @@ export function validFanOut(step: RoutingStep, liveKeys: Set<number>): number[] 
   return (step.fanOut ?? []).filter((key) => key !== step.key && liveKeys.has(key));
 }
 
+// A step's live error target (the "error" edge), or null if unset/self/deleted.
+export function validOnError(step: RoutingStep, liveKeys: Set<number>): number | null {
+  const target = step.onError;
+  return target != null && target !== step.key && liveKeys.has(target) ? target : null;
+}
+
 function liveKeySet(steps: RoutingStep[]): Set<number> {
   return new Set(steps.map((s) => s.key));
 }
@@ -70,7 +79,9 @@ function liveKeySet(steps: RoutingStep[]): Set<number> {
 // stays linear and emits no edges (backward compatible — the engine runs it by order).
 export function isBranched(steps: RoutingStep[]): boolean {
   const live = liveKeySet(steps);
-  return steps.some((s) => isConfiguredSwitch(s) || validFanOut(s, live).length > 0);
+  return steps.some(
+    (s) => isConfiguredSwitch(s) || validFanOut(s, live).length > 0 || validOnError(s, live) != null,
+  );
 }
 
 // The logical edges as step keys, for canvas display. Linear workflows show their implicit
@@ -95,11 +106,16 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
   // by default (they emit only what they themselves fan out to).
   const switchTargets = new Set<number>();
   const fanOutTargets = new Set<number>();
+  // Error targets are terminal lane heads off the main flow: the backbone neither chains into
+  // them nor (by default) out of them — they're reached only via the "error" edge.
+  const errorTargets = new Set<number>();
   for (const step of steps) {
     const routes = validRoutes(step);
     for (const [, key] of routes.byLabel) switchTargets.add(key);
     if (routes.default != null) switchTargets.add(routes.default);
     for (const key of validFanOut(step, live)) fanOutTargets.add(key);
+    const onError = validOnError(step, live);
+    if (onError != null) errorTargets.add(onError);
   }
 
   const edges: KeyEdge[] = [];
@@ -120,13 +136,19 @@ export function keyEdges(steps: RoutingStep[]): KeyEdge[] {
       }
     } else if (fanOut.length > 0) {
       for (const key of fanOut) edges.push({ sourceKey: step.key, targetKey: key, label: null });
-    } else if (!fanOutTargets.has(step.key)) {
+    } else if (!fanOutTargets.has(step.key) && !errorTargets.has(step.key)) {
       // No explicit successors and not an explicit lane head — chain to the next step by order,
-      // unless that next step is a switch lane head.
+      // unless that next step is a switch or error lane head.
       const next = steps[i + 1];
-      if (next && !switchTargets.has(next.key)) {
+      if (next && !switchTargets.has(next.key) && !errorTargets.has(next.key)) {
         edges.push({ sourceKey: step.key, targetKey: next.key, label: null });
       }
+    }
+
+    // The error edge is additive — a step can fail whatever its success routing is.
+    const onError = validOnError(step, live);
+    if (onError != null) {
+      edges.push({ sourceKey: step.key, targetKey: onError, label: "error" });
     }
   }
   return edges;
@@ -165,7 +187,9 @@ export function routingFromEdges(steps: RoutingStep[], edges: WorkflowEdgeInput[
     const from = steps[edge.from];
     const toKey = steps[edge.to]?.key;
     if (!from || toKey == null) continue;
-    if (edge.label != null) {
+    if (edge.label === "error") {
+      from.onError = toKey;
+    } else if (edge.label != null) {
       from.routing ??= { byLabel: {}, default: null };
       if (edge.label === "default") from.routing.default = toKey;
       else from.routing.byLabel[edge.label] = toKey;
@@ -293,6 +317,50 @@ export function FanOutTargets({
       <p className="text-[11px] text-zinc-600">
         Pick none to run the next step in order. Pick two or more to run them at once; point several steps at
         the same one to join.
+      </p>
+    </div>
+  );
+}
+
+// "On error → step" picker, available for any step. If the step fails after its retries, the run
+// jumps to this step (as {{steps.<key>.error}}) instead of failing the whole execution.
+export function ErrorTarget({
+  step,
+  steps,
+  onChange,
+}: {
+  step: RoutingStep;
+  steps: RoutingStep[];
+  onChange: (onError: number | undefined) => void;
+}) {
+  const others = steps.filter((s) => s.key !== step.key);
+  const indexOf = (key: number) => steps.findIndex((s) => s.key === key);
+  const optionLabel = (s: RoutingStep) => `#${indexOf(s.key) + 1} ${s.name || s.actionType}`;
+  const value = validOnError(step, liveKeySet(steps));
+
+  if (others.length === 0) return null;
+
+  return (
+    <div className="mt-2 space-y-2 rounded-md border border-red-900/50 bg-red-950/20 p-2">
+      <p className="text-xs font-medium text-red-300/80">On error</p>
+      <div className="flex items-center gap-2">
+        <span className="text-red-400/70">⚠→</span>
+        <select
+          className={inputClass}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+        >
+          <option value="">— fail the run —</option>
+          {others.map((s) => (
+            <option key={s.key} value={s.key}>
+              {optionLabel(s)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="text-[11px] text-zinc-600">
+        If this step fails after its retries, jump to the chosen step instead of failing the run. The failure
+        is available there as <code>{"{{steps.<name>.error.message}}"}</code>.
       </p>
     </div>
   );

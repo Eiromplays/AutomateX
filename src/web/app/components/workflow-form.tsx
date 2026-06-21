@@ -5,6 +5,7 @@ import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { type JsonSchema, SchemaForm } from "./schema-form";
 import { assignStepKeys, configHasIndexRef, rewriteConfigIndexRefs, type StepOutput } from "./step-refs";
 import {
+  ErrorTarget,
   FanOutTargets,
   keyEdges,
   routingFromEdges,
@@ -19,6 +20,7 @@ type DraftStep = CreateWorkflowStep & {
   key: number;
   routing?: SwitchRouting;
   fanOut?: number[];
+  onError?: number;
 };
 
 const inputClass =
@@ -303,6 +305,11 @@ export function WorkflowForm({
                     onChange={(fanOut) => updateStep(step.key, { fanOut })}
                   />
                 )}
+                <ErrorTarget
+                  step={step}
+                  steps={steps}
+                  onChange={(onError) => updateStep(step.key, { onError })}
+                />
               </div>
             </div>
           ))}
