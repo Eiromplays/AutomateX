@@ -291,6 +291,15 @@ export function WorkflowForm({
                 stepOrder={index}
                 onChange={(config) => updateStep(step.key, { config })}
               />
+              <label className="mt-3 block text-xs text-zinc-400">
+                Idempotency key (optional)
+                <input
+                  className={`${inputClass} mt-1`}
+                  placeholder="e.g. {{trigger.payload.id}} — runs the action at most once per value"
+                  value={step.idempotencyKey ?? ""}
+                  onChange={(e) => updateStep(step.key, { idempotencyKey: e.target.value || null })}
+                />
+              </label>
               <div className="mt-3">
                 {step.actionType === "switch" ? (
                   <SwitchTargets

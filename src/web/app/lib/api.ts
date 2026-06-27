@@ -77,6 +77,7 @@ export type WorkflowStep = {
   name: string | null;
   actionType: string;
   configJson: string;
+  idempotencyKey: string | null;
 };
 
 export type WorkflowTrigger = {
@@ -180,6 +181,7 @@ export type CreateWorkflowStep = {
   actionType: string;
   name: string | null;
   config: Record<string, unknown>;
+  idempotencyKey?: string | null;
 };
 
 // A branch edge between step orders. label = null is an unconditional link; a labelled

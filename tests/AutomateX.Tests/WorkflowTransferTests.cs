@@ -78,6 +78,19 @@ public sealed class WorkflowTransferTests
     }
 
     [Fact]
+    public void Round_trip_preserves_step_idempotency_key()
+    {
+        List<StepDefinition> steps =
+        [
+            new("webhook.send", "notify", "{}", IdempotencyKey: "{{trigger.payload.id}}"),
+        ];
+
+        var parsed = WorkflowTransfer.Parse(WorkflowTransfer.Export("wf", null, steps, Triggers));
+
+        Assert.Equal("{{trigger.payload.id}}", Assert.Single(parsed.Steps).IdempotencyKey);
+    }
+
+    [Fact]
     public void OnFailure_trigger_travels_without_its_instance_local_watch_id()
     {
         List<(string Type, string ConfigJson)> triggers =

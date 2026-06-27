@@ -48,7 +48,7 @@ public static class UpdateWorkflow
             var edges = CreateWorkflow.BuildEdges(req.Edges, req.Steps.Count, message => ThrowError(message));
 
             var steps = req.Steps
-                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
+                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText(), IdempotencyKey: x.IdempotencyKey))
                 .ToList();
             StepReferences.Validate(steps, message => ThrowError(message));
 

@@ -76,6 +76,7 @@ export default function WorkflowEdit() {
               actionType: step.actionType,
               name: step.name,
               config: JSON.parse(step.configJson) as Record<string, unknown>,
+              idempotencyKey: step.idempotencyKey,
             })),
           edges: workflow.latestVersion.edges,
           triggers: triggersFromWorkflow(workflow.triggers),

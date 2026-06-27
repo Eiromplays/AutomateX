@@ -14,6 +14,7 @@ type ImportDoc = {
     actionType?: string;
     name?: string | null;
     config?: Record<string, unknown>;
+    idempotencyKey?: string | null;
   }[];
   edges?: { from: number; to: number; label: string | null }[];
   triggers?: { type?: string; config?: Record<string, unknown> }[];
@@ -54,6 +55,7 @@ export default function WorkflowNew() {
           actionType: step.actionType ?? "",
           name: step.name ?? null,
           config: step.config ?? {},
+          idempotencyKey: step.idempotencyKey ?? null,
         })),
         edges: importDoc.edges ?? [],
         triggers: importedDraftTriggers(importDoc.triggers ?? []),

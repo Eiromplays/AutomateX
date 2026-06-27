@@ -61,7 +61,7 @@ public sealed class Workflow
         return AddVersion(
             target.Steps
                 .OrderBy(x => x.Order)
-                .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson, x.Key))
+                .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson, x.Key, x.IdempotencyKey))
                 .ToList(),
             target.Edges
                 .Select(x => new EdgeDefinition(x.FromOrder, x.ToOrder, x.Label))

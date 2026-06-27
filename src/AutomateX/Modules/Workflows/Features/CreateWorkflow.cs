@@ -37,7 +37,7 @@ public static class CreateWorkflow
             var edges = BuildEdges(req.Edges, req.Steps.Count, message => ThrowError(message));
 
             var steps = req.Steps
-                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText()))
+                .Select(x => new StepDefinition(x.ActionType, x.Name, x.Config.GetRawText(), IdempotencyKey: x.IdempotencyKey))
                 .ToList();
             StepReferences.Validate(steps, message => ThrowError(message));
 
@@ -55,7 +55,7 @@ public static class CreateWorkflow
         string Name, string? Description, List<StepRequest> Steps, List<EdgeRequest>? Edges = null,
         bool ContinueOnFailure = false);
 
-    public sealed record StepRequest(string ActionType, string? Name, JsonElement Config);
+    public sealed record StepRequest(string ActionType, string? Name, JsonElement Config, string? IdempotencyKey = null);
 
     public sealed record EdgeRequest(int From, int To, string? Label);
 
