@@ -87,7 +87,7 @@ public static class ExecuteStepHandler
 
             if (!string.IsNullOrWhiteSpace(step.IdempotencyKey))
             {
-                var resolvedKey = TemplateResolver.Resolve(step.IdempotencyKey, templateContext);
+                var resolvedKey = TemplateResolver.ResolveString(step.IdempotencyKey, templateContext);
                 idempotencyKey = string.IsNullOrWhiteSpace(resolvedKey) ? null : resolvedKey;
             }
         }

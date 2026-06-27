@@ -41,6 +41,16 @@ public static partial class TemplateResolver
         return ResolveNode(root, context)?.ToJsonString() ?? "null";
     }
 
+    // Resolves {{tokens}} in a plain (non-JSON) string to a flat string — for fields like an
+    // idempotency key that aren't JSON. A whole-string token keeps its resolved scalar (stringified);
+    // a null/missing value resolves to null. Unresolvable paths throw, like Resolve.
+    public static string? ResolveString(string template, TemplateContext context) => ResolveText(template, context) switch
+    {
+        null => null,
+        JsonValue value when value.TryGetValue<string>(out var text) => text,
+        var node => node.ToJsonString(),
+    };
+
     private static JsonNode? ResolveNode(JsonNode? node, TemplateContext context) => node switch
     {
         JsonObject obj => ResolveObject(obj, context),
