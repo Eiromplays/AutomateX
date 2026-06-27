@@ -8,7 +8,16 @@ namespace AutomateX.Engine;
 
 // EntryOrder lets a trigger start the run at a specific step instead of the first. null (and any
 // out-of-range value) falls back to the first step by order — so existing fires are unchanged.
-public sealed record RunWorkflow(Guid ExecutionId, Guid WorkflowId, string TriggeredBy, string? Payload = null, int? EntryOrder = null);
+public sealed record RunWorkflow(
+    Guid ExecutionId,
+    Guid WorkflowId,
+    string TriggeredBy,
+    string? Payload = null,
+    int? EntryOrder = null,
+    // Set when this run is a sub-workflow call — the parent to resume when it finishes.
+    Guid? ParentExecutionId = null,
+    int? ParentStepOrder = null,
+    int Depth = 0);
 
 public static class RunWorkflowHandler
 {
@@ -54,7 +63,7 @@ public static class RunWorkflowHandler
 
         var execution = Execution.Start(
             message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload, workspaceId,
-            version.ContinueOnFailure);
+            version.ContinueOnFailure, message.ParentExecutionId, message.ParentStepOrder, message.Depth);
         dbContext.Executions.Add(execution);
 
         // Entry step: the trigger's chosen order if it exists, else the first by order. An invalid

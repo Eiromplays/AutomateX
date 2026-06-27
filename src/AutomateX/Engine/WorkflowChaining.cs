@@ -66,24 +66,34 @@ public static class WorkflowChaining
         }
     }
 
-    public static async Task<List<RunWorkflow>> CollectAsync(
+    // Collected at every terminal site and cascaded through the outbox: the "workflow" triggers that
+    // should fire now, plus — if this run is a sub-workflow call — a ResumeExecution that wakes the
+    // waiting parent with the child's result. Both ride the durable outbox, crash-safe.
+    public static async Task<List<object>> CollectAsync(
         AutomateXDbContext dbContext,
         EngineOptions options,
         Execution execution,
         ILogger logger,
         CancellationToken cancellationToken)
     {
+        List<object> messages = [];
+
+        // Sub-workflow parent wakeup (durable, idempotent via ResumeExecution's atomic claim).
+        if (execution.ParentExecutionId is { } parentId && execution.ParentStepOrder is { } parentOrder)
+        {
+            messages.Add(new ResumeExecution(parentId, parentOrder, "child", BuildChildResult(execution)));
+        }
+
         var triggers = await dbContext.Triggers
             .Where(x => x.Enabled && x.Type == TriggerType)
             .ToListAsync(cancellationToken);
 
         if (triggers.Count == 0)
         {
-            return [];
+            return messages;
         }
 
         var depth = GetChainDepth(execution.TriggerPayload) + 1;
-        List<RunWorkflow> messages = [];
 
         foreach (var trigger in triggers)
         {
@@ -128,6 +138,36 @@ public static class WorkflowChaining
         }
 
         return messages;
+    }
+
+    // The child run's result handed back to a waiting parent (workflow.call step output): the final
+    // status, the child id, and the highest-order succeeded step's output as a best-effort return.
+    private static string BuildChildResult(Execution execution)
+    {
+        var last = execution.Steps
+            .Where(s => s.Status == ExecutionStatus.Succeeded)
+            .OrderByDescending(s => s.StepOrder)
+            .FirstOrDefault();
+
+        JsonNode? output = null;
+        if (last?.Output is { Length: > 0 } raw)
+        {
+            try
+            {
+                output = JsonNode.Parse(raw);
+            }
+            catch (JsonException)
+            {
+                output = JsonValue.Create(raw);
+            }
+        }
+
+        return new JsonObject
+        {
+            ["status"] = execution.Status.ToString(),
+            ["executionId"] = execution.Id.ToString(),
+            ["output"] = output,
+        }.ToJsonString();
     }
 
     private static string BuildPayload(Execution source, int depth)

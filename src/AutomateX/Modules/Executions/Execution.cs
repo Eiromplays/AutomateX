@@ -31,6 +31,14 @@ public sealed class Execution
 
     public DateTimeOffset? CompletedAt { get; private set; }
 
+    // Set when this run is a sub-workflow call: who to resume when it reaches a terminal state.
+    public Guid? ParentExecutionId { get; private set; }
+
+    public int? ParentStepOrder { get; private set; }
+
+    // Sub-workflow nesting depth (0 = top level); guarded against runaway recursion.
+    public int Depth { get; private set; }
+
     public List<StepExecution> Steps { get; } = [];
 
     public static Execution Start(
@@ -40,7 +48,10 @@ public sealed class Execution
         string triggeredBy,
         string? triggerPayload = null,
         Guid? workspaceId = null,
-        bool continueOnFailure = false) => new()
+        bool continueOnFailure = false,
+        Guid? parentExecutionId = null,
+        int? parentStepOrder = null,
+        int depth = 0) => new()
     {
         Id = id,
         WorkspaceId = workspaceId ?? Workspace.DefaultId,
@@ -51,6 +62,9 @@ public sealed class Execution
         Status = ExecutionStatus.Running,
         ContinueOnFailure = continueOnFailure,
         StartedAt = DateTimeOffset.UtcNow,
+        ParentExecutionId = parentExecutionId,
+        ParentStepOrder = parentStepOrder,
+        Depth = depth,
     };
 
     public StepExecution AddStep(string actionType, int stepOrder)

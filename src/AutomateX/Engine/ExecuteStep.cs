@@ -107,6 +107,13 @@ public static class ExecuteStepHandler
                 execution, stepExecution, message.StepOrder, resolvedConfig, dbContext, eventBus, options, logger, cancellationToken);
         }
 
+        // workflow.call is engine-handled: start a child run and suspend until it finishes.
+        if (step.ActionType == WorkflowCall.ActionType)
+        {
+            return await StartSubWorkflowAsync(
+                execution, stepExecution, message.StepOrder, resolvedConfig, dbContext, eventBus, options, logger, cancellationToken);
+        }
+
         string? output;
         try
         {
@@ -283,6 +290,91 @@ public static class ExecuteStepHandler
         return null; // indefinite signal wait — resumed by an external ResumeExecution
     }
 
+    // workflow.call: start a child run (carrying a parent link) and suspend until it finishes. The
+    // child's terminal site cascades a ResumeExecution back here (see WorkflowChaining.CollectAsync).
+    private static async Task<object?> StartSubWorkflowAsync(
+        Execution execution,
+        StepExecution stepExecution,
+        int stepOrder,
+        string resolvedConfig,
+        AutomateXDbContext dbContext,
+        EngineEventBus eventBus,
+        EngineOptions options,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        WorkflowCallConfig config;
+        try
+        {
+            config = JsonSerializer.Deserialize<WorkflowCallConfig>(resolvedConfig, JsonSerializerOptions.Web)
+                ?? throw new ArgumentException("workflow.call requires a 'workflowId'.");
+            if (config.WorkflowId == Guid.Empty)
+            {
+                throw new ArgumentException("workflow.call requires a 'workflowId'.");
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException)
+        {
+            return await FailStepAsync(execution, stepExecution, stepOrder, WorkflowCall.ActionType, ex.Message,
+                dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        var childDepth = execution.Depth + 1;
+        var targetWorkspace = await dbContext.Workflows
+            .Where(x => x.Id == config.WorkflowId)
+            .Select(x => (Guid?)x.WorkspaceId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (targetWorkspace != execution.WorkspaceId)
+        {
+            return await FailStepAsync(execution, stepExecution, stepOrder, WorkflowCall.ActionType,
+                "workflow.call target workflow was not found in this workspace.",
+                dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        if (childDepth > options.MaxChainDepth)
+        {
+            return await FailStepAsync(execution, stepExecution, stepOrder, WorkflowCall.ActionType,
+                $"workflow.call exceeded the maximum nesting depth ({options.MaxChainDepth}).",
+                dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        stepExecution.Suspend();
+        execution.Suspend();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation(
+            "Execution {ExecutionId} called workflow {WorkflowId} at step {StepOrder} (child depth {Depth})",
+            execution.Id, config.WorkflowId, stepOrder, childDepth);
+
+        return new RunWorkflow(
+            Guid.CreateVersion7(), config.WorkflowId, $"call:{execution.Id}", config.Payload,
+            EntryOrder: null, ParentExecutionId: execution.Id, ParentStepOrder: stepOrder, Depth: childDepth);
+    }
+
+    // Deterministic step failure: fail the step + execution, fan out terminal messages, emit events.
+    private static async Task<object?> FailStepAsync(
+        Execution execution,
+        StepExecution stepExecution,
+        int stepOrder,
+        string actionType,
+        string error,
+        AutomateXDbContext dbContext,
+        EngineEventBus eventBus,
+        EngineOptions options,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        stepExecution.Fail(error);
+        execution.Fail();
+        var chains = await WorkflowChaining.CollectAsync(dbContext, options, execution, logger, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await eventBus.PublishAsync(
+            new StepFailed(execution.Id, stepOrder, actionType, error, stepExecution.Attempts, WillRetry: false),
+            cancellationToken);
+        await eventBus.PublishAsync(new ExecutionFailed(execution.Id, execution.WorkflowId), cancellationToken);
+        return Cascade(chains);
+    }
+
     // Advance past a finished step. No edges → run linearly by Order with inline completion
     // (unchanged, single-in-flight). With edges → hand off to AdvanceExecution, which does the
     // routing, ready-successor dispatch and completion post-commit (so parallel joins are correct).
@@ -323,16 +415,17 @@ public static class ExecuteStepHandler
         return new AdvanceExecution(execution.Id, currentOrder);
     }
 
-    // Chained RunWorkflow messages cascade through the same outbox as step messages.
-    private static object? Cascade(List<RunWorkflow> chains)
+    // Terminal fan-out (chained RunWorkflows + a sub-workflow parent resume) cascades through the
+    // same outbox as step messages.
+    private static object? Cascade(List<object> messages)
     {
-        if (chains.Count == 0)
+        if (messages.Count == 0)
         {
             return null;
         }
 
         var outgoing = new OutgoingMessages();
-        outgoing.AddRange(chains);
+        outgoing.AddRange(messages);
         return outgoing;
     }
 

@@ -17,6 +17,9 @@ internal sealed class ExecutionConfiguration : IEntityTypeConfiguration<Executio
         builder.HasIndex(x => x.WorkspaceId);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
 
+        // DB default 0 so the AddColumn migration backfills existing rows at top-level depth.
+        builder.Property(x => x.Depth).HasDefaultValue(0);
+
         builder.HasMany(x => x.Steps)
             .WithOne()
             .HasForeignKey(x => x.ExecutionId)
