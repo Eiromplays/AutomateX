@@ -34,8 +34,9 @@ config fields:
 - **Branching & parallel** — `switch`/`gate` routing over an edge-DAG, parallel fan-out lanes that
   join, continue-on-failure, and **try/catch error branches** (an "on error →" edge catches a step's
   failure into a handler lane, with `{{steps.<key>.error}}`).
-- **Triggers** — cron, webhook (per-trigger capability secrets), manual, workflow-chaining, and
-  plugin triggers (`rss`, `http.poll`, `matrix.onMessage`).
+- **Triggers** — cron, webhook (per-trigger capability secrets), manual, workflow-chaining,
+  `execution.onFailure` (fire a workflow when another fails), and plugin triggers (`rss`, `http.poll`,
+  `matrix.onMessage`).
 - **Actions** — built-in `http.request`, `webhook.send` (HMAC-signed), `gate`, `switch`,
   `transform` (JMESPath), `wait`, `workflow.call`, `forEach`, `kv.*`, `schedule.workflow`,
   `llm.prompt`, `llm.agent`, `mcp.call`;
@@ -46,6 +47,9 @@ config fields:
   Plus "retry from a step" reusing earlier outputs.
 - **Sub-workflows & loops** — `workflow.call` runs another workflow as a step and waits for its
   result; `forEach` maps a workflow over an array, collecting ordered results.
+- **Failure alerting & metrics** — an `execution.onFailure` trigger runs a workflow whenever any run
+  fails (with the failed step + error as `{{trigger.payload}}`); OpenTelemetry/Prometheus metrics
+  export over OTLP and a `/metrics` scrape ([recipe](docs/recipes/failure-alerting.md)).
 - **Durable KV store** — per-workflow state via `kv.*`; `setIfAbsent` + `gate` gives run-once dedup
   ([recipe](docs/recipes/dedup-and-state.md)).
 - **Encrypted connections** — AES-256-GCM secret bundles + OAuth2 connections, referenced as
@@ -148,6 +152,7 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [error handling](docs/recipes/error-handling.md) ·
   [approvals & waits](docs/recipes/approvals-and-waits.md) ·
   [sub-workflows & loops](docs/recipes/sub-workflows-and-loops.md) ·
+  [failure alerting & metrics](docs/recipes/failure-alerting.md) ·
   [conditional gate](docs/recipes/conditional-gate.md) · [reminders](docs/recipes/reminders.md) ·
   [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md)
 - Design notes: [branching](docs/branching-design.md) ·
@@ -157,7 +162,7 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [durable wait](docs/durable-wait-design.md) ·
   [sub-workflows](docs/sub-workflows-design.md) · [forEach](docs/foreach-design.md) ·
   [OAuth connections](docs/oauth-connections-design.md) · [llm.agent](docs/llm-agent-design.md) ·
-  [mcp.call](docs/mcp-call-design.md)
+  [mcp.call](docs/mcp-call-design.md) · [metrics & alerting](docs/metrics-and-alerting-design.md)
 
 ## Contributing & security
 

@@ -23,7 +23,10 @@ Prometheus scrape endpoint. This milestone finishes both.
 | `automatex.executions.started` | Counter\<long> | `trigger` |
 | `automatex.executions.settled` | Counter\<long> | `status` (Succeeded\|Failed) |
 | `automatex.execution.duration` | Histogram\<double> (s) | `status` |
-| `automatex.steps.settled` | Counter\<long> | `action`, `status` (Succeeded\|Failed\|Caught) |
+| `automatex.steps.settled` | Counter\<long> | `action`, `status` (Succeeded\|Failed) |
+
+(Step `status` is `Succeeded`/`Failed` only — the event stream has no distinct "caught" signal, so a
+step caught by an error edge counts as `Failed` at the action level.)
 
 **Cardinality discipline:** tags are bounded enums/action-types only. **No `workflowId`/`executionId`
 labels** (unbounded → Prometheus cardinality blowup). Per-workflow health stays in the in-app

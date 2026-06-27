@@ -3,6 +3,23 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.5.0
+
+- **Failure alerting (`execution.onFailure` trigger).** A workspace-wide subscriber: when any
+  execution settles `Failed`, every enabled `execution.onFailure` trigger's workflow runs with a
+  failure summary as `{{trigger.payload}}` (`workflowName`, `failedStep.{key,actionType,error}`, and a
+  `url` when `Engine__PublicBaseUrl` is set) — so the alert workflow notifies however it likes
+  (`matrix.send`, `slack.send`, `webhook.send`, open a ticket). Collected on the durable terminal path
+  so alerts ride the outbox (crash-safe). Loop-guarded: an alert run never re-alerts (self-exclusion),
+  sub-workflow/`forEach` children are suppressed unless `includeSubWorkflows`, and an optional
+  `watchWorkflowId` scopes the subscription to one source. Authored in the builder; exports portably.
+  See [docs/recipes/failure-alerting.md](docs/recipes/failure-alerting.md).
+- **Metrics (OpenTelemetry + Prometheus).** Domain instruments — `automatex.executions.started`,
+  `automatex.executions.settled`, `automatex.execution.duration`, `automatex.steps.settled` (bounded
+  `status`/`action`/`trigger` tags) — exported via OTLP (push, on `OTEL_EXPORTER_OTLP_ENDPOINT`) and a
+  Prometheus scrape at `/metrics` (pull, `Metrics__EnablePrometheus`, default on, outside the API-key
+  gate). See [docs/metrics-and-alerting-design.md](docs/metrics-and-alerting-design.md).
+
 ## v3.4.0
 
 - **Sub-workflows (`workflow.call`).** Run another workflow as a step and wait for it: the parent
