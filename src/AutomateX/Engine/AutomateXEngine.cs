@@ -3,6 +3,7 @@ using AutomateX.Engine.Actions;
 using AutomateX.Engine.Events;
 using AutomateX.Engine.Plugins;
 using AutomateX.Engine.Security;
+using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Wolverine;
@@ -82,6 +83,9 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<Connections.ConnectionResolver>();
         builder.Services.AddSingleton<EngineEventBus>();
         builder.Services.AddSingleton<PluginReloader>();
+
+        builder.Services.AddSingleton<Metrics.ExecutionMetrics>();
+        builder.Services.AddSingleton<IEngineEventListener, Metrics.MetricsEventListener>();
 
         builder.Services.AddHostedService<CronScheduler>();
         builder.Services.AddHostedService<Triggers.PluginTriggerHost>();

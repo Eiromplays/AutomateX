@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
@@ -40,10 +41,21 @@ public static class Extensions
         });
 
         builder.Services.AddOpenTelemetry()
-            .WithMetrics(metrics => metrics
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddRuntimeInstrumentation())
+            .WithMetrics(metrics =>
+            {
+                metrics
+                    .AddAspNetCoreInstrumentation()
+                    .AddHttpClientInstrumentation()
+                    .AddRuntimeInstrumentation()
+                    // Domain metrics. Name kept in sync with Engine/Metrics/ExecutionMetrics.MeterName
+                    // (ServiceDefaults is a base layer and can't reference the engine assembly).
+                    .AddMeter("AutomateX");
+
+                if (PrometheusEnabled(builder.Configuration))
+                {
+                    metrics.AddPrometheusExporter();
+                }
+            })
             .WithTracing(tracing => tracing
                 .AddSource(builder.Environment.ApplicationName)
                 .AddSource("Wolverine")
@@ -88,6 +100,18 @@ public static class Extensions
             Predicate = r => r.Tags.Contains("live"),
         });
 
+        // Prometheus scrape at /metrics — aggregate counters only (no payloads/secrets), at root so
+        // it sits outside the /api auth gate for a private-network scraper. ACL it behind a public
+        // ingress. OTLP push (gated on OTEL_EXPORTER_OTLP_ENDPOINT) is unaffected and can run alongside.
+        if (PrometheusEnabled(app.Configuration))
+        {
+            app.MapPrometheusScrapingEndpoint();
+        }
+
         return app;
     }
+
+    // Default on; disable with Metrics__EnablePrometheus=false.
+    private static bool PrometheusEnabled(IConfiguration configuration) =>
+        configuration.GetValue("Metrics:EnablePrometheus", defaultValue: true);
 }
