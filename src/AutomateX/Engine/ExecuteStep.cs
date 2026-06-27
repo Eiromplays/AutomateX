@@ -6,6 +6,7 @@ using AutomateX.Engine.Events;
 using AutomateX.Engine.Security;
 using AutomateX.Engine.Templating;
 using AutomateX.Modules.Executions;
+using AutomateX.Modules.Idempotency;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -77,11 +78,18 @@ public static class ExecuteStepHandler
 
         var secretSink = new HashSet<string>();
         string resolvedConfig;
+        string? idempotencyKey = null;
         try
         {
             var templateContext = await BuildTemplateContextAsync(execution, step.ConfigJson, dbContext, connectionResolver, cancellationToken)
                 with { SecretSink = secretSink };
             resolvedConfig = TemplateResolver.Resolve(step.ConfigJson, templateContext);
+
+            if (!string.IsNullOrWhiteSpace(step.IdempotencyKey))
+            {
+                var resolvedKey = TemplateResolver.Resolve(step.IdempotencyKey, templateContext);
+                idempotencyKey = string.IsNullOrWhiteSpace(resolvedKey) ? null : resolvedKey;
+            }
         }
         catch (Exception ex) when (ex is TemplateResolutionException or SecretCipherException)
         {
@@ -119,6 +127,31 @@ public static class ExecuteStepHandler
         {
             return await StartForEachAsync(
                 execution, stepExecution, message.StepOrder, resolvedConfig, dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        // Idempotency: a keyed step returns its first success's cached result instead of re-invoking —
+        // dedups re-fires of the same logical event and post-commit redeliveries.
+        if (idempotencyKey is not null)
+        {
+            var cached = await dbContext.IdempotencyRecords
+                .AsNoTracking()
+                .Where(x => x.WorkflowId == execution.WorkflowId && x.Key == idempotencyKey)
+                .Select(x => new { x.Result })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (cached is not null)
+            {
+                stepExecution.Complete(cached.Result);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await eventBus.PublishAsync(
+                    new StepCompleted(execution.Id, message.StepOrder, step.ActionType, cached.Result), cancellationToken);
+                logger.LogInformation(
+                    "Execution {ExecutionId} step {StepOrder} returned a cached result for its idempotency key (no re-invoke)",
+                    execution.Id, message.StepOrder);
+                return await AdvanceAsync(
+                    execution, message.StepOrder, step.ActionType, cached.Result,
+                    dbContext, eventBus, options, logger, cancellationToken);
+            }
         }
 
         string? output;
@@ -233,6 +266,14 @@ public static class ExecuteStepHandler
                 "Execution {ExecutionId} halted by a closed gate at step {StepOrder}; {Count} step(s) skipped",
                 execution.Id, message.StepOrder, remaining.Count);
             return Cascade(gateChains);
+        }
+
+        // Cache the result under the idempotency key in the same commit as the step's success, so a
+        // re-fire or post-commit redelivery returns it instead of repeating the side effect.
+        if (idempotencyKey is not null)
+        {
+            dbContext.IdempotencyRecords.Add(
+                IdempotencyRecord.Create(execution.WorkspaceId, execution.WorkflowId, idempotencyKey, output));
         }
 
         // Persist this step's success before routing so readiness/claim queries see it.

@@ -41,6 +41,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<ForEachState> ForEachStates => Set<ForEachState>();
 
+    public DbSet<Modules.Idempotency.IdempotencyRecord> IdempotencyRecords => Set<Modules.Idempotency.IdempotencyRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
 }

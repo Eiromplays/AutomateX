@@ -51,6 +51,7 @@ internal sealed class WorkflowStepConfiguration : IEntityTypeConfiguration<Workf
         builder.Property(x => x.Key).HasMaxLength(128);
         builder.Property(x => x.ActionType).HasMaxLength(128);
         builder.Property(x => x.ConfigJson).HasColumnType("jsonb");
+        builder.Property(x => x.IdempotencyKey).HasMaxLength(512);
 
         builder.HasIndex(x => new { x.WorkflowVersionId, x.Order }).IsUnique();
         builder.HasIndex(x => new { x.WorkflowVersionId, x.Key }).IsUnique();
