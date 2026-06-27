@@ -3,6 +3,17 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.5.1
+
+- **Action idempotency keys.** A step can carry a templated **idempotency key** (e.g.
+  `{{trigger.payload.orderId}}`); the engine caches the first successful result keyed per workflow and
+  returns it on any later run with the same key — without re-invoking the action. Dedups re-fires of
+  the same logical event and post-commit redeliveries; failures aren't cached. `webhook.send` also
+  forwards the key as an `Idempotency-Key` header so a compliant receiver dedups retries too. Authored
+  per-step in the builder; travels with export/import. Migration `AddIdempotency`. See
+  [docs/recipes/idempotency.md](docs/recipes/idempotency.md) and
+  [docs/idempotency-design.md](docs/idempotency-design.md).
+
 ## v3.5.0
 
 - **Failure alerting (`execution.onFailure` trigger).** A workspace-wide subscriber: when any
