@@ -17,6 +17,7 @@ public sealed class ActionContextFactory(
         ExecutionId = invocation.ExecutionId,
         WorkflowId = invocation.WorkflowId,
         StepOrder = invocation.StepOrder,
+        IdempotencyKey = invocation.IdempotencyKey,
     };
 
     public TriggerContext CreateTriggerContext(string triggerType, Triggers.TriggerRunnerContext runner) => new()

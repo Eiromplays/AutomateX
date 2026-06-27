@@ -1,6 +1,6 @@
 namespace AutomateX.Engine.Actions;
 
-public sealed record ActionInvocation(Guid ExecutionId, Guid WorkflowId, int StepOrder);
+public sealed record ActionInvocation(Guid ExecutionId, Guid WorkflowId, int StepOrder, string? IdempotencyKey = null);
 
 // Engine-side dispatch contract: string-typed, json in/json out. Configs arrive
 // already template-resolved. SDK actions are adapted onto this via SdkActionExecutor.

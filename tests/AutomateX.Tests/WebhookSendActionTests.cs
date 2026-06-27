@@ -32,13 +32,14 @@ public sealed class WebhookSendActionTests
 
     private static WebhookSendAction Action() => new(Options.Create(new EngineOptions()));
 
-    private static ActionContext Context(FakeHandler handler) => new()
+    private static ActionContext Context(FakeHandler handler, string? idempotencyKey = null) => new()
     {
         Logger = NullLogger.Instance,
         Http = new HttpClient(handler),
         ExecutionId = Guid.CreateVersion7(),
         WorkflowId = Guid.CreateVersion7(),
         StepOrder = 0,
+        IdempotencyKey = idempotencyKey,
     };
 
     private static WebhookSendConfig Config(string body = """{"hello":"world"}""") => new(
@@ -109,6 +110,40 @@ public sealed class WebhookSendActionTests
 
         var (request, _) = Assert.Single(handler.Calls);
         Assert.Equal("abc", Assert.Single(request.Headers.GetValues("X-Trace")));
+    }
+
+    [Fact]
+    public async Task Forwards_the_step_idempotency_key_as_a_header()
+    {
+        var handler = new FakeHandler(_ => Ok());
+
+        await Action().ExecuteAsync(Config(), Context(handler, idempotencyKey: "order-42"));
+
+        var (request, _) = Assert.Single(handler.Calls);
+        Assert.Equal("order-42", Assert.Single(request.Headers.GetValues("Idempotency-Key")));
+    }
+
+    [Fact]
+    public async Task No_idempotency_header_without_a_key()
+    {
+        var handler = new FakeHandler(_ => Ok());
+
+        await Action().ExecuteAsync(Config(), Context(handler));
+
+        var (request, _) = Assert.Single(handler.Calls);
+        Assert.False(request.Headers.Contains("Idempotency-Key"));
+    }
+
+    [Fact]
+    public async Task A_user_set_idempotency_header_wins_over_the_step_key()
+    {
+        var handler = new FakeHandler(_ => Ok());
+        var config = Config() with { Headers = new Dictionary<string, string> { ["Idempotency-Key"] = "user" } };
+
+        await Action().ExecuteAsync(config, Context(handler, idempotencyKey: "step"));
+
+        var (request, _) = Assert.Single(handler.Calls);
+        Assert.Equal("user", Assert.Single(request.Headers.GetValues("Idempotency-Key")));
     }
 
     [Fact]

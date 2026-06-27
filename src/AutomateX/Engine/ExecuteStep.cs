@@ -157,7 +157,7 @@ public static class ExecuteStepHandler
         string? output;
         try
         {
-            var invocation = new ActionInvocation(execution.Id, execution.WorkflowId, message.StepOrder);
+            var invocation = new ActionInvocation(execution.Id, execution.WorkflowId, message.StepOrder, idempotencyKey);
             output = await actions.Get(step.ActionType, execution.WorkspaceId).ExecuteAsync(resolvedConfig, invocation, cancellationToken);
         }
         catch (Exception ex)

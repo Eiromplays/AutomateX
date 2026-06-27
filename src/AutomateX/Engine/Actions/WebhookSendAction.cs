@@ -55,6 +55,14 @@ public sealed class WebhookSendAction(IOptions<EngineOptions> options) : IAction
             }
         }
 
+        // Forward the step's idempotency key so a compliant receiver dedups our retries — defense in
+        // depth alongside the engine's own result cache. A user-set header of the same name wins.
+        if (context.IdempotencyKey is { Length: > 0 } idempotencyKey
+            && !(config.Headers?.Keys.Any(k => string.Equals(k, "Idempotency-Key", StringComparison.OrdinalIgnoreCase)) ?? false))
+        {
+            request.Headers.TryAddWithoutValidation("Idempotency-Key", idempotencyKey);
+        }
+
         using var response = await context.Http.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
 

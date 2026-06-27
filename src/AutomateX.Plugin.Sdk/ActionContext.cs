@@ -14,4 +14,8 @@ public sealed class ActionContext
     public Guid WorkflowId { get; init; }
 
     public int StepOrder { get; init; }
+
+    // The step's resolved idempotency key, if set — actions may forward it to providers that support
+    // request-level dedup (e.g. an Idempotency-Key header), complementing the engine's result cache.
+    public string? IdempotencyKey { get; init; }
 }
