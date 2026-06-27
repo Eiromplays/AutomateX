@@ -84,6 +84,9 @@ public static class WorkflowChaining
             messages.Add(new ResumeExecution(parentId, parentOrder, "child", BuildChildResult(execution), execution.ParentItemIndex));
         }
 
+        // execution.onFailure alert workflows ride the same durable outbox (no-op unless this run failed).
+        messages.AddRange(await FailureAlerting.CollectAsync(dbContext, options, execution, logger, cancellationToken));
+
         var triggers = await dbContext.Triggers
             .Where(x => x.Enabled && x.Type == TriggerType)
             .ToListAsync(cancellationToken);

@@ -5,6 +5,9 @@ public static class TriggerTypes
     public const string Cron = "cron";
     public const string Webhook = "webhook";
     public const string Workflow = "workflow";
+
+    // Engine-native: fires its workflow when another execution in the same workspace settles Failed.
+    public const string OnFailure = "execution.onFailure";
 }
 
 public static class TriggerEditRules
