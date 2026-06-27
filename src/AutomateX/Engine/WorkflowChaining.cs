@@ -81,7 +81,7 @@ public static class WorkflowChaining
         // Sub-workflow parent wakeup (durable, idempotent via ResumeExecution's atomic claim).
         if (execution.ParentExecutionId is { } parentId && execution.ParentStepOrder is { } parentOrder)
         {
-            messages.Add(new ResumeExecution(parentId, parentOrder, "child", BuildChildResult(execution)));
+            messages.Add(new ResumeExecution(parentId, parentOrder, "child", BuildChildResult(execution), execution.ParentItemIndex));
         }
 
         var triggers = await dbContext.Triggers

@@ -26,5 +26,21 @@ internal sealed class ExecutionConfiguration : IEntityTypeConfiguration<Executio
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => x.StartedAt);
+        builder.HasIndex(x => x.ParentExecutionId);
+    }
+}
+
+internal sealed class ForEachStateConfiguration : IEntityTypeConfiguration<ForEachState>
+{
+    public void Configure(EntityTypeBuilder<ForEachState> builder)
+    {
+        builder.Property(x => x.ItemsJson).HasColumnType("jsonb");
+        builder.Property(x => x.ResultsJson).HasColumnType("jsonb");
+        builder.HasIndex(x => new { x.ExecutionId, x.StepOrder }).IsUnique();
+
+        builder.HasOne<Execution>()
+            .WithMany()
+            .HasForeignKey(x => x.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

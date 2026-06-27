@@ -17,7 +17,8 @@ public sealed record RunWorkflow(
     // Set when this run is a sub-workflow call — the parent to resume when it finishes.
     Guid? ParentExecutionId = null,
     int? ParentStepOrder = null,
-    int Depth = 0);
+    int Depth = 0,
+    int? ParentItemIndex = null);
 
 public static class RunWorkflowHandler
 {
@@ -63,7 +64,8 @@ public static class RunWorkflowHandler
 
         var execution = Execution.Start(
             message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload, workspaceId,
-            version.ContinueOnFailure, message.ParentExecutionId, message.ParentStepOrder, message.Depth);
+            version.ContinueOnFailure, message.ParentExecutionId, message.ParentStepOrder, message.Depth,
+            message.ParentItemIndex);
         dbContext.Executions.Add(execution);
 
         // Entry step: the trigger's chosen order if it exists, else the first by order. An invalid

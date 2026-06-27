@@ -39,6 +39,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<WorkflowState> WorkflowStates => Set<WorkflowState>();
 
+    public DbSet<ForEachState> ForEachStates => Set<ForEachState>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
 }

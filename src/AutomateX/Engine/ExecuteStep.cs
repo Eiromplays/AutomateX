@@ -114,6 +114,13 @@ public static class ExecuteStepHandler
                 execution, stepExecution, message.StepOrder, resolvedConfig, dbContext, eventBus, options, logger, cancellationToken);
         }
 
+        // forEach is engine-handled: map a child run over the items, suspend, accumulate the results.
+        if (step.ActionType == ForEach.ActionType)
+        {
+            return await StartForEachAsync(
+                execution, stepExecution, message.StepOrder, resolvedConfig, dbContext, eventBus, options, logger, cancellationToken);
+        }
+
         string? output;
         try
         {
@@ -349,6 +356,85 @@ public static class ExecuteStepHandler
         return new RunWorkflow(
             Guid.CreateVersion7(), config.WorkflowId, $"call:{execution.Id}", config.Payload,
             EntryOrder: null, ParentExecutionId: execution.Id, ParentStepOrder: stepOrder, Depth: childDepth);
+    }
+
+    // forEach: map a child workflow over the items array. Empty → complete with []. Otherwise create
+    // the accumulator, suspend, and launch the first item (sequential v1); the rest follow as each
+    // child finishes (see ResumeExecutionHandler's forEach accumulation).
+    private static async Task<object?> StartForEachAsync(
+        Execution execution,
+        StepExecution stepExecution,
+        int stepOrder,
+        string resolvedConfig,
+        AutomateXDbContext dbContext,
+        EngineEventBus eventBus,
+        EngineOptions options,
+        ILogger logger,
+        CancellationToken cancellationToken)
+    {
+        ForEachConfig config;
+        try
+        {
+            config = JsonSerializer.Deserialize<ForEachConfig>(resolvedConfig, JsonSerializerOptions.Web)
+                ?? throw new ArgumentException("forEach requires 'items' and 'workflowId'.");
+            if (config.WorkflowId == Guid.Empty)
+            {
+                throw new ArgumentException("forEach requires a 'workflowId'.");
+            }
+
+            if (config.Items.ValueKind != JsonValueKind.Array)
+            {
+                throw new ArgumentException("forEach 'items' must be an array.");
+            }
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException)
+        {
+            return await FailStepAsync(execution, stepExecution, stepOrder, ForEach.ActionType, ex.Message,
+                dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        var total = config.Items.GetArrayLength();
+        if (total == 0)
+        {
+            stepExecution.Complete("[]");
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await eventBus.PublishAsync(new StepCompleted(execution.Id, stepOrder, ForEach.ActionType, "[]"), cancellationToken);
+            return await AdvanceAsync(execution, stepOrder, ForEach.ActionType, "[]", dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        var childDepth = execution.Depth + 1;
+        var targetWorkspace = await dbContext.Workflows
+            .Where(x => x.Id == config.WorkflowId)
+            .Select(x => (Guid?)x.WorkspaceId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (targetWorkspace != execution.WorkspaceId)
+        {
+            return await FailStepAsync(execution, stepExecution, stepOrder, ForEach.ActionType,
+                "forEach target workflow was not found in this workspace.", dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        if (childDepth > options.MaxChainDepth)
+        {
+            return await FailStepAsync(execution, stepExecution, stepOrder, ForEach.ActionType,
+                $"forEach exceeded the maximum nesting depth ({options.MaxChainDepth}).", dbContext, eventBus, options, logger, cancellationToken);
+        }
+
+        var state = ForEachState.Create(execution.Id, stepOrder, config.WorkflowId, config.Items.GetRawText(), total);
+        dbContext.ForEachStates.Add(state);
+
+        stepExecution.Suspend();
+        execution.Suspend();
+
+        var firstPayload = state.ItemPayload(0);
+        state.TakeNext();
+        await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation(
+            "Execution {ExecutionId} forEach over {Total} item(s) at step {StepOrder}", execution.Id, total, stepOrder);
+
+        return new RunWorkflow(
+            Guid.CreateVersion7(), config.WorkflowId, $"foreach:{execution.Id}", firstPayload,
+            EntryOrder: null, ParentExecutionId: execution.Id, ParentStepOrder: stepOrder, Depth: childDepth, ParentItemIndex: 0);
     }
 
     // Deterministic step failure: fail the step + execution, fan out terminal messages, emit events.

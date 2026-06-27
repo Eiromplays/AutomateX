@@ -36,6 +36,9 @@ public sealed class Execution
 
     public int? ParentStepOrder { get; private set; }
 
+    // For a forEach child: which item slot its result fills in the parent's accumulator.
+    public int? ParentItemIndex { get; private set; }
+
     // Sub-workflow nesting depth (0 = top level); guarded against runaway recursion.
     public int Depth { get; private set; }
 
@@ -51,7 +54,8 @@ public sealed class Execution
         bool continueOnFailure = false,
         Guid? parentExecutionId = null,
         int? parentStepOrder = null,
-        int depth = 0) => new()
+        int depth = 0,
+        int? parentItemIndex = null) => new()
     {
         Id = id,
         WorkspaceId = workspaceId ?? Workspace.DefaultId,
@@ -64,6 +68,7 @@ public sealed class Execution
         StartedAt = DateTimeOffset.UtcNow,
         ParentExecutionId = parentExecutionId,
         ParentStepOrder = parentStepOrder,
+        ParentItemIndex = parentItemIndex,
         Depth = depth,
     };
 
