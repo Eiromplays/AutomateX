@@ -41,7 +41,13 @@ jobs:
           -p:Version="${VERSION}"
           -p:ContainerRegistry=ghcr.io
           -p:ContainerRepository="${OWNER}/automatex-api"
-          -p:ContainerImageTags="\"${VERSION};latest\""
+          -p:ContainerImageTag="${VERSION}"
+
+      - name: Tag api :latest
+        run: >
+          docker buildx imagetools create
+          -t "ghcr.io/${OWNER}/automatex-api:latest"
+          "ghcr.io/${OWNER}/automatex-api:${VERSION}"
 
       - name: Build and push web image
         run: |
