@@ -3,6 +3,20 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.4.0
+
+- **Sub-workflows (`workflow.call`).** Run another workflow as a step and wait for it: the parent
+  suspends, the child runs, and the child's result `{status, executionId, output}` becomes the call
+  step's output — branch on `{{steps.<key>.output.status}}`. Reuses the durable suspend/resume, so a
+  paused parent survives restarts. Workspace-isolated and depth-guarded (`MaxChainDepth`); the
+  execution page links parent↔child.
+- **Loops (`forEach`).** Map a workflow over an array — each item becomes the child's
+  `{{trigger.payload}}` — collecting the results in order as the step output. Runs sequentially in
+  this release (durable per-item accumulator); a concurrency cap is planned. See
+  [docs/recipes/sub-workflows-and-loops.md](docs/recipes/sub-workflows-and-loops.md),
+  [docs/sub-workflows-design.md](docs/sub-workflows-design.md), and
+  [docs/foreach-design.md](docs/foreach-design.md).
+
 ## v3.3.0
 
 - **Durable wait / human approval.** A new `wait` step suspends the run into a `Waiting` status —

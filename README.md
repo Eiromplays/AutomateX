@@ -37,12 +37,15 @@ config fields:
 - **Triggers** — cron, webhook (per-trigger capability secrets), manual, workflow-chaining, and
   plugin triggers (`rss`, `http.poll`, `matrix.onMessage`).
 - **Actions** — built-in `http.request`, `webhook.send` (HMAC-signed), `gate`, `switch`,
-  `transform` (JMESPath), `kv.*`, `schedule.workflow`, `llm.prompt`, `llm.agent`, `mcp.call`;
+  `transform` (JMESPath), `wait`, `workflow.call`, `forEach`, `kv.*`, `schedule.workflow`,
+  `llm.prompt`, `llm.agent`, `mcp.call`;
   first-party plugins `ssh.command`, `matrix.send`, `discord.send`,
   `slack.send`, `telegram.send`, `pushover.send`, `email.send`.
 - **Durable wait & approvals** — a `wait` step suspends a run (timer or human approval) into a
   `Waiting` status that survives restarts; resume from the UI or API, and branch on the decision.
   Plus "retry from a step" reusing earlier outputs.
+- **Sub-workflows & loops** — `workflow.call` runs another workflow as a step and waits for its
+  result; `forEach` maps a workflow over an array, collecting ordered results.
 - **Durable KV store** — per-workflow state via `kv.*`; `setIfAbsent` + `gate` gives run-once dedup
   ([recipe](docs/recipes/dedup-and-state.md)).
 - **Encrypted connections** — AES-256-GCM secret bundles + OAuth2 connections, referenced as
@@ -144,6 +147,7 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [transform & webhooks](docs/recipes/transform-and-webhooks.md) ·
   [error handling](docs/recipes/error-handling.md) ·
   [approvals & waits](docs/recipes/approvals-and-waits.md) ·
+  [sub-workflows & loops](docs/recipes/sub-workflows-and-loops.md) ·
   [conditional gate](docs/recipes/conditional-gate.md) · [reminders](docs/recipes/reminders.md) ·
   [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md)
 - Design notes: [branching](docs/branching-design.md) ·
@@ -151,6 +155,7 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [named step references](docs/steps-references-design.md) ·
   [error branches](docs/error-branches-design.md) ·
   [durable wait](docs/durable-wait-design.md) ·
+  [sub-workflows](docs/sub-workflows-design.md) · [forEach](docs/foreach-design.md) ·
   [OAuth connections](docs/oauth-connections-design.md) · [llm.agent](docs/llm-agent-design.md) ·
   [mcp.call](docs/mcp-call-design.md)
 
