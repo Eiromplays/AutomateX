@@ -172,6 +172,8 @@ export type ExecutionDetail = Omit<ExecutionSummary, "workflowName"> & {
   workflowVersion: number | null;
   workflowSteps: { order: number; name: string | null; actionType: string }[];
   edges: WorkflowEdgeInput[];
+  // Set when this run was started by a parent's workflow.call step.
+  parentExecutionId: string | null;
 };
 
 export type CreateWorkflowStep = {

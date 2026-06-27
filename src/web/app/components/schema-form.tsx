@@ -691,6 +691,57 @@ function LlmAgentEditor({
   );
 }
 
+// workflow.call: pick a target workflow (in this workspace) and an optional payload. The run pauses
+// here until the called workflow finishes; its result is this step's output.
+function WorkflowCallEditor({
+  value,
+  onChange,
+}: {
+  value: Record<string, unknown>;
+  onChange: (value: Record<string, unknown>) => void;
+}) {
+  const { data: workflows } = useQuery({ queryKey: ["workflows"], queryFn: api.workflows.list, staleTime: 60_000 });
+  const set = (patch: Record<string, unknown>) => onChange({ ...value, ...patch });
+  const workflowId = typeof value.workflowId === "string" ? value.workflowId : "";
+  const payload = typeof value.payload === "string" ? value.payload : "";
+
+  return (
+    <div className="space-y-3">
+      <label className="block">
+        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
+          Workflow to call <span className="text-emerald-400">*</span>
+        </span>
+        <select
+          className={inputClass}
+          value={workflowId}
+          onChange={(e) => set({ workflowId: e.target.value || undefined })}
+        >
+          <option value="">— pick a workflow —</option>
+          {(workflows ?? []).map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">Payload (optional)</span>
+        <textarea
+          className={`${inputClass} font-mono`}
+          rows={3}
+          placeholder="JSON or {{steps.…}} — becomes the called workflow's {{trigger.payload}}"
+          value={payload}
+          onChange={(e) => set({ payload: e.target.value || undefined })}
+        />
+      </label>
+      <p className="text-[11px] text-zinc-600">
+        The run pauses here until the called workflow finishes; its result becomes this step's output
+        (<code>{"{{steps.<name>.output.status}}"}</code>).
+      </p>
+    </div>
+  );
+}
+
 export function SchemaForm({ schema, value, onChange, actionType, stepRefs, stepOrder }: SchemaFormProps) {
   // For validating {{connections.…}} refs in field values. undefined while loading → neutral chip.
   const { data: connections } = useQuery({
@@ -705,6 +756,10 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
 
   if (actionType === "llm.agent") {
     return <LlmAgentEditor value={value} onChange={onChange} />;
+  }
+
+  if (actionType === "workflow.call") {
+    return <WorkflowCallEditor value={value} onChange={onChange} />;
   }
 
   if (!schema?.properties) {

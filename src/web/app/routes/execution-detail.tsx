@@ -485,10 +485,25 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
     }
   })();
 
-  if (!lineage && !retryOf && execution.chained.length === 0 && execution.retries.length === 0) return null;
+  if (
+    !lineage &&
+    !retryOf &&
+    !execution.parentExecutionId &&
+    execution.chained.length === 0 &&
+    execution.retries.length === 0
+  )
+    return null;
 
   return (
     <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
+      {execution.parentExecutionId && (
+        <p>
+          ⮐ Called by execution{" "}
+          <Link to={`/executions/${execution.parentExecutionId}`} className="text-violet-400 hover:underline">
+            {execution.parentExecutionId.slice(0, 13)}…
+          </Link>
+        </p>
+      )}
       {retryOf && (
         <p>
           ↻ Retry of execution{" "}

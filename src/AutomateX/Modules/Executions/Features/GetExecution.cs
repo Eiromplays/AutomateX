@@ -51,7 +51,8 @@ public static class GetExecution
                             s.Error,
                             s.StartedAt,
                             s.CompletedAt))
-                        .ToList()))
+                        .ToList(),
+                    x.ParentExecutionId))
                 .FirstOrDefaultAsync(ct);
 
             if (execution is null)
@@ -89,6 +90,15 @@ public static class GetExecution
                 .Select(x => new ChainedResponse(x.Id, x.WorkflowId, x.Status))
                 .ToList();
 
+            // Sub-workflow children: runs this execution called via workflow.call.
+            var children = await dbContext.Executions
+                .AsNoTracking()
+                .Where(x => x.ParentExecutionId == id)
+                .OrderBy(x => x.StartedAt)
+                .Select(x => new ChainedResponse(x.Id, x.WorkflowId, x.Status.ToString()))
+                .ToListAsync(ct);
+            chained.AddRange(children);
+
             // Downstream retries: reruns carry TriggeredBy "retry:<thisId>", so the
             // original execution can link forward to every replay of it.
             var retryTag = $"retry:{id}";
@@ -121,7 +131,8 @@ public static class GetExecution
         string Status,
         DateTimeOffset StartedAt,
         DateTimeOffset? CompletedAt,
-        List<StepResponse> Steps)
+        List<StepResponse> Steps,
+        Guid? ParentExecutionId = null)
     {
         public List<ChainedResponse> Chained { get; init; } = [];
 
