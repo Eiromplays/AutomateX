@@ -843,6 +843,20 @@ function TriggerSummary({ type, configJson }: { type: string; configJson: string
     return <code className="text-xs text-zinc-500">⏰ {config.cron}</code>;
   }
 
+  if (type === "execution.onFailure") {
+    const scope =
+      typeof config.watchWorkflowId === "string" && config.watchWorkflowId
+        ? "one workflow"
+        : "any workflow";
+    const subs = config.includeSubWorkflows === true ? " (incl. sub-workflows)" : "";
+    return (
+      <span className="text-xs text-zinc-500">
+        ⚠ on failure · {scope}
+        {subs}
+      </span>
+    );
+  }
+
   if ((type === "rss" || type === "http.poll") && typeof config.url === "string") {
     return (
       <span className="max-w-md truncate text-xs text-zinc-500" title={config.url}>

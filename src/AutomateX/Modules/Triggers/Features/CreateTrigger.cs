@@ -60,11 +60,14 @@ public static class CreateTrigger
                 case TriggerTypes.Workflow:
                     await ValidateChainConfigOrThrowAsync(configJson, ws, ct);
                     break;
+                case TriggerTypes.OnFailure:
+                    await ValidateOnFailureConfigOrThrowAsync(configJson, ws, ct);
+                    break;
                 default:
                     if (!triggerRegistry.Contains(req.Type))
                     {
                         ThrowError($"Unknown trigger type '{req.Type}'. Supported: {TriggerTypes.Cron}, "
-                            + $"{TriggerTypes.Webhook}, {TriggerTypes.Workflow}"
+                            + $"{TriggerTypes.Webhook}, {TriggerTypes.Workflow}, {TriggerTypes.OnFailure}"
                             + (triggerRegistry.Types.Count > 0 ? $", {string.Join(", ", triggerRegistry.Types)}." : "."));
                         return;
                     }
@@ -114,6 +117,27 @@ public static class CreateTrigger
             if (!await dbContext.Workflows.AnyAsync(x => x.Id == config.WorkflowId && x.WorkspaceId == workspaceId, ct))
             {
                 ThrowError("The watched workflow was not found in this workspace.");
+            }
+        }
+
+        private async Task ValidateOnFailureConfigOrThrowAsync(string configJson, Guid workspaceId, CancellationToken ct)
+        {
+            FailureAlerting.OnFailureConfig? config;
+            try
+            {
+                config = JsonSerializer.Deserialize<FailureAlerting.OnFailureConfig>(configJson, JsonSerializerOptions.Web);
+            }
+            catch (JsonException)
+            {
+                ThrowError("Invalid execution.onFailure config — expected { watchWorkflowId?, includeSubWorkflows? }.");
+                return;
+            }
+
+            // watchWorkflowId is optional (omitted = the whole workspace); if set it must live here.
+            if (config?.WatchWorkflowId is { } watched
+                && !await dbContext.Workflows.AnyAsync(x => x.Id == watched && x.WorkspaceId == workspaceId, ct))
+            {
+                ThrowError("watchWorkflowId was not found in this workspace.");
             }
         }
 

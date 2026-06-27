@@ -46,7 +46,7 @@ public static class WorkflowTransfer
             .Select(trigger => (JsonNode)new JsonObject
             {
                 ["type"] = trigger.Type,
-                ["config"] = ParseOrEmpty(trigger.ConfigJson),
+                ["config"] = PortableTriggerConfig(trigger.Type, trigger.ConfigJson),
             })
             .ToArray());
 
@@ -137,6 +137,19 @@ public static class WorkflowTransfer
         }
 
         return new ParsedImport(name, description, continueOnFailure, steps, edges, triggers);
+    }
+
+    // onFailure's watchWorkflowId is an instance-local workflow id — drop it so the export stays
+    // portable; the trigger imports as a workspace-wide alert (re-scope it after import if needed).
+    private static JsonNode PortableTriggerConfig(string type, string configJson)
+    {
+        var config = ParseOrEmpty(configJson);
+        if (type == TriggerTypes.OnFailure && config is JsonObject obj)
+        {
+            obj.Remove("watchWorkflowId");
+        }
+
+        return config;
     }
 
     private static JsonNode ParseOrEmpty(string json)

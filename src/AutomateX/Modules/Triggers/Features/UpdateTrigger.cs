@@ -65,6 +65,9 @@ public static class UpdateTrigger
                     case TriggerTypes.Workflow:
                         await ValidateChainConfigOrThrowAsync(configJson, ws, ct);
                         break;
+                    case TriggerTypes.OnFailure:
+                        await ValidateOnFailureConfigOrThrowAsync(configJson, ws, ct);
+                        break;
                     default:
                         if (!triggerRegistry.Contains(trigger.Type))
                         {
@@ -124,6 +127,26 @@ public static class UpdateTrigger
             if (!await dbContext.Workflows.AnyAsync(x => x.Id == config.WorkflowId && x.WorkspaceId == workspaceId, ct))
             {
                 ThrowError("The watched workflow was not found in this workspace.");
+            }
+        }
+
+        private async Task ValidateOnFailureConfigOrThrowAsync(string configJson, Guid workspaceId, CancellationToken ct)
+        {
+            FailureAlerting.OnFailureConfig? config;
+            try
+            {
+                config = JsonSerializer.Deserialize<FailureAlerting.OnFailureConfig>(configJson, JsonSerializerOptions.Web);
+            }
+            catch (JsonException)
+            {
+                ThrowError("Invalid execution.onFailure config — expected { watchWorkflowId?, includeSubWorkflows? }.");
+                return;
+            }
+
+            if (config?.WatchWorkflowId is { } watched
+                && !await dbContext.Workflows.AnyAsync(x => x.Id == watched && x.WorkspaceId == workspaceId, ct))
+            {
+                ThrowError("watchWorkflowId was not found in this workspace.");
             }
         }
 

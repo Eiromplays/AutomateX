@@ -23,11 +23,13 @@ const BUILTIN_TYPES = [
   { type: "cron", label: "Cron schedule" },
   { type: "webhook", label: "Webhook" },
   { type: "workflow", label: "After another workflow" },
+  { type: "execution.onFailure", label: "On failure" },
 ];
 
 function defaultConfig(type: string): Record<string, unknown> {
   if (type === "cron") return { cron: "*/5 * * * *" };
   if (type === "workflow") return { workflowId: "", on: "succeeded" };
+  if (type === "execution.onFailure") return { watchWorkflowId: "", includeSubWorkflows: false };
   return {};
 }
 
@@ -37,6 +39,8 @@ export function triggerSummary(draft: DraftTrigger): string {
   if (draft.type === "cron" && typeof config.cron === "string") return `cron · ${config.cron}`;
   if (typeof config.url === "string") return `${draft.type} · ${config.url}`;
   if (draft.type === "workflow") return "after workflow";
+  if (draft.type === "execution.onFailure")
+    return config.watchWorkflowId ? "on failure · one workflow" : "on failure · any";
   return draft.type;
 }
 
@@ -248,6 +252,35 @@ export function TriggerEditor({
             <option value="succeeded">on success</option>
             <option value="failed">on failure</option>
           </select>
+        </div>
+      ) : draft.type === "execution.onFailure" ? (
+        <div className="space-y-2">
+          <select
+            className={inputClass}
+            value={typeof draft.config.watchWorkflowId === "string" ? draft.config.watchWorkflowId : ""}
+            onChange={(e) =>
+              setConfig({
+                ...draft.config,
+                watchWorkflowId: e.target.value === "" ? null : e.target.value,
+              })
+            }
+          >
+            <option value="">Any workflow in this workspace</option>
+            {(workflows ?? []).map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-xs text-zinc-400">
+            <input
+              type="checkbox"
+              className="size-4 accent-emerald-500"
+              checked={draft.config.includeSubWorkflows === true}
+              onChange={(e) => setConfig({ ...draft.config, includeSubWorkflows: e.target.checked })}
+            />
+            include sub-workflow / forEach failures
+          </label>
         </div>
       ) : (
         <SchemaForm schema={schemaFor(draft.type)} value={draft.config} onChange={setConfig} />

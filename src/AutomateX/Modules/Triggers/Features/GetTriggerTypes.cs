@@ -27,6 +27,7 @@ public static class GetTriggerTypes
                 new(TriggerTypes.Cron, "Cron", "Runs on a schedule.", "builtin", null),
                 new(TriggerTypes.Webhook, "Webhook", "Fires on an authenticated HTTP call.", "builtin", null),
                 new(TriggerTypes.Workflow, "Workflow (chain)", "Fires when another workflow finishes.", "builtin", null),
+                new(TriggerTypes.OnFailure, "On failure", "Fires when an execution in this workspace fails.", "builtin", null),
                 .. registry.Descriptors
                     .OrderBy(x => x.Type)
                     .Select(x => new Response(

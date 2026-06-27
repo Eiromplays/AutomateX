@@ -64,6 +64,7 @@ function describeTriggeredBy(triggeredBy: string, triggers: WorkflowTrigger[]): 
   if (triggeredBy === "manual") return "Manual run";
   if (triggeredBy === "scheduled") return "Scheduled action";
   if (triggeredBy === "workflow") return "Workflow chain";
+  if (triggeredBy === "execution.onFailure") return "Failure alert";
   if (triggeredBy.startsWith("retry:")) return "Retry";
   const { type } = parseTriggeredBy(triggeredBy);
   const t = firingTrigger(triggeredBy, triggers);

@@ -77,6 +77,24 @@ public sealed class WorkflowTransferTests
         Assert.Equal("rss", parsed.Triggers[1].Type);
     }
 
+    [Fact]
+    public void OnFailure_trigger_travels_without_its_instance_local_watch_id()
+    {
+        List<(string Type, string ConfigJson)> triggers =
+        [
+            ("execution.onFailure",
+                """{"watchWorkflowId":"0199c986-0000-7000-8000-000000000000","includeSubWorkflows":true}"""),
+        ];
+
+        var parsed = WorkflowTransfer.Parse(WorkflowTransfer.Export("wf", null, Steps, triggers));
+
+        var trigger = Assert.Single(parsed.Triggers);
+        Assert.Equal("execution.onFailure", trigger.Type);
+        var config = JsonNode.Parse(trigger.ConfigJson)!;
+        Assert.Null(config["watchWorkflowId"]); // instance-local id dropped → portable, workspace-wide
+        Assert.True((bool)config["includeSubWorkflows"]!);
+    }
+
     [Theory]
     [InlineData("""{"name":"wf","steps":[]}""")]
     [InlineData("""{"automatex":2,"name":"wf","steps":[]}""")]
