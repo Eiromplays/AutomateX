@@ -67,6 +67,7 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<DataKeyCache>();
         builder.Services.AddSingleton<DataKeyService>();
         builder.Services.AddSingleton<TenantCipher>();
+        builder.Services.AddSingleton<KeyRotationService>();
         if (configureEngine is not null)
         {
             builder.Services.PostConfigure(configureEngine);

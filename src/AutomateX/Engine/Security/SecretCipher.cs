@@ -11,6 +11,10 @@ public sealed class EncryptionOptions
     // 32 bytes, base64. Lives in env/config only — never in the database, so a DB
     // dump alone yields ciphertext. Losing it makes stored secrets unrecoverable.
     public string? Key { get; set; }
+
+    // The prior KEK, kept during rotation: set Key to the new key and PreviousKey to the old, restart,
+    // then call key re-wrap to migrate every DEK to the new key — after which PreviousKey can be dropped.
+    public string? PreviousKey { get; set; }
 }
 
 public sealed class SecretCipherException(string message) : Exception(message);
@@ -22,6 +26,7 @@ public sealed class SecretCipher(IOptions<EncryptionOptions> options)
     private const string KeyGuidance = "Set Encryption:Key (env Encryption__Key) to 32 base64 bytes — generate one with: openssl rand -base64 32";
 
     private readonly Lazy<byte[]?> _key = new(() => ParseKey(options.Value.Key));
+    private readonly Lazy<byte[]?> _previousKey = new(() => ParseKey(options.Value.PreviousKey));
 
     public bool IsConfigured
     {
@@ -58,7 +63,15 @@ public sealed class SecretCipher(IOptions<EncryptionOptions> options)
             throw new SecretCipherException("Ciphertext is not valid base64.");
         }
 
-        return OpenBytes(data, RequireKey());
+        // During KEK rotation, fall back to the previous key so data wrapped under it still reads.
+        try
+        {
+            return OpenBytes(data, RequireKey());
+        }
+        catch (SecretCipherException) when (_previousKey.Value is { } previous)
+        {
+            return OpenBytes(data, previous);
+        }
     }
 
     // Raw AES-256-GCM, no prefix: nonce[12] | tag[16] | ciphertext. Key-agnostic so the KEK (v1) and

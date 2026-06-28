@@ -30,4 +30,7 @@ public sealed class WorkspaceKey
     };
 
     public void Deactivate() => Active = false;
+
+    // KEK rotation: re-wrap the same DEK under a new key (the DEK bytes are unchanged).
+    public void Rewrap(string wrappedDek) => WrappedDek = wrappedDek;
 }
