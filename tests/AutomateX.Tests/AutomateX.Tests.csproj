@@ -17,6 +17,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\AutomateX\AutomateX.csproj" />
+    <!-- v4.0 spike: PluginHost for the frame codec; SamplePlugin built (not loaded) as the spike target. -->
+    <ProjectReference Include="..\..\src\AutomateX.PluginHost\AutomateX.PluginHost.csproj" />
+    <ProjectReference Include="..\..\samples\AutomateX.SamplePlugin\AutomateX.SamplePlugin.csproj">
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Discord\AutomateX.Plugins.Discord.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Email\AutomateX.Plugins.Email.csproj" />
     <ProjectReference Include="..\..\src\Plugins\AutomateX.Plugins.Feed\AutomateX.Plugins.Feed.csproj" />

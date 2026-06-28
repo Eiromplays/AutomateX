@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Spike (v4.0): the child process that hosts a plugin out-of-proc and serves it over stdio. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>
