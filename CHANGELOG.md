@@ -3,6 +3,19 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.1.0
+
+- **Per-step preview / test.** Tighten the authoring loop on a single step without running the whole
+  workflow. **Preview** (default, zero side effects) resolves the step's current — even unsaved —
+  config against an optional sample context, reports *every* unresolved reference at once, and masks
+  connection values while listing which fields the step reads. **Run for real** (opt-in, confirm-gated,
+  editor-only) executes that one leaf action once and shows its output or error — no execution rows,
+  chaining, retries, or idempotency; control-flow nodes (`switch`/`forEach`/`wait`/`workflow.call`)
+  are refused, and a real run is audited (`step.test`). Both live behind a **Preview / test** panel on
+  each step in the builder (form + canvas). New endpoints `POST /api/workflows/{id}/preview-step` and
+  `/test-step`; no schema change. See [docs/recipes/per-step-preview.md](docs/recipes/per-step-preview.md)
+  and [docs/per-step-dry-run-design.md](docs/per-step-dry-run-design.md).
+
 ## v4.0.0
 
 - **Out-of-process plugin sandboxing (breaking).** Plugins no longer load into the engine — each runs
