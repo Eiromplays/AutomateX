@@ -42,6 +42,10 @@ public sealed class Execution
     // Sub-workflow nesting depth (0 = top level); guarded against runaway recursion.
     public int Depth { get; private set; }
 
+    // The environment this run resolved {{vars.x}} against — stamped at start so history shows it and a
+    // replay reuses it. Null when the workspace has no environments configured.
+    public Guid? EnvironmentId { get; private set; }
+
     public List<StepExecution> Steps { get; } = [];
 
     public static Execution Start(
@@ -55,7 +59,8 @@ public sealed class Execution
         Guid? parentExecutionId = null,
         int? parentStepOrder = null,
         int depth = 0,
-        int? parentItemIndex = null) => new()
+        int? parentItemIndex = null,
+        Guid? environmentId = null) => new()
     {
         Id = id,
         WorkspaceId = workspaceId ?? Workspace.DefaultId,
@@ -70,6 +75,7 @@ public sealed class Execution
         ParentStepOrder = parentStepOrder,
         ParentItemIndex = parentItemIndex,
         Depth = depth,
+        EnvironmentId = environmentId,
     };
 
     public StepExecution AddStep(string actionType, int stepOrder)

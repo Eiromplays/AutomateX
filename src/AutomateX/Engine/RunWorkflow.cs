@@ -1,6 +1,7 @@
 using AutomateX.Database;
 using AutomateX.Engine.Events;
 using AutomateX.Modules.Executions;
+using AutomateX.Modules.Variables;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,7 +19,10 @@ public sealed record RunWorkflow(
     Guid? ParentExecutionId = null,
     int? ParentStepOrder = null,
     int Depth = 0,
-    int? ParentItemIndex = null);
+    int? ParentItemIndex = null,
+    // Per-run environment override (by name) for {{vars.x}} resolution; null inherits the workspace's
+    // active environment, then 'default'.
+    string? Environment = null);
 
 public static class RunWorkflowHandler
 {
@@ -61,11 +65,12 @@ public static class RunWorkflowHandler
         }
 
         var workspaceId = workflow.WorkspaceId;
+        var environmentId = await ResolveEnvironmentAsync(dbContext, workspaceId, message.Environment, cancellationToken);
 
         var execution = Execution.Start(
             message.ExecutionId, message.WorkflowId, version.Id, message.TriggeredBy, message.Payload, workspaceId,
             version.ContinueOnFailure, message.ParentExecutionId, message.ParentStepOrder, message.Depth,
-            message.ParentItemIndex);
+            message.ParentItemIndex, environmentId);
         dbContext.Executions.Add(execution);
 
         // Entry step: the trigger's chosen order if it exists, else the first by order. An invalid
@@ -87,5 +92,40 @@ public static class RunWorkflowHandler
         await dbContext.SaveChangesAsync(cancellationToken);
         await eventBus.PublishAsync(new ExecutionStarted(execution.Id, execution.WorkflowId, message.TriggeredBy), cancellationToken);
         return new ExecuteStep(execution.Id, entryStep.Order);
+    }
+
+    // Pick the environment this run resolves {{vars.x}} against: a per-run override by name, else the
+    // workspace's active environment, else 'default' (else the first). Null when none are configured.
+    private static async Task<Guid?> ResolveEnvironmentAsync(
+        AutomateXDbContext dbContext, Guid workspaceId, string? overrideName, CancellationToken cancellationToken)
+    {
+        var environments = await dbContext.WorkspaceEnvironments
+            .AsNoTracking()
+            .Where(x => x.WorkspaceId == workspaceId)
+            .Select(x => new { x.Id, x.Name })
+            .ToListAsync(cancellationToken);
+
+        if (environments.Count == 0)
+        {
+            return null;
+        }
+
+        if (overrideName is { Length: > 0 }
+            && environments.FirstOrDefault(e => e.Name == overrideName) is { } match)
+        {
+            return match.Id;
+        }
+
+        var active = await dbContext.Workspaces
+            .AsNoTracking()
+            .Where(x => x.Id == workspaceId)
+            .Select(x => x.ActiveEnvironmentId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (active is { } activeId && environments.Any(e => e.Id == activeId))
+        {
+            return activeId;
+        }
+
+        return environments.FirstOrDefault(e => e.Name == WorkspaceEnvironment.DefaultName)?.Id ?? environments[0].Id;
     }
 }

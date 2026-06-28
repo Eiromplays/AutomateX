@@ -24,6 +24,7 @@ public static class ExecuteStepHandler
         ActionRegistry actions,
         EngineEventBus eventBus,
         ConnectionResolver connectionResolver,
+        Modules.Variables.VariableLoader variableLoader,
         IOptions<EngineOptions> engineOptions,
         ILogger logger,
         CancellationToken cancellationToken)
@@ -81,7 +82,7 @@ public static class ExecuteStepHandler
         string? idempotencyKey = null;
         try
         {
-            var templateContext = await BuildTemplateContextAsync(execution, step.ConfigJson, dbContext, connectionResolver, cancellationToken)
+            var templateContext = await BuildTemplateContextAsync(execution, step.ConfigJson, dbContext, connectionResolver, variableLoader, cancellationToken)
                 with { SecretSink = secretSink };
             resolvedConfig = TemplateResolver.Resolve(step.ConfigJson, templateContext);
 
@@ -561,6 +562,7 @@ public static class ExecuteStepHandler
         string configJson,
         AutomateXDbContext dbContext,
         ConnectionResolver connectionResolver,
+        Modules.Variables.VariableLoader variableLoader,
         CancellationToken cancellationToken)
     {
         Dictionary<int, JsonElement> stepOutputs = [];
@@ -601,6 +603,14 @@ public static class ExecuteStepHandler
                 .ToDictionaryAsync(x => x.Key, x => x.Order, cancellationToken);
         }
 
+        IReadOnlyDictionary<string, string>? variables = null;
+        IReadOnlySet<string>? secretVariableNames = null;
+        if (configJson.Contains("{{vars.", StringComparison.Ordinal))
+        {
+            (variables, secretVariableNames) = await variableLoader.LoadAsync(
+                execution.WorkspaceId, execution.WorkflowId, execution.EnvironmentId, cancellationToken);
+        }
+
         return new TemplateContext(
             ParseOptionalJson(execution.TriggerPayload),
             stepOutputs,
@@ -608,7 +618,9 @@ public static class ExecuteStepHandler
             execution.WorkflowId,
             connections,
             stepKeys,
-            stepErrors);
+            stepErrors,
+            Variables: variables,
+            SecretVariableNames: secretVariableNames);
     }
 
     private static JsonElement ParseOutput(string? output)

@@ -15,6 +15,10 @@ public sealed record TemplateContext(
     IReadOnlyDictionary<string, int>? StepKeys = null,
     IReadOnlyDictionary<int, JsonElement>? StepErrors = null,
     ISet<string>? SecretSink = null,
+    // Workspace/workflow variables resolved for this run ({{vars.<name>}}); SecretVariableNames drives
+    // masking, the same way connection field reads are masked.
+    IReadOnlyDictionary<string, string>? Variables = null,
+    IReadOnlySet<string>? SecretVariableNames = null,
     // Preview mode: when set, an unresolvable path is recorded here and rendered as a placeholder
     // instead of throwing — so a dry-run can report *every* miss in one pass. Null = strict (execution).
     ICollection<string>? UnresolvedSink = null);
@@ -215,6 +219,12 @@ public static partial class TemplateResolver
             case "workflow" when segments.Length == 2 && segments[1] == "id":
                 return (JsonSerializer.SerializeToElement(context.WorkflowId.ToString()), 2, false);
 
+            case "vars" when segments.Length >= 2:
+                return context.Variables is not null && context.Variables.TryGetValue(segments[1], out var variable)
+                    ? (JsonSerializer.SerializeToElement(variable), 2, context.SecretVariableNames?.Contains(segments[1]) == true)
+                    : throw new TemplateResolutionException(
+                        $"Path '{path}' could not be resolved: unknown variable '{segments[1]}'.");
+
             case "connections" when segments.Length >= 3:
                 return context.Connections is not null
                     && context.Connections.TryGetValue(segments[1], out var secrets)
@@ -225,7 +235,7 @@ public static partial class TemplateResolver
             default:
                 throw new TemplateResolutionException(
                     $"Path '{path}' could not be resolved: unknown root '{segments[0]}'. " +
-                    "Supported: trigger.payload, steps.<order>.output, connections.<name>.<field>, execution.id, workflow.id.");
+                    "Supported: trigger.payload, steps.<order>.output, connections.<name>.<field>, vars.<name>, execution.id, workflow.id.");
         }
     }
 }
