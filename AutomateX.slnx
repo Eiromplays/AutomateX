@@ -8,6 +8,7 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/AutomateX.AppHost/AutomateX.AppHost.csproj" />
+    <Project Path="src/AutomateX.Plugin.Protocol/AutomateX.Plugin.Protocol.csproj" />
     <Project Path="src/AutomateX.Plugin.Sdk/AutomateX.Plugin.Sdk.csproj" />
     <Project Path="src/AutomateX.PluginHost/AutomateX.PluginHost.csproj" />
     <Project Path="src/AutomateX.ServiceDefaults/AutomateX.ServiceDefaults.csproj" />

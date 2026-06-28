@@ -1,5 +1,6 @@
 using System.Reflection;
 using AutomateX.Engine.Plugins;
+using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Engine.Actions;

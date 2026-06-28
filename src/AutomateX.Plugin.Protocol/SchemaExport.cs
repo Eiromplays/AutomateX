@@ -3,11 +3,12 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Schema;
 using AutomateX.Plugin.Sdk;
 
-namespace AutomateX.Engine;
+namespace AutomateX.Plugin.Protocol;
 
 // Shared JSON-Schema export for action/trigger config + result types. Beyond the stock exporter
 // it stamps format:"multiline" onto [Multiline] properties so the builder renders a textarea.
 // Returns null for types the exporter can't represent (matching the previous SchemaOrNull).
+// Lives with the protocol so it runs in the plugin host (which now produces descriptors out-of-proc).
 public static class SchemaExport
 {
     private static readonly JsonSchemaExporterOptions Options = new()

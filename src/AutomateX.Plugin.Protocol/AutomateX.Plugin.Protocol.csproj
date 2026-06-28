@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Shared host↔plugin runtime: the stdio frame codec and JSON-Schema export, used by both the
+         engine (client) and AutomateX.PluginHost (server). Kept out of the SDK so the author-facing
+         surface stays minimal. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

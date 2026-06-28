@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj" />
+    <ProjectReference Include="..\AutomateX.Plugin.Protocol\AutomateX.Plugin.Protocol.csproj" />
     <ProjectReference Include="..\AutomateX.ServiceDefaults\AutomateX.ServiceDefaults.csproj" />
   </ItemGroup>
 

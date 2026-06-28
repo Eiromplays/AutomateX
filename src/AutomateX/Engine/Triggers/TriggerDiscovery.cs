@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutomateX.Engine.Actions;
 using AutomateX.Engine.Plugins;
+using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Engine.Triggers;

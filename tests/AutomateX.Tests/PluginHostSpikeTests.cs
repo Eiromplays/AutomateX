@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json.Nodes;
-using AutomateX.PluginHost;
+using AutomateX.Plugin.Protocol;
 using Xunit;
 using Xunit.Abstractions;
 

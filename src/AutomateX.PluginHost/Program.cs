@@ -2,8 +2,8 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
-using AutomateX.PluginHost;
 using Microsoft.Extensions.Logging;
 
 // SPIKE (v4.0): host one plugin out-of-process and serve it over stdio. Handles the action half of the

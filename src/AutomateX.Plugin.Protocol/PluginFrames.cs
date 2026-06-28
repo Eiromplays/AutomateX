@@ -2,7 +2,7 @@ using System.Buffers.Binary;
 using System.Text;
 using System.Text.Json.Nodes;
 
-namespace AutomateX.PluginHost;
+namespace AutomateX.Plugin.Protocol;
 
 // The wire framing for host↔plugin: a 4-byte big-endian length prefix, then UTF-8 JSON. Same codec
 // both directions so the engine and the child agree by construction.
