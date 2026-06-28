@@ -3,6 +3,18 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.3.0
+
+- **Template gallery.** Start a workflow from a ready-made one, from three sources on a single page:
+  **built-in** starters (shipped, offline), **your templates** (save any workflow as a reusable,
+  workspace-shared template — stored as its portable export doc, secrets excluded), and a **community**
+  catalog (a release-published `templates-catalog.json` of contributed workflow docs, fetched on
+  demand). Every "Use" flows through the existing import-review screen; the gallery has search + a
+  category filter across all sources; community templates can be saved to your own. Adds the
+  `WorkflowTemplates` table and `Engine__TemplateCatalogUrl`. See
+  [docs/recipes/templates.md](docs/recipes/templates.md) and
+  [docs/template-gallery-design.md](docs/template-gallery-design.md).
+
 ## v4.2.0
 
 - **Workflow variables & environments.** Reusable values referenced as `{{vars.<name>}}`, defined per
