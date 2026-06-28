@@ -1,12 +1,51 @@
 using System.Text.Json.Nodes;
 using AutomateX.Database;
+using AutomateX.Engine;
 using AutomateX.Modules.Audit;
 using AutomateX.Modules.Workflows;
 using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AutomateX.Modules.Templates.Features;
+
+public static class GetTemplateCatalog
+{
+    public sealed record Response(string Name, string? Description, string? Category, JsonNode? Doc);
+
+    public sealed class Endpoint(IHttpClientFactory httpClientFactory, IOptions<EngineOptions> options, WorkspaceAccess access)
+        : EndpointWithoutRequest<List<Response>>
+    {
+        public override void Configure()
+        {
+            Get("templates/catalog");
+            AllowAnonymous();
+        }
+
+        public override async Task HandleAsync(CancellationToken ct)
+        {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is null)
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
+            try
+            {
+                using var http = httpClientFactory.CreateClient();
+                var entries = TemplateCatalog.Parse(await http.GetStringAsync(options.Value.TemplateCatalogUrl, ct));
+                await Send.OkAsync(
+                    entries.Select(x => new Response(x.Name, x.Description, x.Category, x.Doc)).ToList(), ct);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+            {
+                // Catalog unreachable/invalid — the gallery just hides the community section.
+                await Send.OkAsync(new List<Response>(), ct);
+            }
+        }
+    }
+}
 
 public static class GetTemplates
 {
@@ -58,7 +97,9 @@ public static class GetTemplates
 
 public static class SaveTemplate
 {
-    public sealed record Request(string? Name, string? Description, string? Category, Guid FromWorkflowId);
+    // Either save from an existing workflow (FromWorkflowId — exports its latest version) or store a
+    // doc directly (Doc — e.g. "save to my templates" from the community catalog).
+    public sealed record Request(string? Name, string? Description, string? Category, Guid? FromWorkflowId, JsonNode? Doc);
 
     public sealed record Response(Guid Id, string Name);
 
@@ -84,34 +125,47 @@ public static class SaveTemplate
                 ThrowError("A template name is required.");
             }
 
-            var workflow = await dbContext.Workflows
-                .AsNoTracking()
-                .Include(x => x.Versions).ThenInclude(x => x.Steps)
-                .Include(x => x.Versions).ThenInclude(x => x.Edges)
-                .FirstOrDefaultAsync(x => x.Id == req.FromWorkflowId && x.WorkspaceId == ws, ct);
-            if (workflow is null)
+            string docJson;
+            if (req.Doc is { } provided)
             {
-                await Send.NotFoundAsync(ct);
+                docJson = provided.ToJsonString();
+            }
+            else if (req.FromWorkflowId is { } workflowId)
+            {
+                var workflow = await dbContext.Workflows
+                    .AsNoTracking()
+                    .Include(x => x.Versions).ThenInclude(x => x.Steps)
+                    .Include(x => x.Versions).ThenInclude(x => x.Edges)
+                    .FirstOrDefaultAsync(x => x.Id == workflowId && x.WorkspaceId == ws, ct);
+                if (workflow is null)
+                {
+                    await Send.NotFoundAsync(ct);
+                    return;
+                }
+
+                var latest = workflow.Versions.OrderByDescending(x => x.Version).First();
+                var steps = latest.Steps
+                    .OrderBy(x => x.Order)
+                    .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson, x.Key, x.IdempotencyKey))
+                    .ToList();
+                var edges = latest.Edges.Select(x => new EdgeDefinition(x.FromOrder, x.ToOrder, x.Label)).ToList();
+                var triggers = await dbContext.Triggers
+                    .AsNoTracking()
+                    .Where(x => x.WorkflowId == workflowId)
+                    .Select(x => new { x.Type, x.ConfigJson })
+                    .ToListAsync(ct);
+
+                docJson = WorkflowTransfer.Export(
+                    workflow.Name, workflow.Description, steps,
+                    triggers.Select(x => (x.Type, x.ConfigJson)).ToList(), edges, latest.ContinueOnFailure).ToJsonString();
+            }
+            else
+            {
+                ThrowError("Provide either fromWorkflowId or doc.");
                 return;
             }
 
-            var latest = workflow.Versions.OrderByDescending(x => x.Version).First();
-            var steps = latest.Steps
-                .OrderBy(x => x.Order)
-                .Select(x => new StepDefinition(x.ActionType, x.Name, x.ConfigJson, x.Key, x.IdempotencyKey))
-                .ToList();
-            var edges = latest.Edges.Select(x => new EdgeDefinition(x.FromOrder, x.ToOrder, x.Label)).ToList();
-            var triggers = await dbContext.Triggers
-                .AsNoTracking()
-                .Where(x => x.WorkflowId == req.FromWorkflowId)
-                .Select(x => new { x.Type, x.ConfigJson })
-                .ToListAsync(ct);
-
-            var doc = WorkflowTransfer.Export(
-                workflow.Name, workflow.Description, steps,
-                triggers.Select(x => (x.Type, x.ConfigJson)).ToList(), edges, latest.ContinueOnFailure);
-
-            var template = WorkflowTemplate.Create(ws, req.Name!, req.Description, req.Category, doc.ToJsonString());
+            var template = WorkflowTemplate.Create(ws, req.Name!, req.Description, req.Category, docJson);
             dbContext.WorkflowTemplates.Add(template);
             await dbContext.SaveChangesAsync(ct);
 

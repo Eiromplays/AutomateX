@@ -101,6 +101,8 @@ export type WorkflowTemplateSummary = {
   createdAt: string;
 };
 
+export type CommunityTemplate = { name: string; description: string | null; category: string | null; doc: unknown };
+
 export type EnvironmentSummary = { id: string; name: string; active: boolean };
 
 export type VariableSummary = {
@@ -587,8 +589,14 @@ export const api = {
   },
   workflowTemplates: {
     list: () => request<WorkflowTemplateSummary[]>("/templates"),
-    save: (body: { name: string; description?: string | null; category?: string | null; fromWorkflowId: string }) =>
-      request<{ id: string; name: string }>("/templates", { method: "POST", body: JSON.stringify(body) }),
+    catalog: () => request<CommunityTemplate[]>("/templates/catalog"),
+    save: (body: {
+      name: string;
+      description?: string | null;
+      category?: string | null;
+      fromWorkflowId?: string;
+      doc?: unknown;
+    }) => request<{ id: string; name: string }>("/templates", { method: "POST", body: JSON.stringify(body) }),
     remove: (id: string) => request<void>(`/templates/${id}`, { method: "DELETE" }),
   },
   environments: {

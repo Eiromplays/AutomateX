@@ -26,6 +26,10 @@ public sealed class EngineOptions
     public string PluginCatalogUrl { get; set; } =
         "https://github.com/Eiromplays/AutomateX/releases/latest/download/catalog.json";
 
+    // Where the template gallery fetches its community catalog (inline workflow docs).
+    public string TemplateCatalogUrl { get; set; } =
+        "https://github.com/Eiromplays/AutomateX/releases/latest/download/templates-catalog.json";
+
     // Maximum workflow-chaining depth: a chained execution may itself chain until
     // its depth exceeds this — then the firing is skipped (logged, not failed).
     public int MaxChainDepth { get; set; } = 5;

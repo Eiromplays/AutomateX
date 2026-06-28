@@ -60,12 +60,16 @@ jobs:
       - name: Package plugins + catalog
         run: scripts/package-plugins.sh "$GITHUB_REF_NAME"
 
-      - name: Publish release with plugin assets
+      - name: Package template catalog
+        run: scripts/package-templates.sh
+
+      - name: Publish release with plugin + template assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" --generate-notes 2>/dev/null || true
-          gh release upload "$GITHUB_REF_NAME" out/plugins/*.zip out/plugins/catalog.json --clobber
+          gh release upload "$GITHUB_REF_NAME" \
+            out/plugins/*.zip out/plugins/catalog.json out/plugins/templates-catalog.json --clobber
 
       # Self-deploy: fires the AutomateX webhook AFTER images exist in GHCR. No-op until both repo
       # secrets are set: AUTOMATEX_DEPLOY_WEBHOOK = the webhook URL (.../api/webhooks/<id>) and

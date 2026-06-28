@@ -1,0 +1,26 @@
+{
+  "name": "HTTP poll → Slack",
+  "description": "Poll a JSON endpoint on a schedule and post a summary to Slack. After importing, add a cron trigger, point the URL at your endpoint, and wire a 'slack' connection.",
+  "category": "Monitoring",
+  "doc": {
+    "automatex": 1,
+    "name": "http-to-slack",
+    "description": "Poll an endpoint and notify Slack.",
+    "steps": [
+      {
+        "actionType": "http.request",
+        "name": "fetch",
+        "config": { "method": "GET", "url": "https://api.example.com/status" }
+      },
+      {
+        "actionType": "slack.send",
+        "name": "notify",
+        "config": {
+          "webhookUrl": "{{connections.slack.webhookUrl}}",
+          "text": "Status: {{steps.fetch.output.body}}"
+        }
+      }
+    ],
+    "edges": [{ "from": 0, "to": 1, "label": null }]
+  }
+}
