@@ -20,9 +20,8 @@ public sealed class OutOfProcActionRegistryTests(EngineFixture fixture, ITestOut
     public async Task Discovers_and_executes_a_plugin_action_out_of_process()
     {
         var (hostDll, sampleBin) = Locate();
-        if (hostDll is null || sampleBin is null)
+        if (!OutOfProcGate.Ready(hostDll, sampleBin, output))
         {
-            output.WriteLine("Skipped — build the solution first.");
             return;
         }
 

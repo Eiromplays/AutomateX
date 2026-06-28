@@ -18,9 +18,8 @@ public sealed class PluginSupervisorTests(EngineFixture fixture, ITestOutputHelp
     public async Task Trigger_fire_enqueues_a_workflow_run()
     {
         var (hostDll, pluginDll) = Locate();
-        if (hostDll is null || pluginDll is null)
+        if (!OutOfProcGate.Ready(hostDll, pluginDll, output))
         {
-            output.WriteLine("Skipped — build the solution first.");
             return;
         }
 
@@ -69,9 +68,8 @@ public sealed class PluginSupervisorTests(EngineFixture fixture, ITestOutputHelp
     public async Task RecycleAll_drops_warm_processes_and_relaunches_on_next_call()
     {
         var (hostDll, pluginDll) = Locate();
-        if (hostDll is null || pluginDll is null)
+        if (!OutOfProcGate.Ready(hostDll, pluginDll, output))
         {
-            output.WriteLine("Skipped — build the solution first.");
             return;
         }
 

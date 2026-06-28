@@ -105,6 +105,9 @@ public sealed class PluginHostSpikeTests(ITestOutputHelper output)
 
         if (!File.Exists(hostDll) || !File.Exists(pluginDll))
         {
+            Assert.False(
+                Environment.GetEnvironmentVariable("AUTOMATEX_REQUIRE_OOP") == "1",
+                "AUTOMATEX_REQUIRE_OOP is set but the PluginHost or plugin binaries were not found — build the solution.");
             output.WriteLine($"Skipped — build the solution first. host={hostDll} plugin={pluginDll}");
             return null;
         }

@@ -19,9 +19,8 @@ public sealed class OutOfProcConnectionTypeRegistryTests(EngineFixture fixture, 
     public async Task Discovers_and_routes_plugin_connection_types_out_of_process()
     {
         var (hostDll, sampleBin) = Locate();
-        if (hostDll is null || sampleBin is null)
+        if (!OutOfProcGate.Ready(hostDll, sampleBin, output))
         {
-            output.WriteLine("Skipped — build the solution first.");
             return;
         }
 

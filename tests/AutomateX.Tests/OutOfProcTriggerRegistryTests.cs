@@ -19,9 +19,8 @@ public sealed class OutOfProcTriggerRegistryTests(EngineFixture fixture, ITestOu
     public async Task Discovers_plugin_trigger_types_out_of_process()
     {
         var (hostDll, sampleBin) = Locate();
-        if (hostDll is null || sampleBin is null)
+        if (!OutOfProcGate.Ready(hostDll, sampleBin, output))
         {
-            output.WriteLine("Skipped — build the solution first.");
             return;
         }
 

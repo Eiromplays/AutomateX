@@ -44,9 +44,8 @@ public sealed class PluginClientTests(ITestOutputHelper output)
     public async Task Describes_and_executes_and_runs_a_trigger()
     {
         var (hostDll, pluginDll) = Locate();
-        if (hostDll is null || pluginDll is null)
+        if (!OutOfProcGate.Ready(hostDll, pluginDll, output))
         {
-            output.WriteLine("Skipped — build the solution first.");
             return;
         }
 
