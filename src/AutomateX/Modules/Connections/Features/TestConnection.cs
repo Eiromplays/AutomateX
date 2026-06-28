@@ -3,7 +3,6 @@ using AutomateX.Database;
 using AutomateX.Engine.Connections;
 using AutomateX.Engine.Security;
 using AutomateX.Modules.Workspaces;
-using AutomateX.Plugin.Sdk;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,7 +47,7 @@ public static class TestConnection
                 return;
             }
 
-            if (connection.Provider is not { } provider || registry.GetInstance(provider) is not IConnectionTester tester)
+            if (connection.Provider is not { } provider || !registry.HasTester(provider))
             {
                 await Send.OkAsync(new Response(false, "This connection type can't be tested."), ct);
                 return;
@@ -68,8 +67,10 @@ public static class TestConnection
 
             try
             {
-                var result = await tester.TestAsync(values, httpClientFactory.CreateClient(), ct);
-                await Send.OkAsync(new Response(result.Ok, result.Message), ct);
+                var result = await registry.TestAsync(provider, values, httpClientFactory.CreateClient(), ct);
+                await Send.OkAsync(result is null
+                    ? new Response(false, "This connection type can't be tested.")
+                    : new Response(result.Ok, result.Message), ct);
             }
             catch (Exception ex)
             {

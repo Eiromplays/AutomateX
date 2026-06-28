@@ -4,7 +4,6 @@ using AutomateX.Database;
 using AutomateX.Engine.Connections;
 using AutomateX.Engine.Security;
 using AutomateX.Modules.Workspaces;
-using AutomateX.Plugin.Sdk;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -60,8 +59,7 @@ public static class GetConnections
                     decryptable = false;
                 }
 
-                var isOAuth = connection.Provider is not null
-                    && registry.GetInstance(connection.Provider) is IOAuthConnectionType;
+                var isOAuth = connection.Provider is not null && registry.IsOAuth(connection.Provider);
 
                 responses.Add(new Response(
                     connection.Id, connection.Name, connection.Provider, connection.CreatedAt, keys, decryptable,

@@ -55,13 +55,23 @@ public sealed class ConnectionTypeDiscoveryTests
     public void Registry_exposes_discovered_types()
     {
         using var services = Services();
-        var plugins = new PluginAssemblies(
-            Options.Create(new EngineOptions { PluginsPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()) }),
-            NullLogger<PluginAssemblies>.Instance);
+        var options = Options.Create(new EngineOptions
+        {
+            PluginsPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()),
+        });
+        var plugins = new PluginAssemblies(options, NullLogger<PluginAssemblies>.Instance);
+
+        // OutOfProcPlugins is off, so the supervisor is never launched.
+        var supervisor = new PluginProcessSupervisor(
+            services.GetRequiredService<IServiceScopeFactory>(),
+            services.GetRequiredService<ILoggerFactory>(),
+            "unused.dll");
 
         var registry = new ConnectionTypeRegistry(
             [new AssemblyConnectionTypeSource(typeof(TestServiceConnectionType).Assembly, services)],
             plugins,
+            supervisor,
+            options,
             services,
             NullLogger<ConnectionTypeRegistry>.Instance);
 

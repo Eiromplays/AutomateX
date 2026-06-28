@@ -3,7 +3,6 @@ using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Security;
 using AutomateX.Modules.Connections;
-using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -44,7 +43,7 @@ public sealed class ConnectionResolver(
                 continue; // undecryptable (key rotated) — the step fails clearly if it needs this one
             }
 
-            if (IsOAuth(connection.Provider) && ShouldRefresh(values))
+            if (connection.Provider is { } provider && registry.IsOAuth(provider) && ShouldRefresh(values))
             {
                 values = await RefreshAsync(connection.Id, cancellationToken) ?? values;
             }
@@ -54,9 +53,6 @@ public sealed class ConnectionResolver(
 
         return result;
     }
-
-    private bool IsOAuth(string? provider) =>
-        provider is not null && registry.GetInstance(provider) is IOAuthConnectionType;
 
     private static bool ShouldRefresh(Dictionary<string, string> values) =>
         values.ContainsKey("refreshToken")
@@ -87,7 +83,8 @@ public sealed class ConnectionResolver(
                 return current; // another step refreshed it while we waited on the gate
             }
 
-            if (connection.Provider is null || registry.GetInstance(connection.Provider) is not IOAuthConnectionType oauthType)
+            if (connection.Provider is not { } provider
+                || await registry.BuildOAuthConfigAsync(provider, current, cancellationToken) is not { } config)
             {
                 return current;
             }
@@ -95,7 +92,7 @@ public sealed class ConnectionResolver(
             OAuthTokens tokens;
             try
             {
-                tokens = await oauthClient.RefreshAsync(oauthType.BuildOAuthConfig(current), current["refreshToken"], cancellationToken);
+                tokens = await oauthClient.RefreshAsync(config, current["refreshToken"], cancellationToken);
             }
             catch (OAuthException ex)
             {

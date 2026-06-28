@@ -11,7 +11,8 @@ public sealed record ConnectionTypeDescriptor(
     string? Description,
     string Source,
     IReadOnlyList<ConnectionField> Fields,
-    bool IsOAuth);
+    bool IsOAuth,
+    bool IsTester = false);
 
 // The descriptor (for the UI) plus the live instance (for testing credentials).
 public sealed record RegisteredConnectionType(ConnectionTypeDescriptor Descriptor, IConnectionType Instance);
@@ -37,7 +38,8 @@ public static class ConnectionTypeDiscovery
             yield return new RegisteredConnectionType(
                 new ConnectionTypeDescriptor(
                     attribute.Type, attribute.DisplayName, attribute.Description, source, instance.Fields,
-                    IsOAuth: instance is IOAuthConnectionType),
+                    IsOAuth: instance is IOAuthConnectionType,
+                    IsTester: instance is IConnectionTester),
                 instance);
         }
     }

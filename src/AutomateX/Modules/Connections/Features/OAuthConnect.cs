@@ -4,7 +4,6 @@ using AutomateX.Database;
 using AutomateX.Engine.Connections;
 using AutomateX.Engine.Security;
 using AutomateX.Modules.Workspaces;
-using AutomateX.Plugin.Sdk;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
 
@@ -47,7 +46,7 @@ public static class StartOAuthConnect
                 return;
             }
 
-            if (connection.Provider is null || registry.GetInstance(connection.Provider) is not IOAuthConnectionType oauthType)
+            if (connection.Provider is not { } provider || !registry.IsOAuth(provider))
             {
                 ThrowError("This connection type does not support OAuth.");
                 return;
@@ -65,7 +64,12 @@ public static class StartOAuthConnect
                 return;
             }
 
-            var config = oauthType.BuildOAuthConfig(values);
+            if (await registry.BuildOAuthConfigAsync(provider, values, ct) is not { } config)
+            {
+                ThrowError("This connection type does not support OAuth.");
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(config.AuthorizationEndpoint)
                 || string.IsNullOrWhiteSpace(config.TokenEndpoint)
                 || string.IsNullOrWhiteSpace(config.ClientId))
@@ -142,9 +146,7 @@ public static class OAuthCallback
 
             var connection = await dbContext.Connections
                 .FirstOrDefaultAsync(x => x.Id == stateData.ConnectionId && x.WorkspaceId == stateData.WorkspaceId, ct);
-            if (connection is null
-                || connection.Provider is null
-                || registry.GetInstance(connection.Provider) is not IOAuthConnectionType oauthType)
+            if (connection is null || connection.Provider is not { } provider || !registry.IsOAuth(provider))
             {
                 await Back("oauth_error=connection_gone");
                 return;
@@ -162,7 +164,12 @@ public static class OAuthCallback
                 return;
             }
 
-            var config = oauthType.BuildOAuthConfig(values);
+            if (await registry.BuildOAuthConfigAsync(provider, values, ct) is not { } config)
+            {
+                await Back("oauth_error=connection_gone");
+                return;
+            }
+
             OAuthTokens tokens;
             try
             {
