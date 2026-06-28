@@ -58,7 +58,10 @@ public static class GetPluginCatalog
                 return;
             }
 
-            var installed = plugins.Current.Global.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var installed = plugins.EnumeratePaths()
+                .Where(p => p.WorkspaceId is null)
+                .Select(x => x.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             await Send.OkAsync(new Response(
                 options.Value.AllowPluginUpload,
                 entries.Select(x => new CatalogEntry(
@@ -139,7 +142,7 @@ public static class InstallCatalogPlugin
                 ThrowError($"Checksum mismatch for '{entry.Name}' — refusing to install.");
             }
 
-            var previous = PluginFingerprints.Find(plugins.Current, "global", Guid.Empty, entry.Name);
+            var previous = PluginFingerprints.Find(plugins, "global", Guid.Empty, entry.Name);
 
             try
             {
@@ -152,7 +155,7 @@ public static class InstallCatalogPlugin
             }
 
             reloader.Reload();
-            var fingerprint = PluginFingerprints.Find(plugins.Current, "global", Guid.Empty, entry.Name);
+            var fingerprint = PluginFingerprints.Find(plugins, "global", Guid.Empty, entry.Name);
             await audit.RecordAsync(
                 "plugin.install", null, WorkspaceAccess.GetActor(User),
                 "plugin", entry.Name, $"{entry.Name} {entry.Version}", ct);

@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Security.Cryptography;
 using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Engine.Actions;
@@ -11,18 +13,27 @@ namespace AutomateX.Modules.Plugins.Features;
 
 internal static class PluginFingerprints
 {
-    // MVID: changes on every distinct compilation — the build identity of a plugin.
-    public static string Of(PluginAssembly plugin) =>
-        plugin.Assembly.ManifestModule.ModuleVersionId.ToString("N")[..8];
-
-    public static string? Find(PluginSnapshot snapshot, string scope, Guid workspaceId, string name)
+    // A content hash of the plugin dll — changes on every recompilation, so a reload's before/after
+    // fingerprints answer "did my new code actually load?" without loading the assembly in-host.
+    public static string? OfPath(string dllPath)
     {
-        IReadOnlyList<PluginAssembly> list = scope == "global"
-            ? snapshot.Global
-            : snapshot.Workspaces.TryGetValue(workspaceId, out var scoped) ? scoped : [];
+        try
+        {
+            using var stream = File.OpenRead(dllPath);
+            return Convert.ToHexStringLower(SHA256.HashData(stream))[..8];
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
 
-        var plugin = list.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
-        return plugin is null ? null : Of(plugin);
+    public static string? Find(PluginAssemblies plugins, string scope, Guid workspaceId, string name)
+    {
+        var path = plugins.EnumeratePaths().FirstOrDefault(p =>
+            (scope == "global" ? p.WorkspaceId is null : p.WorkspaceId == workspaceId)
+            && string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+        return path is null ? null : OfPath(path.DllPath);
     }
 }
 
@@ -47,41 +58,31 @@ public static class GetPlugins
                 return;
             }
 
-            var snapshot = plugins.Current;
-            var workspacePlugins = snapshot.Workspaces.TryGetValue(ws, out var scoped)
-                ? scoped.Select(Describe).OrderBy(x => x.Name).ToList()
-                : [];
-
+            var paths = plugins.EnumeratePaths();
             await Send.OkAsync(
                 new Response(
                     options.Value.AllowPluginUpload,
-                    snapshot.Global.Select(Describe).OrderBy(x => x.Name).ToList(),
-                    workspacePlugins),
+                    paths.Where(p => p.WorkspaceId is null).Select(Describe).OrderBy(x => x.Name).ToList(),
+                    paths.Where(p => p.WorkspaceId == ws).Select(Describe).OrderBy(x => x.Name).ToList()),
                 ct);
         }
 
-        // The MVID changes on every compilation — a build fingerprint that makes
-        // "did the reload actually pick up my new code?" a fact instead of a guess.
-        private static PluginInfo Describe(PluginAssembly plugin)
+        // Read the dll's metadata (no in-host load) for version + a content-hash fingerprint that
+        // makes "did the reload actually pick up my new code?" a fact instead of a guess.
+        private static PluginInfo Describe(PluginPath path)
         {
-            var fingerprint = PluginFingerprints.Of(plugin);
+            var version = "0.0.0";
             DateTimeOffset? modifiedAt = null;
             try
             {
-                if (plugin.Assembly.Location is { Length: > 0 } location && File.Exists(location))
-                {
-                    modifiedAt = File.GetLastWriteTimeUtc(location);
-                }
+                version = AssemblyName.GetAssemblyName(path.DllPath).Version?.ToString() ?? "0.0.0";
+                modifiedAt = File.GetLastWriteTimeUtc(path.DllPath);
             }
-            catch (IOException)
+            catch (Exception ex) when (ex is IOException or BadImageFormatException or FileNotFoundException)
             {
             }
 
-            return new PluginInfo(
-                plugin.Name,
-                plugin.Assembly.GetName().Version?.ToString() ?? "0.0.0",
-                fingerprint,
-                modifiedAt);
+            return new PluginInfo(path.Name, version, PluginFingerprints.OfPath(path.DllPath) ?? "", modifiedAt);
         }
     }
 
@@ -171,7 +172,7 @@ public static class UploadPlugin
             }
 
             var name = Path.GetFileNameWithoutExtension(file.FileName);
-            var previousFingerprint = PluginFingerprints.Find(plugins.Current, scope, workspaceId, name);
+            var previousFingerprint = PluginFingerprints.Find(plugins, scope, workspaceId, name);
 
             try
             {
@@ -184,7 +185,7 @@ public static class UploadPlugin
             }
 
             var result = reloader.Reload();
-            var fingerprint = PluginFingerprints.Find(plugins.Current, scope, workspaceId, name);
+            var fingerprint = PluginFingerprints.Find(plugins, scope, workspaceId, name);
             await Send.OkAsync(
                 new Response(name, scope, result.GlobalPlugins, result.WorkspacePlugins, previousFingerprint, fingerprint),
                 ct);
