@@ -53,6 +53,9 @@ config fields:
 - **Idempotency keys** — give a step a templated key and the engine caches its first success,
   skipping re-invocation on re-fires and crash redeliveries; `webhook.send` also forwards an
   `Idempotency-Key` header ([recipe](docs/recipes/idempotency.md)).
+- **Audit log & instance-admin** — an append-only trail of who changed/ran/deleted what (`GET
+  /api/audit` + an Audit page), with an operator role above workspace-owner that sees across
+  workspaces ([recipe](docs/recipes/audit-log.md)).
 - **Durable KV store** — per-workflow state via `kv.*`; `setIfAbsent` + `gate` gives run-once dedup
   ([recipe](docs/recipes/dedup-and-state.md)).
 - **Encrypted connections** — AES-256-GCM secret bundles + OAuth2 connections, referenced as
@@ -156,7 +159,7 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [approvals & waits](docs/recipes/approvals-and-waits.md) ·
   [sub-workflows & loops](docs/recipes/sub-workflows-and-loops.md) ·
   [failure alerting & metrics](docs/recipes/failure-alerting.md) ·
-  [idempotency](docs/recipes/idempotency.md) ·
+  [idempotency](docs/recipes/idempotency.md) · [audit log](docs/recipes/audit-log.md) ·
   [conditional gate](docs/recipes/conditional-gate.md) · [reminders](docs/recipes/reminders.md) ·
   [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md)
 - Design notes: [branching](docs/branching-design.md) ·
@@ -167,7 +170,7 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [sub-workflows](docs/sub-workflows-design.md) · [forEach](docs/foreach-design.md) ·
   [OAuth connections](docs/oauth-connections-design.md) · [llm.agent](docs/llm-agent-design.md) ·
   [mcp.call](docs/mcp-call-design.md) · [metrics & alerting](docs/metrics-and-alerting-design.md) ·
-  [idempotency](docs/idempotency-design.md)
+  [idempotency](docs/idempotency-design.md) · [audit & admin](docs/audit-and-admin-design.md)
 
 ## Contributing & security
 

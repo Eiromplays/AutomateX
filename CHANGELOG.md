@@ -3,6 +3,19 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.6.0
+
+- **Audit log.** An append-only trail of who did what: every config mutation (workflow, connection,
+  trigger, workspace, member, plugin create/update/delete) is recorded with actor, action, target and
+  a short summary, and every execution settle logs `execution.succeeded`/`execution.failed`. Read it
+  at `GET /api/audit` or the new **Audit** page — members see their workspace, instance-admins see all
+  (filter by actor/action). Adds the `AuditEntries` table. See
+  [docs/recipes/audit-log.md](docs/recipes/audit-log.md) and
+  [docs/audit-and-admin-design.md](docs/audit-and-admin-design.md).
+- **Instance-admin role.** A role above workspace-owner for operators, granted via config
+  (`Auth__InstanceAdmins` = OIDC subjects/emails; open and api-key callers are operators by default).
+  Instance-admins read the audit log across all workspaces.
+
 ## v3.5.1
 
 - **Action idempotency keys.** A step can carry a templated **idempotency key** (e.g.
