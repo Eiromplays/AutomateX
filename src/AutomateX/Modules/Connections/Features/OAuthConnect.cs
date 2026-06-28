@@ -17,7 +17,7 @@ public static class StartOAuthConnect
 {
     public sealed class Endpoint(
         AutomateXDbContext dbContext,
-        SecretCipher cipher,
+        TenantCipher cipher,
         ConnectionTypeRegistry registry,
         OAuthStateProtector stateProtector,
         WorkspaceAccess access) : EndpointWithoutRequest<Response>
@@ -56,7 +56,8 @@ public static class StartOAuthConnect
             Dictionary<string, string> values;
             try
             {
-                values = JsonSerializer.Deserialize<Dictionary<string, string>>(cipher.Decrypt(connection.EncryptedSecrets)) ?? [];
+                values = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                    await cipher.DecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, ct)) ?? [];
             }
             catch (SecretCipherException ex)
             {
@@ -97,7 +98,7 @@ public static class OAuthCallback
 {
     public sealed class Endpoint(
         AutomateXDbContext dbContext,
-        SecretCipher cipher,
+        TenantCipher cipher,
         ConnectionTypeRegistry registry,
         OAuthStateProtector stateProtector,
         OAuthClient client,
@@ -152,7 +153,8 @@ public static class OAuthCallback
             Dictionary<string, string> values;
             try
             {
-                values = JsonSerializer.Deserialize<Dictionary<string, string>>(cipher.Decrypt(connection.EncryptedSecrets)) ?? [];
+                values = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                    await cipher.DecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, ct)) ?? [];
             }
             catch (SecretCipherException)
             {
@@ -188,7 +190,7 @@ public static class OAuthCallback
                 values["expiresAt"] = expiresAt.ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture);
             }
 
-            connection.Update(null, cipher.Encrypt(JsonSerializer.Serialize(values)));
+            connection.Update(null, await cipher.EncryptAsync(JsonSerializer.Serialize(values), connection.WorkspaceId, ct));
             await dbContext.SaveChangesAsync(ct);
 
             await Back("oauth=connected");

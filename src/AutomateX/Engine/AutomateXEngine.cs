@@ -65,8 +65,8 @@ public static class AutomateXEngine
         builder.Services.AddOptions<EncryptionOptions>().BindConfiguration(EncryptionOptions.SectionName);
         builder.Services.AddSingleton<SecretCipher>();
         builder.Services.AddSingleton<DataKeyCache>();
-        builder.Services.AddScoped<DataKeyService>();
-        builder.Services.AddScoped<TenantCipher>();
+        builder.Services.AddSingleton<DataKeyService>();
+        builder.Services.AddSingleton<TenantCipher>();
         if (configureEngine is not null)
         {
             builder.Services.PostConfigure(configureEngine);

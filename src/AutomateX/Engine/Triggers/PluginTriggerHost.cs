@@ -165,7 +165,7 @@ public sealed class PluginTriggerHost(
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
-        var cipher = scope.ServiceProvider.GetRequiredService<SecretCipher>();
+        var cipher = scope.ServiceProvider.GetRequiredService<AutomateX.Engine.Security.TenantCipher>();
 
         var workspaceId = await dbContext.Workflows
             .Where(x => x.Id == workflowId)
@@ -178,7 +178,8 @@ public sealed class PluginTriggerHost(
             .Where(x => x.WorkspaceId == workspaceId)
             .ToListAsync(cancellationToken))
         {
-            connections[connection.Name] = JsonSerializer.Deserialize<JsonElement>(cipher.Decrypt(connection.EncryptedSecrets));
+            connections[connection.Name] = JsonSerializer.Deserialize<JsonElement>(
+                await cipher.DecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, cancellationToken));
         }
 
         // Connections are the only root that makes sense before an execution exists.

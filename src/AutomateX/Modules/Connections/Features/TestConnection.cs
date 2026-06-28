@@ -18,7 +18,7 @@ public static class TestConnection
 
     public sealed class Endpoint(
         AutomateXDbContext dbContext,
-        SecretCipher cipher,
+        TenantCipher cipher,
         WorkspaceAccess access,
         ConnectionTypeRegistry registry,
         IHttpClientFactory httpClientFactory) : EndpointWithoutRequest<Response>
@@ -57,7 +57,8 @@ public static class TestConnection
             Dictionary<string, string> values;
             try
             {
-                values = JsonSerializer.Deserialize<Dictionary<string, string>>(cipher.Decrypt(connection.EncryptedSecrets)) ?? [];
+                values = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                    await cipher.DecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, ct)) ?? [];
             }
             catch (SecretCipherException)
             {

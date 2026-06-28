@@ -12,7 +12,7 @@ namespace AutomateX.Modules.Connections.Features;
 // and recreate to rename.
 public static class UpdateConnection
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, TenantCipher cipher, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -39,7 +39,7 @@ public static class UpdateConnection
             try
             {
                 var existing = JsonSerializer.Deserialize<Dictionary<string, string>>(
-                    cipher.Decrypt(connection.EncryptedSecrets)) ?? [];
+                    await cipher.DecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, ct)) ?? [];
                 merged = req.Secrets is null ? existing : ConnectionSecretsMerger.Merge(existing, req.Secrets);
 
                 if (merged.Count == 0)
@@ -47,7 +47,7 @@ public static class UpdateConnection
                     ThrowError("A connection must keep at least one secret — delete the connection instead.");
                 }
 
-                connection.Update(req.Provider, cipher.Encrypt(JsonSerializer.Serialize(merged)));
+                connection.Update(req.Provider, await cipher.EncryptAsync(JsonSerializer.Serialize(merged), connection.WorkspaceId, ct));
             }
             catch (SecretCipherException ex)
             {

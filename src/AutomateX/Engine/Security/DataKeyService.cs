@@ -7,42 +7,23 @@ namespace AutomateX.Engine.Security;
 
 // Resolves a workspace's data-encryption key (DEK): the active one for new writes (lazily creating the
 // first), or a specific version for decrypt. DEKs are stored wrapped (KEK-encrypted) and cached
-// unwrapped via DataKeyCache.
-public sealed class DataKeyService(AutomateXDbContext dbContext, SecretCipher cipher, DataKeyCache cache)
+// unwrapped via DataKeyCache. Singleton — DB access goes through a scope so it can serve singletons
+// (e.g. ConnectionResolver) as well as endpoints.
+public sealed class DataKeyService(IServiceScopeFactory scopeFactory, SecretCipher cipher, DataKeyCache cache)
 {
     public async Task<(int Version, byte[] Dek)> GetActiveAsync(Guid workspaceId, CancellationToken cancellationToken)
     {
-        var active = await dbContext.WorkspaceKeys
-            .AsNoTracking()
-            .Where(x => x.WorkspaceId == workspaceId && x.Active)
-            .OrderByDescending(x => x.Version)
-            .FirstOrDefaultAsync(cancellationToken);
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
 
-        return active is not null
-            ? (active.Version, Unwrap(workspaceId, active.Version, active.WrappedDek))
-            : await CreateAsync(workspaceId, version: 1, cancellationToken);
-    }
-
-    public async Task<byte[]> GetAsync(Guid workspaceId, int version, CancellationToken cancellationToken)
-    {
-        if (cache.TryGet(workspaceId, version, out var cached))
+        var active = await ActiveAsync(dbContext, workspaceId, cancellationToken);
+        if (active is not null)
         {
-            return cached;
+            return (active.Version, Unwrap(workspaceId, active.Version, active.WrappedDek));
         }
 
-        var row = await dbContext.WorkspaceKeys
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Version == version, cancellationToken)
-            ?? throw new SecretCipherException($"No data key v{version} for workspace {workspaceId}.");
-
-        return Unwrap(workspaceId, version, row.WrappedDek);
-    }
-
-    private async Task<(int, byte[])> CreateAsync(Guid workspaceId, int version, CancellationToken cancellationToken)
-    {
         var dek = RandomNumberGenerator.GetBytes(32);
-        var wrapped = cipher.Encrypt(Convert.ToBase64String(dek));
-        dbContext.WorkspaceKeys.Add(WorkspaceKey.Create(workspaceId, version, wrapped));
+        dbContext.WorkspaceKeys.Add(WorkspaceKey.Create(workspaceId, 1, cipher.Encrypt(Convert.ToBase64String(dek))));
 
         try
         {
@@ -52,23 +33,42 @@ public sealed class DataKeyService(AutomateXDbContext dbContext, SecretCipher ci
         {
             // Lost a race to create the first key — adopt the winner's instead.
             dbContext.ChangeTracker.Clear();
-            var active = await dbContext.WorkspaceKeys
-                .AsNoTracking()
-                .Where(x => x.WorkspaceId == workspaceId && x.Active)
-                .OrderByDescending(x => x.Version)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (active is null)
+            var winner = await ActiveAsync(dbContext, workspaceId, cancellationToken);
+            if (winner is null)
             {
                 throw;
             }
 
-            return (active.Version, Unwrap(workspaceId, active.Version, active.WrappedDek));
+            return (winner.Version, Unwrap(workspaceId, winner.Version, winner.WrappedDek));
         }
 
-        cache.Set(workspaceId, version, dek);
-        return (version, dek);
+        cache.Set(workspaceId, 1, dek);
+        return (1, dek);
     }
+
+    public async Task<byte[]> GetAsync(Guid workspaceId, int version, CancellationToken cancellationToken)
+    {
+        if (cache.TryGet(workspaceId, version, out var cached))
+        {
+            return cached;
+        }
+
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+        var row = await dbContext.WorkspaceKeys
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.WorkspaceId == workspaceId && x.Version == version, cancellationToken)
+            ?? throw new SecretCipherException($"No data key v{version} for workspace {workspaceId}.");
+
+        return Unwrap(workspaceId, version, row.WrappedDek);
+    }
+
+    private static Task<WorkspaceKey?> ActiveAsync(AutomateXDbContext dbContext, Guid workspaceId, CancellationToken ct) =>
+        dbContext.WorkspaceKeys
+            .AsNoTracking()
+            .Where(x => x.WorkspaceId == workspaceId && x.Active)
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefaultAsync(ct);
 
     private byte[] Unwrap(Guid workspaceId, int version, string wrappedDek)
     {

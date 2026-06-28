@@ -13,7 +13,7 @@ public static partial class CreateConnection
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$")]
     private static partial Regex NamePattern();
 
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, TenantCipher cipher, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -47,7 +47,7 @@ public static partial class CreateConnection
             string encrypted;
             try
             {
-                encrypted = cipher.Encrypt(JsonSerializer.Serialize(req.Secrets));
+                encrypted = await cipher.EncryptAsync(JsonSerializer.Serialize(req.Secrets), ws, ct);
             }
             catch (SecretCipherException ex)
             {

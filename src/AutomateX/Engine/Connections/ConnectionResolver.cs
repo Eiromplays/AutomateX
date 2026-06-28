@@ -15,7 +15,7 @@ namespace AutomateX.Engine.Connections;
 // Single-flight per connection id, with a re-check after acquiring the gate, so concurrent
 // steps don't double-refresh (which would needlessly rotate the provider's refresh token).
 public sealed class ConnectionResolver(
-    SecretCipher cipher,
+    TenantCipher cipher,
     ConnectionTypeRegistry registry,
     OAuthClient oauthClient,
     IServiceScopeFactory scopeFactory,
@@ -38,7 +38,7 @@ public sealed class ConnectionResolver(
         Dictionary<string, JsonElement> result = [];
         foreach (var connection in connections)
         {
-            var values = TryDecrypt(connection.EncryptedSecrets);
+            var values = await TryDecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, cancellationToken);
             if (values is null)
             {
                 continue; // undecryptable (key rotated) — the step fails clearly if it needs this one
@@ -74,7 +74,9 @@ public sealed class ConnectionResolver(
             var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
 
             var connection = await dbContext.Connections.FirstOrDefaultAsync(x => x.Id == connectionId, cancellationToken);
-            var current = connection is null ? null : TryDecrypt(connection.EncryptedSecrets);
+            var current = connection is null
+                ? null
+                : await TryDecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, cancellationToken);
             if (connection is null || current is null)
             {
                 return null;
@@ -116,7 +118,7 @@ public sealed class ConnectionResolver(
                 current.Remove("expiresAt");
             }
 
-            connection.Update(null, cipher.Encrypt(JsonSerializer.Serialize(current)));
+            connection.Update(null, await cipher.EncryptAsync(JsonSerializer.Serialize(current), connection.WorkspaceId, cancellationToken));
             await dbContext.SaveChangesAsync(cancellationToken);
             logger.LogInformation("Refreshed OAuth token for connection {Connection}", connection.Name);
             return current;
@@ -127,11 +129,13 @@ public sealed class ConnectionResolver(
         }
     }
 
-    private Dictionary<string, string>? TryDecrypt(string encrypted)
+    private async Task<Dictionary<string, string>?> TryDecryptAsync(
+        string encrypted, Guid workspaceId, CancellationToken cancellationToken)
     {
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(cipher.Decrypt(encrypted));
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(
+                await cipher.DecryptAsync(encrypted, workspaceId, cancellationToken));
         }
         catch (Exception ex) when (ex is SecretCipherException or JsonException)
         {

@@ -14,7 +14,7 @@ public static class GetConnections
 {
     public sealed class Endpoint(
         AutomateXDbContext dbContext,
-        SecretCipher cipher,
+        TenantCipher cipher,
         ConnectionTypeRegistry registry,
         WorkspaceAccess access) : EndpointWithoutRequest<List<Response>>
     {
@@ -46,8 +46,8 @@ public static class GetConnections
                 long? oauthExpiresAt = null;
                 try
                 {
-                    var secrets = JsonSerializer.Deserialize<Dictionary<string, string>>(cipher.Decrypt(connection.EncryptedSecrets))
-                        ?? [];
+                    var secrets = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                        await cipher.DecryptAsync(connection.EncryptedSecrets, connection.WorkspaceId, ct)) ?? [];
                     keys = [.. secrets.Keys];
                     if (secrets.TryGetValue("expiresAt", out var raw)
                         && long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var unix))
