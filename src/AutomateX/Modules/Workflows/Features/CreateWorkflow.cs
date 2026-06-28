@@ -8,7 +8,8 @@ namespace AutomateX.Modules.Workflows.Features;
 
 public static class CreateWorkflow
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, ActionRegistry actions, WorkspaceAccess access) : Endpoint<Request, Response>
+    public sealed class Endpoint(
+        AutomateXDbContext dbContext, ActionRegistry actions, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -46,6 +47,10 @@ public static class CreateWorkflow
 
             dbContext.Workflows.Add(workflow);
             await dbContext.SaveChangesAsync(ct);
+
+            await audit.RecordAsync(
+                "workflow.create", ws, WorkspaceAccess.GetActor(User),
+                "workflow", workflow.Id.ToString(), workflow.Name, ct);
 
             await Send.OkAsync(new Response(workflow.Id, version.Id, version.Version), ct);
         }

@@ -87,6 +87,9 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<Metrics.ExecutionMetrics>();
         builder.Services.AddSingleton<IEngineEventListener, Metrics.MetricsEventListener>();
 
+        builder.Services.AddScoped<Modules.Audit.IAuditSink, Modules.Audit.AuditSink>();
+        builder.Services.AddSingleton<IEngineEventListener, Modules.Audit.AuditEventListener>();
+
         builder.Services.AddHostedService<CronScheduler>();
         builder.Services.AddHostedService<Triggers.PluginTriggerHost>();
         builder.Services.AddHostedService<PluginWatcher>();

@@ -65,6 +65,10 @@ public sealed class WorkspaceAccess(AutomateXDbContext dbContext, IOptions<AuthO
         (user.FindFirst("preferred_username") ?? user.FindFirst(ClaimTypes.Email) ?? user.FindFirst("email"))
             ?.Value.ToLowerInvariant();
 
+    // The audit/actor identity: the OIDC subject, then email, else a machine/open-instance caller.
+    public static string GetActor(ClaimsPrincipal user) =>
+        GetSubject(user) ?? GetEmail(user) ?? "api-key";
+
     // Self-identification for member self-service (e.g. leaving a workspace).
     public static bool IsSelf(WorkspaceMember member, ClaimsPrincipal user)
     {
