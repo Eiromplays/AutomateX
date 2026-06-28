@@ -9,6 +9,29 @@ namespace AutomateX.Modules.Variables;
 // VariableResolution core. Returns the resolved values plus the secret-name set for masking.
 public sealed class VariableLoader(AutomateXDbContext dbContext, TenantCipher cipher)
 {
+    // The workspace's active environment (or 'default'), for contexts without an execution — preview
+    // and the single-step test run.
+    public async Task<Guid?> ActiveEnvironmentAsync(Guid workspaceId, CancellationToken cancellationToken)
+    {
+        var active = await dbContext.Workspaces
+            .AsNoTracking()
+            .Where(x => x.Id == workspaceId)
+            .Select(x => x.ActiveEnvironmentId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (active is { } id
+            && await dbContext.WorkspaceEnvironments.AnyAsync(x => x.Id == id && x.WorkspaceId == workspaceId, cancellationToken))
+        {
+            return id;
+        }
+
+        return await dbContext.WorkspaceEnvironments
+            .AsNoTracking()
+            .Where(x => x.WorkspaceId == workspaceId && x.Name == WorkspaceEnvironment.DefaultName)
+            .Select(x => (Guid?)x.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<(IReadOnlyDictionary<string, string> Values, IReadOnlySet<string> SecretNames)> LoadAsync(
         Guid workspaceId, Guid workflowId, Guid? environmentId, CancellationToken cancellationToken)
     {

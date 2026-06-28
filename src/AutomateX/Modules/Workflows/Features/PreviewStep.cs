@@ -26,6 +26,7 @@ public static class PreviewStep
     public sealed class Endpoint(
         AutomateXDbContext dbContext,
         TenantCipher cipher,
+        AutomateX.Modules.Variables.VariableLoader variableLoader,
         WorkspaceAccess access) : Endpoint<Request, Response>
     {
         public override void Configure()
@@ -59,11 +60,17 @@ public static class PreviewStep
             var stepOutputs = MapStepOutputs(req.SampleContext?.StepOutputs, stepKeys);
             var connectionFields = await LoadConnectionFieldsAsync(ws, ct);
 
+            // Variables resolve against the workspace's active environment; secret values are masked.
+            var (variableValues, secretNames) = await variableLoader.LoadAsync(
+                ws, id, await variableLoader.ActiveEnvironmentAsync(ws, ct), ct);
+            var maskedVariables = variableValues.ToDictionary(
+                x => x.Key, x => secretNames.Contains(x.Key) ? "******" : x.Value);
+
             StepPreviewResult preview;
             try
             {
                 preview = StepPreview.Build(
-                    req.ConfigJson, req.SampleContext?.TriggerPayload, stepOutputs, stepKeys, connectionFields, id);
+                    req.ConfigJson, req.SampleContext?.TriggerPayload, stepOutputs, stepKeys, connectionFields, maskedVariables, id);
             }
             catch (TemplateResolutionException ex)
             {

@@ -18,6 +18,7 @@ public sealed record StepTestResult(bool Ok, JsonElement? Output, string? Error)
 public sealed class StepTestRunner(
     AutomateXDbContext dbContext,
     ConnectionResolver connectionResolver,
+    Modules.Variables.VariableLoader variableLoader,
     ActionRegistry actions)
 {
     public static readonly IReadOnlySet<string> ControlFlowTypes = new HashSet<string>(StringComparer.Ordinal)
@@ -59,8 +60,17 @@ public sealed class StepTestRunner(
             connections = await connectionResolver.ResolveAsync(workspaceConnections, cancellationToken);
         }
 
+        IReadOnlyDictionary<string, string>? variables = null;
+        IReadOnlySet<string>? secretVariableNames = null;
+        if (configJson.Contains("{{vars.", StringComparison.Ordinal))
+        {
+            (variables, secretVariableNames) = await variableLoader.LoadAsync(
+                workspaceId, workflowId, await variableLoader.ActiveEnvironmentAsync(workspaceId, cancellationToken), cancellationToken);
+        }
+
         var context = new TemplateContext(
-            triggerPayload, stepOutputs, Guid.NewGuid(), workflowId, connections, stepKeys, SecretSink: secretSink);
+            triggerPayload, stepOutputs, Guid.NewGuid(), workflowId, connections, stepKeys,
+            SecretSink: secretSink, Variables: variables, SecretVariableNames: secretVariableNames);
 
         string resolved;
         try

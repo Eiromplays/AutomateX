@@ -17,6 +17,7 @@ public sealed class StepPreviewTests
             stepOutputs: new Dictionary<int, JsonElement> { [0] = El("""{"id":"abc"}""") },
             stepKeys: new Dictionary<string, int> { ["first"] = 0 },
             connectionFields: new Dictionary<string, IReadOnlyList<string>>(),
+            variables: new Dictionary<string, string>(),
             workflowId: Guid.NewGuid());
 
         Assert.Contains("a@b.com", result.ResolvedConfig);
@@ -33,6 +34,7 @@ public sealed class StepPreviewTests
             stepOutputs: new Dictionary<int, JsonElement>(),
             stepKeys: new Dictionary<string, int>(),
             connectionFields: new Dictionary<string, IReadOnlyList<string>> { ["smtp"] = ["host", "password"] },
+            variables: new Dictionary<string, string>(),
             workflowId: Guid.NewGuid());
 
         Assert.DoesNotContain("[unresolved", result.ResolvedConfig);
@@ -52,6 +54,7 @@ public sealed class StepPreviewTests
             stepOutputs: new Dictionary<int, JsonElement>(),
             stepKeys: new Dictionary<string, int>(),
             connectionFields: new Dictionary<string, IReadOnlyList<string>>(),
+            variables: new Dictionary<string, string>(),
             workflowId: Guid.NewGuid());
 
         Assert.Equal(["connections.ghost.token"], result.Unresolved);

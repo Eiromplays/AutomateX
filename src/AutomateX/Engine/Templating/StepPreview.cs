@@ -26,6 +26,7 @@ public static partial class StepPreview
         IReadOnlyDictionary<int, JsonElement> stepOutputs,
         IReadOnlyDictionary<string, int> stepKeys,
         IReadOnlyDictionary<string, IReadOnlyList<string>> connectionFields,
+        IReadOnlyDictionary<string, string> variables,
         Guid workflowId)
     {
         // Connections exist (live) but every value is masked, so resolution can succeed without the
@@ -42,7 +43,8 @@ public static partial class StepPreview
             WorkflowId: workflowId,
             Connections: connections,
             StepKeys: stepKeys,
-            UnresolvedSink: unresolved);
+            UnresolvedSink: unresolved,
+            Variables: variables);
 
         var resolved = TemplateResolver.Resolve(configJson, context);
         return new StepPreviewResult(resolved, Distinct(unresolved), ConnectionsUsed(configJson));
