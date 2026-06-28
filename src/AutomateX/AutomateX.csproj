@@ -31,6 +31,39 @@
     <ProjectReference Include="..\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj" />
     <ProjectReference Include="..\AutomateX.Plugin.Protocol\AutomateX.Plugin.Protocol.csproj" />
     <ProjectReference Include="..\AutomateX.ServiceDefaults\AutomateX.ServiceDefaults.csproj" />
+    <!-- Build ordering only: the host ships as a bundled child process the supervisor launches,
+         not a code dependency. Its output is copied under pluginhost/ by the targets below. -->
+    <ProjectReference Include="..\AutomateX.PluginHost\AutomateX.PluginHost.csproj"
+                      ReferenceOutputAssembly="false"
+                      Private="false"
+                      SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <PluginHostOutputDir>$(MSBuildThisFileDirectory)..\AutomateX.PluginHost\bin\$(Configuration)\$(TargetFramework)\</PluginHostOutputDir>
+  </PropertyGroup>
+
+  <!-- Local build/run: drop the host (dll + runtimeconfig + deps) next to the app under pluginhost/
+       so PluginProcessSupervisor can launch `dotnet pluginhost/AutomateX.PluginHost.dll`. -->
+  <Target Name="CopyPluginHostToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <_PluginHostBuildFiles Include="$(PluginHostOutputDir)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_PluginHostBuildFiles)"
+          DestinationFiles="@(_PluginHostBuildFiles->'$(OutDir)pluginhost\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- Publish (incl. `dotnet publish -t:PublishContainer`): include the host in the published file
+       set under pluginhost/ so it lands in the container image. -->
+  <Target Name="AddPluginHostToPublish" BeforeTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <_PluginHostPublishFiles Include="$(PluginHostOutputDir)**\*" />
+      <ResolvedFileToPublish Include="@(_PluginHostPublishFiles)">
+        <RelativePath>pluginhost\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
 
 </Project>

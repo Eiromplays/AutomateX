@@ -90,7 +90,8 @@ public static class AutomateXEngine
         builder.Services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<EngineOptions>>().Value;
-            var hostDll = options.PluginHostPath ?? Path.Combine(AppContext.BaseDirectory, "AutomateX.PluginHost.dll");
+            var hostDll = options.PluginHostPath
+                ?? Path.Combine(AppContext.BaseDirectory, "pluginhost", "AutomateX.PluginHost.dll");
             return new Plugins.PluginProcessSupervisor(
                 sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILoggerFactory>(), hostDll);
         });
