@@ -57,6 +57,42 @@ public sealed class PluginClient : IAsyncDisposable
 
     public bool HasExited => _process.HasExited;
 
+    // Per-plugin observability: the captured log tail + live process facts for the ops surface.
+    public PluginLogRing Logs { get; } = new();
+
+    public int Pid => _process.Id;
+
+    public DateTimeOffset StartedAt
+    {
+        get
+        {
+            try
+            {
+                return new DateTimeOffset(_process.StartTime.ToUniversalTime(), TimeSpan.Zero);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                return DateTimeOffset.MinValue;
+            }
+        }
+    }
+
+    public long MemoryBytes
+    {
+        get
+        {
+            try
+            {
+                _process.Refresh();
+                return _process.WorkingSet64;
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                return 0;
+            }
+        }
+    }
+
     public async Task<JsonObject> DescribeAsync(CancellationToken cancellationToken = default) =>
         await CallAsync("describe", new JsonObject(), cancellationToken);
 
@@ -153,12 +189,23 @@ public sealed class PluginClient : IAsyncDisposable
             switch (method)
             {
                 case "log":
-                    _callbacks.OnLog((string?)parameters["callId"], (string?)parameters["level"] ?? "Information", (string?)parameters["message"] ?? "");
+                {
+                    var source = (string?)parameters["callId"];
+                    var level = (string?)parameters["level"] ?? "Information";
+                    var message = (string?)parameters["message"] ?? "";
+                    Logs.Add(level, source, message);
+                    _callbacks.OnLog(source, level, message);
                     return; // notification — no reply
+                }
 
                 case "trigger.error":
-                    _callbacks.OnLog((string?)parameters["triggerId"], "Error", (string?)parameters["message"] ?? "");
+                {
+                    var source = (string?)parameters["triggerId"];
+                    var message = (string?)parameters["message"] ?? "";
+                    Logs.Add("Error", source, message);
+                    _callbacks.OnLog(source, "Error", message);
                     return;
+                }
 
                 case "trigger.fire":
                     await _callbacks.OnFireAsync((string)parameters["triggerId"]!, (string?)parameters["payloadJson"]);

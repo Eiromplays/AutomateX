@@ -70,6 +70,33 @@ public sealed class PluginProcessSupervisor(
         }
     }
 
+    private readonly Dictionary<string, int> _restarts = [];
+
+    // Snapshot of a plugin's host process for the ops surface.
+    public sealed record RuntimeStatus(string State, int? Pid, DateTimeOffset? StartedAt, long MemoryBytes, int Restarts);
+
+    public RuntimeStatus Status(string pluginDll)
+    {
+        lock (_clientsLock)
+        {
+            var restarts = _restarts.GetValueOrDefault(pluginDll);
+            if (_clients.TryGetValue(pluginDll, out var client) && !client.HasExited)
+            {
+                return new RuntimeStatus("running", client.Pid, client.StartedAt, client.MemoryBytes, restarts);
+            }
+
+            return new RuntimeStatus(client is null ? "never-started" : "exited", null, null, 0, restarts);
+        }
+    }
+
+    public IReadOnlyList<PluginLogLine> LogsSince(string pluginDll, long cursor)
+    {
+        lock (_clientsLock)
+        {
+            return _clients.TryGetValue(pluginDll, out var client) ? client.Logs.Since(cursor) : [];
+        }
+    }
+
     // One warm client per plugin; relaunch if the previous process died.
     private PluginClient Client(string pluginDll)
     {
@@ -83,6 +110,7 @@ public sealed class PluginProcessSupervisor(
             if (existing is not null)
             {
                 _ = existing.DisposeAsync();
+                _restarts[pluginDll] = _restarts.GetValueOrDefault(pluginDll) + 1;
                 _logger.LogWarning("Plugin host for {Plugin} had exited; relaunching", pluginDll);
             }
 
