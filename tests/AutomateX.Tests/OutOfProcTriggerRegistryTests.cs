@@ -43,7 +43,7 @@ public sealed class OutOfProcTriggerRegistryTests(EngineFixture fixture, ITestOu
         try
         {
             var registry = new TriggerRegistry(
-                [], plugins, supervisor, options, fixture.Host.Services, NullLogger<TriggerRegistry>.Instance);
+                [], plugins, supervisor, NullLogger<TriggerRegistry>.Instance);
 
             Assert.True(registry.Contains("sample.ticker"));
             Assert.Contains(registry.Descriptors, d => d.Type == "sample.ticker");

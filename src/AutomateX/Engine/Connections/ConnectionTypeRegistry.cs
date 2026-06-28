@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutomateX.Engine.Plugins;
 using AutomateX.Plugin.Sdk;
-using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Connections;
 
@@ -17,8 +16,6 @@ public sealed class ConnectionTypeRegistry
     private readonly IReadOnlyList<IConnectionTypeSource> _sources;
     private readonly PluginAssemblies _plugins;
     private readonly PluginProcessSupervisor _supervisor;
-    private readonly bool _outOfProc;
-    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ConnectionTypeRegistry> _logger;
     private volatile FrozenDictionary<string, ConnectionTypeDescriptor> _descriptors;
     private volatile FrozenDictionary<string, IConnectionType> _instances;
@@ -28,15 +25,11 @@ public sealed class ConnectionTypeRegistry
         IEnumerable<IConnectionTypeSource> sources,
         PluginAssemblies plugins,
         PluginProcessSupervisor supervisor,
-        IOptions<EngineOptions> engineOptions,
-        IServiceProvider serviceProvider,
         ILogger<ConnectionTypeRegistry> logger)
     {
         _sources = [.. sources];
         _plugins = plugins;
         _supervisor = supervisor;
-        _outOfProc = engineOptions.Value.OutOfProcPlugins;
-        _serviceProvider = serviceProvider;
         _logger = logger;
         (_descriptors, _instances) = Build();
     }
@@ -104,41 +97,20 @@ public sealed class ConnectionTypeRegistry
             Add(registered);
         }
 
-        if (_outOfProc)
+        // Plugins run out-of-process: discover connection types by describing each host, never loading
+        // it in-host. Built-in types (from sources above) keep their in-host instance.
+        Dictionary<string, string> outOfProc = [];
+        foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null))
         {
-            Dictionary<string, string> outOfProc = [];
-            foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null))
+            foreach (var descriptor in DescribeOutOfProc(path))
             {
-                foreach (var descriptor in DescribeOutOfProc(path))
-                {
-                    descriptors[descriptor.Type] = descriptor;
-                    outOfProc[descriptor.Type] = path.DllPath;
-                    _logger.LogInformation("Registered connection type {Type} from plugin {Plugin} (out-of-proc)", descriptor.Type, path.Name);
-                }
-            }
-
-            _outOfProcDll = outOfProc.ToFrozenDictionary();
-        }
-        else
-        {
-            _outOfProcDll = FrozenDictionary<string, string>.Empty;
-            foreach (var plugin in _plugins.Current.Global)
-            {
-                try
-                {
-                    foreach (var registered in ConnectionTypeDiscovery.FromAssembly(plugin.Assembly, $"plugin:{plugin.Name}", _serviceProvider))
-                    {
-                        Add(registered);
-                        _logger.LogInformation("Registered connection type {Type} from plugin {Plugin}", registered.Descriptor.Type, plugin.Name);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to discover connection types in plugin {Plugin}", plugin.Name);
-                }
+                descriptors[descriptor.Type] = descriptor;
+                outOfProc[descriptor.Type] = path.DllPath;
+                _logger.LogInformation("Registered connection type {Type} from plugin {Plugin} (out-of-proc)", descriptor.Type, path.Name);
             }
         }
 
+        _outOfProcDll = outOfProc.ToFrozenDictionary();
         return (descriptors.ToFrozenDictionary(), instances.ToFrozenDictionary());
 
         void Add(RegisteredConnectionType registered)

@@ -1,21 +1,18 @@
 using System.Collections.Frozen;
 using System.Text.Json.Nodes;
 using AutomateX.Engine.Plugins;
-using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Triggers;
 
-// Trigger types come from host-registered sources and GLOBAL plugins only —
-// the same rule as event listeners: workspace plugins contribute actions,
-// never instance-wide machinery. Rebuild() swaps the snapshot on plugin reload;
-// Generation lets the supervisor restart listeners onto new code.
+// Trigger types come from host-registered sources and GLOBAL plugins only — the same rule as event
+// listeners. Plugins always run out-of-process: their trigger types are discovered by describing the
+// host and recorded with the backing dll so PluginTriggerHost routes runs to the supervisor.
+// Rebuild() swaps the snapshot on plugin reload; Generation lets the supervisor restart listeners.
 public sealed class TriggerRegistry
 {
     private readonly IReadOnlyList<ITriggerSource> _sources;
     private readonly PluginAssemblies _plugins;
     private readonly PluginProcessSupervisor _supervisor;
-    private readonly bool _outOfProc;
-    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<TriggerRegistry> _logger;
     private volatile FrozenDictionary<string, RegisteredTrigger> _snapshot;
     private volatile FrozenDictionary<string, string> _outOfProcDll = FrozenDictionary<string, string>.Empty;
@@ -25,20 +22,16 @@ public sealed class TriggerRegistry
         IEnumerable<ITriggerSource> sources,
         PluginAssemblies plugins,
         PluginProcessSupervisor supervisor,
-        IOptions<EngineOptions> engineOptions,
-        IServiceProvider serviceProvider,
         ILogger<TriggerRegistry> logger)
     {
         _sources = [.. sources];
         _plugins = plugins;
         _supervisor = supervisor;
-        _outOfProc = engineOptions.Value.OutOfProcPlugins;
-        _serviceProvider = serviceProvider;
         _logger = logger;
         _snapshot = Build();
     }
 
-    // The plugin dll backing an out-of-proc trigger type, or null for in-proc/host types.
+    // The plugin dll backing an out-of-proc trigger type, or null for host-registered types.
     public string? OutOfProcPluginDll(string triggerType) => _outOfProcDll.GetValueOrDefault(triggerType);
 
     public int Generation => _generation;
@@ -68,41 +61,17 @@ public sealed class TriggerRegistry
             triggers[trigger.Descriptor.Type] = trigger;
         }
 
-        if (_outOfProc)
+        Dictionary<string, string> outOfProc = [];
+        foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null))
         {
-            Dictionary<string, string> outOfProc = [];
-            foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null))
+            foreach (var trigger in DescribeOutOfProc(path))
             {
-                foreach (var trigger in DescribeOutOfProc(path))
-                {
-                    triggers[trigger.Descriptor.Type] = trigger;
-                    outOfProc[trigger.Descriptor.Type] = path.DllPath;
-                }
-            }
-
-            _outOfProcDll = outOfProc.ToFrozenDictionary();
-        }
-        else
-        {
-            _outOfProcDll = FrozenDictionary<string, string>.Empty;
-            foreach (var plugin in _plugins.Current.Global)
-            {
-                try
-                {
-                    foreach (var trigger in TriggerDiscovery.FromAssembly(plugin.Assembly, $"plugin:{plugin.Name}", _serviceProvider))
-                    {
-                        triggers[trigger.Descriptor.Type] = trigger;
-                        _logger.LogInformation(
-                            "Registered trigger type {TriggerType} from plugin {Plugin}", trigger.Descriptor.Type, plugin.Name);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to discover triggers in plugin {Plugin}", plugin.Name);
-                }
+                triggers[trigger.Descriptor.Type] = trigger;
+                outOfProc[trigger.Descriptor.Type] = path.DllPath;
             }
         }
 
+        _outOfProcDll = outOfProc.ToFrozenDictionary();
         return triggers.ToFrozenDictionary();
     }
 

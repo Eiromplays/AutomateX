@@ -39,7 +39,7 @@ public sealed class OutOfProcActionRegistryTests(EngineFixture fixture, ITestOut
         try
         {
             var registry = new ActionRegistry(
-                [], [], plugins, supervisor, options, fixture.Host.Services, NullLogger<ActionRegistry>.Instance);
+                [], [], plugins, supervisor, NullLogger<ActionRegistry>.Instance);
 
             Assert.Contains(registry.Descriptors(Workspace.DefaultId), d => d.Type == "sample.echo");
 

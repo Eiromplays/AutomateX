@@ -43,7 +43,7 @@ public sealed class OutOfProcConnectionTypeRegistryTests(EngineFixture fixture, 
         try
         {
             var registry = new ConnectionTypeRegistry(
-                [], plugins, supervisor, options, fixture.Host.Services, NullLogger<ConnectionTypeRegistry>.Instance);
+                [], plugins, supervisor, NullLogger<ConnectionTypeRegistry>.Instance);
 
             var descriptor = Assert.Single(registry.Descriptors, d => d.Type == "sample.conn");
             Assert.True(descriptor.IsOAuth);

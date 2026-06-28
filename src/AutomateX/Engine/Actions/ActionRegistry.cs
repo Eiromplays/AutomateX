@@ -1,21 +1,18 @@
 using System.Text.Json.Nodes;
 using AutomateX.Engine.Plugins;
-using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Actions;
 
-// Resolves actions per workspace: host executors + built-ins + global plugins are
-// available everywhere; workspace plugins only in their workspace (shadowing global
-// on collisions). Rebuild() swaps the snapshot atomically after a plugin reload —
-// in-flight executions keep the executor they already resolved.
+// Resolves actions per workspace: host executors + built-ins + global plugins are available everywhere;
+// workspace plugins only in their workspace (shadowing global on collisions). Plugins always run
+// out-of-process — discovered by describing each host, never loaded in-host. Rebuild() swaps the
+// snapshot atomically after a plugin reload; in-flight executions keep the executor they resolved.
 public sealed class ActionRegistry
 {
     private readonly IReadOnlyList<IActionExecutor> _hostExecutors;
     private readonly IReadOnlyList<IActionSource> _sources;
     private readonly PluginAssemblies _plugins;
     private readonly PluginProcessSupervisor _supervisor;
-    private readonly bool _outOfProc;
-    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ActionRegistry> _logger;
     private volatile ActionSnapshot _snapshot;
 
@@ -24,16 +21,12 @@ public sealed class ActionRegistry
         IEnumerable<IActionSource> sources,
         PluginAssemblies plugins,
         PluginProcessSupervisor supervisor,
-        IOptions<EngineOptions> engineOptions,
-        IServiceProvider serviceProvider,
         ILogger<ActionRegistry> logger)
     {
         _hostExecutors = [.. executors];
         _sources = [.. sources];
         _plugins = plugins;
         _supervisor = supervisor;
-        _outOfProc = engineOptions.Value.OutOfProcPlugins;
-        _serviceProvider = serviceProvider;
         _logger = logger;
         _snapshot = Build();
     }
@@ -65,37 +58,19 @@ public sealed class ActionRegistry
             global.AddRange(source.GetActions());
         }
 
-        Dictionary<Guid, IReadOnlyList<RegisteredAction>> workspaces;
-        if (_outOfProc)
+        // Plugins run out-of-process: discover by describing each host, never loading it in-host.
+        var paths = _plugins.EnumeratePaths();
+        foreach (var path in paths.Where(p => p.WorkspaceId is null))
         {
-            // Plugins run out-of-process: discover by describing each host, never loading it in-host.
-            var paths = _plugins.EnumeratePaths();
-            foreach (var path in paths.Where(p => p.WorkspaceId is null))
-            {
-                global.AddRange(DescribeOutOfProc(path, $"plugin:{path.Name}"));
-            }
-
-            workspaces = paths
-                .Where(p => p.WorkspaceId is not null)
-                .GroupBy(p => p.WorkspaceId!.Value)
-                .ToDictionary(
-                    g => g.Key,
-                    g => (IReadOnlyList<RegisteredAction>)g.SelectMany(p => DescribeOutOfProc(p, $"workspace:{p.Name}")).ToList());
+            global.AddRange(DescribeOutOfProc(path, $"plugin:{path.Name}"));
         }
-        else
-        {
-            var plugins = _plugins.Current;
-            foreach (var plugin in plugins.Global)
-            {
-                global.AddRange(Discover(plugin, $"plugin:{plugin.Name}"));
-            }
 
-            workspaces = plugins.Workspaces.ToDictionary(
-                x => x.Key,
-                x => (IReadOnlyList<RegisteredAction>)x.Value
-                    .SelectMany(plugin => Discover(plugin, $"workspace:{plugin.Name}"))
-                    .ToList());
-        }
+        var workspaces = paths
+            .Where(p => p.WorkspaceId is not null)
+            .GroupBy(p => p.WorkspaceId!.Value)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<RegisteredAction>)g.SelectMany(p => DescribeOutOfProc(p, $"workspace:{p.Name}")).ToList());
 
         return ActionSnapshot.Compose(global, workspaces);
     }
@@ -127,25 +102,6 @@ public sealed class ActionRegistry
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to describe out-of-proc plugin {Plugin}", path.Name);
-            return [];
-        }
-    }
-
-    private List<RegisteredAction> Discover(PluginAssembly plugin, string source)
-    {
-        try
-        {
-            var actions = ActionDiscovery.FromAssembly(plugin.Assembly, source, _serviceProvider).ToList();
-            foreach (var action in actions)
-            {
-                _logger.LogInformation("Registered action {ActionType} from {Source}", action.Descriptor.Type, source);
-            }
-
-            return actions;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to discover actions in plugin {Plugin}", plugin.Name);
             return [];
         }
     }

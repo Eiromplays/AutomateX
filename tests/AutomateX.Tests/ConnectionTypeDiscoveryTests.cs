@@ -71,8 +71,6 @@ public sealed class ConnectionTypeDiscoveryTests
             [new AssemblyConnectionTypeSource(typeof(TestServiceConnectionType).Assembly, services)],
             plugins,
             supervisor,
-            options,
-            services,
             NullLogger<ConnectionTypeRegistry>.Instance);
 
         Assert.Contains(registry.Descriptors, x => x.Type == "test.service");
