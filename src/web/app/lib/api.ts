@@ -92,6 +92,16 @@ export type StepTestResult = {
   error: string | null;
 };
 
+export type EnvironmentSummary = { id: string; name: string; active: boolean };
+
+export type VariableSummary = {
+  id: string;
+  name: string;
+  secret: boolean;
+  workflowId: string | null;
+  environmentIds: string[];
+};
+
 export type WorkflowTrigger = {
   id: string;
   type: string;
@@ -564,6 +574,26 @@ export const api = {
       request<void>(`/workflows/${id}/state/entry`, {
         method: "DELETE",
         body: JSON.stringify({ key }),
+      }),
+  },
+  environments: {
+    list: () => request<EnvironmentSummary[]>("/environments"),
+    create: (name: string) =>
+      request<EnvironmentSummary>("/environments", { method: "POST", body: JSON.stringify({ name }) }),
+    remove: (id: string) => request<void>(`/environments/${id}`, { method: "DELETE" }),
+    setActive: (environmentId: string) =>
+      request<void>("/environments/active", { method: "PUT", body: JSON.stringify({ environmentId }) }),
+  },
+  variables: {
+    list: (workflowId?: string) =>
+      request<VariableSummary[]>(`/variables${workflowId ? `?workflowId=${workflowId}` : ""}`),
+    create: (body: { name: string; secret: boolean; workflowId?: string | null }) =>
+      request<VariableSummary>("/variables", { method: "POST", body: JSON.stringify(body) }),
+    remove: (id: string) => request<void>(`/variables/${id}`, { method: "DELETE" }),
+    setValue: (id: string, environmentId: string, value: string) =>
+      request<void>(`/variables/${id}/values`, {
+        method: "PUT",
+        body: JSON.stringify({ environmentId, value }),
       }),
   },
   triggers: {

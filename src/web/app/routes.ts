@@ -10,6 +10,7 @@ export default [
   route("executions", "routes/executions.tsx"),
   route("executions/:id", "routes/execution-detail.tsx"),
   route("connections", "routes/connections.tsx"),
+  route("variables", "routes/variables.tsx"),
   route("plugins", "routes/plugins.tsx"),
   route("audit", "routes/audit.tsx"),
   route("workspace", "routes/workspace.tsx"),
