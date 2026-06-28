@@ -17,10 +17,13 @@ namespace AutomateX.Engine.Triggers;
 public sealed class PluginTriggerHost(
     IServiceScopeFactory scopeFactory,
     TriggerRegistry registry,
+    Plugins.PluginProcessSupervisor supervisor,
     IOptions<EngineOptions> engineOptions,
     ILogger<PluginTriggerHost> logger) : BackgroundService
 {
-    private sealed record Runner(CancellationTokenSource Cts, Task Task, string Fingerprint);
+    // OutOfProcDll set => the listener runs in a plugin process (cancel via the supervisor) rather
+    // than an in-host loop (cancel via Cts).
+    private sealed record Runner(CancellationTokenSource? Cts, Task? Task, string Fingerprint, string? OutOfProcDll = null);
 
     private readonly Dictionary<Guid, Runner> _runners = [];
 
@@ -51,9 +54,21 @@ public sealed class PluginTriggerHost(
             }
         }
 
-        foreach (var runner in _runners.Values)
+        foreach (var (id, runner) in _runners)
         {
-            runner.Cts.Cancel();
+            Stop(id, runner);
+        }
+    }
+
+    private void Stop(Guid id, Runner runner)
+    {
+        if (runner.OutOfProcDll is { } dll)
+        {
+            supervisor.CancelTrigger(dll, id);
+        }
+        else
+        {
+            runner.Cts?.Cancel();
         }
     }
 
@@ -84,7 +99,7 @@ public sealed class PluginTriggerHost(
         {
             if (!wantedById.TryGetValue(id, out var entry) || entry.Fingerprint != runner.Fingerprint)
             {
-                runner.Cts.Cancel();
+                Stop(id, runner);
                 _runners.Remove(id);
                 logger.LogInformation("Stopped plugin trigger listener {TriggerId}", id);
             }
@@ -97,11 +112,24 @@ public sealed class PluginTriggerHost(
                 continue;
             }
 
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-            var task = Task.Run(() => RunListenerLoopAsync(entry.Row, cts.Token), CancellationToken.None);
-            _runners[id] = new Runner(cts, task, entry.Fingerprint);
-            logger.LogInformation(
-                "Started plugin trigger listener {TriggerId} ({TriggerType})", id, entry.Row.Type);
+            var row = entry.Row;
+            if (registry.OutOfProcPluginDll(row.Type) is { } dll)
+            {
+                // Resolve {{connections}} in-host, then hand the run to the plugin process.
+                var resolved = row.ConfigJson.Contains("{{", StringComparison.Ordinal)
+                    ? await ResolveConfigAsync(row.WorkflowId, row.ConfigJson, stoppingToken)
+                    : row.ConfigJson;
+                supervisor.RunTrigger(dll, row.Id, row.Type, row.WorkflowId, row.EntryStepOrder, resolved);
+                _runners[id] = new Runner(null, null, entry.Fingerprint, dll);
+            }
+            else
+            {
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                var task = Task.Run(() => RunListenerLoopAsync(row, cts.Token), CancellationToken.None);
+                _runners[id] = new Runner(cts, task, entry.Fingerprint);
+            }
+
+            logger.LogInformation("Started plugin trigger listener {TriggerId} ({TriggerType})", id, row.Type);
         }
     }
 
