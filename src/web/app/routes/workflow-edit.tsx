@@ -88,6 +88,7 @@ export default function WorkflowEdit() {
         error={update.error}
         onSubmit={(value) => update.mutate(value)}
         onCancel={() => navigate(`/workflows/${id}`)}
+        workflowId={id}
       />
     </div>
   );

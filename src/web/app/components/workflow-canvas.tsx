@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ActionDescriptor, CreateWorkflowStep } from "../lib/api";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { type JsonSchema, SchemaForm } from "./schema-form";
+import { StepPreviewPanel } from "./step-preview-panel";
 import type { StepOutput } from "./step-refs";
 import {
   ErrorTarget,
@@ -37,6 +38,8 @@ export function WorkflowCanvas({
   onTriggersChange,
   stepLabels,
   stepRefs,
+  workflowId,
+  stepKeyMap,
 }: {
   steps: DraftStep[];
   stepEdges: KeyEdge[];
@@ -50,6 +53,8 @@ export function WorkflowCanvas({
   onTriggersChange: (triggers: DraftTrigger[]) => void;
   stepLabels: string[];
   stepRefs: StepOutput[];
+  workflowId?: string;
+  stepKeyMap: Record<string, number>;
 }) {
   const [selection, setSelection] = useState<GraphSelection>(steps[0]?.key ?? null);
 
@@ -217,6 +222,13 @@ export function WorkflowCanvas({
               steps={steps}
               onChange={(onError) => onUpdateStep(selectedStep.key, { onError })}
             />
+            {workflowId && (
+              <StepPreviewPanel
+                workflowId={workflowId}
+                configJson={JSON.stringify(selectedStep.config)}
+                stepKeys={stepKeyMap}
+              />
+            )}
           </div>
         ) : (
           <p className="text-xs text-zinc-600">

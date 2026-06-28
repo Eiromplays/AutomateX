@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api, type CreateWorkflowStep, type WorkflowEdgeInput } from "../lib/api";
 import { groupBySource, sourceKind, sourceLabel } from "./action-source";
 import { type JsonSchema, SchemaForm } from "./schema-form";
+import { StepPreviewPanel } from "./step-preview-panel";
 import { assignStepKeys, configHasIndexRef, rewriteConfigIndexRefs, type StepOutput } from "./step-refs";
 import {
   ErrorTarget,
@@ -48,6 +49,7 @@ export function WorkflowForm({
   onSubmit,
   onCancel,
   hideTriggers,
+  workflowId,
 }: {
   initial?: WorkflowFormValue;
   submitLabel: string;
@@ -57,6 +59,9 @@ export function WorkflowForm({
   onSubmit: (value: WorkflowFormValue) => void;
   onCancel?: () => void;
   hideTriggers?: boolean;
+  // Set on the edit route — enables per-step dry-run preview (needs a persisted workflow for
+  // workspace scoping + live connections). Absent on create, where preview is hidden.
+  workflowId?: string;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
@@ -106,6 +111,8 @@ export function WorkflowForm({
     fields: outputFields(s.actionType),
   }));
   const hasIndexRefs = steps.some((s) => configHasIndexRef(s.config));
+  // key -> order, so a preview can resolve {{steps.<key>.output…}} against the whole draft.
+  const stepKeyMap: Record<string, number> = Object.fromEntries(stepRefs.map((r) => [r.key, r.order]));
 
   const convertIndexRefs = () =>
     setSteps((current) => {
@@ -218,6 +225,8 @@ export function WorkflowForm({
             onTriggersChange={setTriggerDrafts}
             stepLabels={stepLabels}
             stepRefs={stepRefs}
+            workflowId={workflowId}
+            stepKeyMap={stepKeyMap}
           />
         )}
 
@@ -320,6 +329,13 @@ export function WorkflowForm({
                   onChange={(onError) => updateStep(step.key, { onError })}
                 />
               </div>
+              {workflowId && (
+                <StepPreviewPanel
+                  workflowId={workflowId}
+                  configJson={JSON.stringify(step.config)}
+                  stepKeys={stepKeyMap}
+                />
+              )}
             </div>
           ))}
       </div>

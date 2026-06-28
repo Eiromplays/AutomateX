@@ -80,6 +80,12 @@ export type WorkflowStep = {
   idempotencyKey: string | null;
 };
 
+export type StepPreviewResult = {
+  resolvedConfig: unknown;
+  unresolved: string[];
+  connectionsUsed: { name: string; fields: string[] }[];
+};
+
 export type WorkflowTrigger = {
   id: string;
   type: string;
@@ -508,6 +514,20 @@ export const api = {
       request<{ executionId: string }>(`/workflows/${id}/execute`, {
         method: "POST",
         ...(payload ? { body: payload } : {}),
+      }),
+    // Dry-run preview: resolve a step's (inline, possibly unsaved) config against a sample context,
+    // tolerantly — reports every unresolved ref, masks connection values. No execution.
+    previewStep: (
+      id: string,
+      body: {
+        configJson: string;
+        stepKeys?: Record<string, number>;
+        sampleContext?: { triggerPayload?: unknown; stepOutputs?: Record<string, unknown> };
+      },
+    ) =>
+      request<StepPreviewResult>(`/workflows/${id}/preview-step`, {
+        method: "POST",
+        body: JSON.stringify(body),
       }),
     state: (id: string) => request<WorkflowStateEntry[]>(`/workflows/${id}/state`),
     clearState: (id: string, prefix?: string) =>

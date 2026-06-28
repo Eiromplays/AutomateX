@@ -8,14 +8,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AutomateX.Modules.Workflows.Features;
 
-// Per-step preview: resolve a step's templated config against a supplied sample context, tolerantly,
-// so the response reports every unresolved reference at once. No execution, no side effects, and
-// connection values are masked — a preview shows which connection fields a step reads, never secrets.
+// Per-step preview: resolve a step's templated config (sent inline, so the builder can preview unsaved
+// edits) against a supplied sample context, tolerantly — the response reports every unresolved
+// reference at once. No execution, no side effects, and connection values are masked: a preview shows
+// which connection fields a step reads, never the secrets.
 public static class PreviewStep
 {
     public sealed record SampleContext(JsonElement? TriggerPayload, Dictionary<string, JsonElement>? StepOutputs);
 
-    public sealed record Request(SampleContext? SampleContext);
+    public sealed record Request(string? ConfigJson, Dictionary<string, int>? StepKeys, SampleContext? SampleContext);
 
     public sealed record Response(
         JsonElement ResolvedConfig,
@@ -29,7 +30,7 @@ public static class PreviewStep
     {
         public override void Configure()
         {
-            Post("workflows/{id}/versions/{versionId}/steps/{key}/preview");
+            Post("workflows/{id}/preview-step");
             AllowAnonymous();
         }
 
@@ -42,36 +43,33 @@ public static class PreviewStep
             }
 
             var id = Route<Guid>("id");
-            var versionId = Route<Guid>("versionId");
-            var key = Route<string>("key")!;
-
-            var steps = await dbContext.Workflows
-                .AsNoTracking()
-                .Where(w => w.Id == id && w.WorkspaceId == ws)
-                .SelectMany(w => w.Versions.Where(v => v.Id == versionId).SelectMany(v => v.Steps))
-                .OrderBy(s => s.Order)
-                .Select(s => new { s.Order, s.Key, s.ConfigJson })
-                .ToListAsync(ct);
-
-            if (steps.Count == 0)
+            if (!await dbContext.Workflows.AnyAsync(w => w.Id == id && w.WorkspaceId == ws, ct))
             {
                 await Send.NotFoundAsync(ct);
                 return;
             }
 
-            var target = steps.FirstOrDefault(s => s.Key == key);
-            if (target is null)
+            if (string.IsNullOrWhiteSpace(req.ConfigJson))
             {
-                await Send.NotFoundAsync(ct);
+                ThrowError("configJson is required.");
                 return;
             }
 
-            var stepKeys = steps.ToDictionary(s => s.Key, s => s.Order, StringComparer.Ordinal);
+            var stepKeys = req.StepKeys ?? [];
             var stepOutputs = MapStepOutputs(req.SampleContext?.StepOutputs, stepKeys);
             var connectionFields = await LoadConnectionFieldsAsync(ws, ct);
 
-            var preview = StepPreview.Build(
-                target.ConfigJson, req.SampleContext?.TriggerPayload, stepOutputs, stepKeys, connectionFields, id);
+            StepPreviewResult preview;
+            try
+            {
+                preview = StepPreview.Build(
+                    req.ConfigJson, req.SampleContext?.TriggerPayload, stepOutputs, stepKeys, connectionFields, id);
+            }
+            catch (TemplateResolutionException ex)
+            {
+                ThrowError(ex.Message); // config isn't valid JSON
+                return;
+            }
 
             await Send.OkAsync(
                 new Response(
