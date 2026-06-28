@@ -45,5 +45,6 @@ operator. Admin status comes only from config, never from workspace data.
 
 ## Retention
 
-Entries are append-only and accumulate; prune old rows by `at` on whatever schedule suits your
-retention policy (a scheduled `db`/SQL cleanup, or a future built-in sweep).
+Entries are append-only and accumulate. Set `Engine__AuditRetention` (a timespan, e.g. `90.00:00:00`
+for 90 days) and the retention sweeper prunes anything older on each sweep. Unset (the default) keeps
+the trail forever — auto-deleting audit data is opt-in.

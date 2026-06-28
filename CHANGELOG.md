@@ -3,6 +3,15 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.8.0
+
+- **Retention pruning.** Optional windows bound the growth of the append-only/cache tables: a
+  background sweeper deletes audit entries past `Engine__AuditRetention` and idempotency records past
+  `Engine__IdempotencyRetention` (both opt-in — unset keeps them forever, joining the existing
+  `Engine__ExecutionRetention`). No schema change. See
+  [docs/recipes/audit-log.md](docs/recipes/audit-log.md) and
+  [docs/recipes/idempotency.md](docs/recipes/idempotency.md).
+
 ## v3.7.0
 
 - **Per-tenant encryption keys.** Connection secrets are now encrypted with a per-workspace

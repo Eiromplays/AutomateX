@@ -46,6 +46,12 @@ the same order is never charged twice, no matter how the run is re-triggered.
 - An unresolvable key (`{{trigger.payload.id}}` when there's no `id`) fails the step deterministically
   — better a loud failure than a silent un-deduped send.
 
+## Retention
+
+Records accumulate (one per key). Set `Engine__IdempotencyRetention` (e.g. `30.00:00:00`) to prune
+records older than the window; unset (default) keeps them forever. A pruned key simply allows a
+re-send if that event ever recurs — so size the window to how long duplicates realistically arrive.
+
 ## vs. `kv.setIfAbsent` + gate
 
 [Dedup & state](./dedup-and-state.md) halts a *duplicate run* up front (run-once-per-key). Idempotency
