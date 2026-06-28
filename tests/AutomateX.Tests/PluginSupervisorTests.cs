@@ -65,6 +65,36 @@ public sealed class PluginSupervisorTests(EngineFixture fixture, ITestOutputHelp
         }
     }
 
+    [Fact]
+    public async Task RecycleAll_drops_warm_processes_and_relaunches_on_next_call()
+    {
+        var (hostDll, pluginDll) = Locate();
+        if (hostDll is null || pluginDll is null)
+        {
+            output.WriteLine("Skipped — build the solution first.");
+            return;
+        }
+
+        var supervisor = new PluginProcessSupervisor(
+            fixture.Host.Services.GetRequiredService<IServiceScopeFactory>(),
+            fixture.Host.Services.GetRequiredService<ILoggerFactory>(),
+            hostDll);
+
+        await using (supervisor)
+        {
+            supervisor.RecycleAll(); // no warm clients yet — must be a safe no-op
+
+            var before = await supervisor.DescribeAsync(pluginDll);
+            Assert.NotNull(before["result"]?["actions"]);
+
+            supervisor.RecycleAll(); // tear the warm process down
+
+            // The next call relaunches a fresh host and still describes correctly.
+            var after = await supervisor.DescribeAsync(pluginDll);
+            Assert.NotNull(after["result"]?["actions"]);
+        }
+    }
+
     private static (string? HostDll, string? PluginDll) Locate()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

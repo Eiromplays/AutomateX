@@ -33,9 +33,9 @@ public sealed class EngineOptions
     // Relative paths resolve against AppContext.BaseDirectory.
     public string PluginsPath { get; set; } = "plugins";
 
-    // v4.0 preview: run plugins out-of-process (each in its own AutomateX.PluginHost child) for true
-    // isolation, instead of loading them into the host. Off by default during the preview.
-    public bool OutOfProcPlugins { get; set; }
+    // v4.0: run plugins out-of-process (each in its own AutomateX.PluginHost child) for true isolation,
+    // instead of loading them into the host. On by default — plugin code never runs in the engine.
+    public bool OutOfProcPlugins { get; set; } = true;
 
     // Path to AutomateX.PluginHost.dll for the out-of-proc runtime; null resolves it next to the app.
     public string? PluginHostPath { get; set; }

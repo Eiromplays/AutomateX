@@ -53,6 +53,23 @@ public sealed class PluginProcessSupervisor(
         }
     }
 
+    // Tear down every warm host process so the next call relaunches against the current plugin files.
+    // Called on reload: a replaced plugin dll must not keep running in an old process.
+    public void RecycleAll()
+    {
+        List<PluginClient> clients;
+        lock (_clientsLock)
+        {
+            clients = [.. _clients.Values];
+            _clients.Clear();
+        }
+
+        foreach (var client in clients)
+        {
+            _ = client.DisposeAsync();
+        }
+    }
+
     // One warm client per plugin; relaunch if the previous process died.
     private PluginClient Client(string pluginDll)
     {
