@@ -47,6 +47,12 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<Modules.Workspaces.WorkspaceKey> WorkspaceKeys => Set<Modules.Workspaces.WorkspaceKey>();
 
+    public DbSet<Modules.Variables.WorkspaceEnvironment> WorkspaceEnvironments => Set<Modules.Variables.WorkspaceEnvironment>();
+
+    public DbSet<Modules.Variables.Variable> Variables => Set<Modules.Variables.Variable>();
+
+    public DbSet<Modules.Variables.VariableValue> VariableValues => Set<Modules.Variables.VariableValue>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
 }

@@ -16,6 +16,12 @@ public sealed class Workspace
 
     public DateTimeOffset CreatedAt { get; private set; }
 
+    // The environment whose variable values runs use by default; null falls back to the 'default'
+    // environment. A per-execution override can still pick another.
+    public Guid? ActiveEnvironmentId { get; private set; }
+
+    public void SetActiveEnvironment(Guid? environmentId) => ActiveEnvironmentId = environmentId;
+
     public static Workspace Create(string name) => new()
     {
         Id = Guid.CreateVersion7(),
