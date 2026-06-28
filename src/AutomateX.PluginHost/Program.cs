@@ -143,7 +143,7 @@ void StartTrigger(JsonNode parameters)
     var contract = Array.Find(
         type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ITriggerListener<>))!;
     var config = JsonSerializer.Deserialize(configJson, contract.GenericTypeArguments[0], JsonSerializerOptions.Web)!;
-    var instance = Activator.CreateInstance(type)!;
+    var instance = CreateInstance(type);
 
     var cts = new CancellationTokenSource();
     runningTriggers[triggerId] = cts;
@@ -228,7 +228,7 @@ static JsonObject Describe(Assembly assembly)
         }
         else if (type.GetCustomAttribute<ConnectionTypeAttribute>() is { } connection)
         {
-            var instance = (IConnectionType)Activator.CreateInstance(type)!;
+            var instance = (IConnectionType)CreateInstance(type);
             var fields = new JsonArray();
             foreach (var field in instance.Fields)
             {
@@ -297,7 +297,27 @@ static IConnectionType FindConnectionType(Assembly assembly, string connectionTy
     var type = Array.Find(
         assembly.GetTypes(), t => t.GetCustomAttribute<ConnectionTypeAttribute>()?.Type == connectionType)
         ?? throw new InvalidOperationException($"No connection type '{connectionType}' in this plugin.");
-    return (IConnectionType)Activator.CreateInstance(type)!;
+    return (IConnectionType)CreateInstance(type);
+}
+
+// Out-of-proc plugins receive their services via ActionContext (Logger/Http), not ctor injection. Build
+// the type with its longest constructor, filling any optional parameters with their defaults — matching
+// the in-proc ActivatorUtilities behaviour for seams like `IEmailSender? sender = null`.
+static object CreateInstance(Type type)
+{
+    var ctor = type.GetConstructors()
+        .OrderByDescending(c => c.GetParameters().Length)
+        .First();
+
+    var args = ctor.GetParameters()
+        .Select(p => p.HasDefaultValue
+            ? p.DefaultValue
+            : throw new InvalidOperationException(
+                $"Out-of-proc plugin type '{type.FullName}' needs a parameterless or optional-only constructor; "
+                + $"parameter '{p.Name}' has no default value."))
+        .ToArray();
+
+    return ctor.Invoke(args)!;
 }
 
 static Dictionary<string, string> ToDictionary(JsonObject values) =>
@@ -318,7 +338,7 @@ static async Task<string?> ExecuteActionAsync(
     var config = JsonSerializer.Deserialize(configJson, configType, JsonSerializerOptions.Web)
         ?? throw new InvalidOperationException($"Invalid config for '{actionType}'.");
 
-    var instance = Activator.CreateInstance(type)!; // spike: parameterless ctor
+    var instance = CreateInstance(type);
     var context = new ActionContext
     {
         Logger = new FrameLogger(send, id),
