@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Text.Json;
@@ -6,9 +7,10 @@ using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 using Microsoft.Extensions.Logging;
 
-// SPIKE (v4.0): host one plugin out-of-process and serve it over stdio. Handles the action half of the
-// protocol — describe + action.execute, with a log callback — enough to validate the boundary before
-// the full build (triggers, connections, supervisor) lands. args[0] = path to the plugin dll.
+// v4.0: host one plugin out-of-process and serve it over stdio — describe, action.execute,
+// connection.*, and the long-running trigger.run channel (fire/state callbacks + cancel). The pipe is
+// full-duplex: the host sends requests (with "method"), the child sends its own requests and the host
+// replies (frames with "id" and no "method"). args[0] = path to the plugin dll.
 if (args.Length < 1)
 {
     Console.Error.WriteLine("usage: AutomateX.PluginHost <plugin.dll>");
@@ -45,14 +47,47 @@ void Send(JsonObject message)
     }
 }
 
+// Child→host calls (fire/state): correlate the host's reply by id.
+var pending = new ConcurrentDictionary<string, TaskCompletionSource<JsonObject>>();
+var runningTriggers = new ConcurrentDictionary<string, CancellationTokenSource>();
+var callCounter = 0;
+
+async Task<JsonObject> CallHostAsync(string callMethod, JsonObject callParams)
+{
+    var callId = $"c{Interlocked.Increment(ref callCounter)}";
+    var completion = new TaskCompletionSource<JsonObject>(TaskCreationOptions.RunContinuationsAsynchronously);
+    pending[callId] = completion;
+    Send(new JsonObject { ["id"] = callId, ["method"] = callMethod, ["params"] = callParams });
+    return await completion.Task;
+}
+
 while (PluginFrames.TryRead(stdin, out var request))
 {
+    // A reply to one of the child's own calls (no "method") — route it and move on.
+    if (request["method"] is null && (string?)request["id"] is { } replyId && pending.TryRemove(replyId, out var awaiting))
+    {
+        awaiting.SetResult(request);
+        continue;
+    }
+
     var id = (string?)request["id"];
     var method = (string?)request["method"];
     try
     {
         switch (method)
         {
+            case "trigger.run":
+                StartTrigger(request["params"]!);
+                break;
+
+            case "cancel":
+                if (runningTriggers.TryGetValue((string)request["params"]!["triggerId"]!, out var cts))
+                {
+                    cts.Cancel();
+                }
+
+                break;
+
             case "describe":
                 Send(new JsonObject { ["id"] = id, ["result"] = Describe(assembly) });
                 break;
@@ -94,6 +129,66 @@ while (PluginFrames.TryRead(stdin, out var request))
 }
 
 return 0;
+
+// Starts a plugin's long-running listener on a background task; it fires + reads state via host
+// callbacks until cancelled. Captures the channel locals, so it isn't static.
+void StartTrigger(JsonNode parameters)
+{
+    var triggerId = (string)parameters["triggerId"]!;
+    var triggerType = (string)parameters["type"]!;
+    var configJson = (string)parameters["configJson"]!;
+
+    var type = Array.Find(assembly.GetTypes(), t => t.GetCustomAttribute<TriggerAttribute>()?.Type == triggerType)
+        ?? throw new InvalidOperationException($"No trigger '{triggerType}' in this plugin.");
+    var contract = Array.Find(
+        type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ITriggerListener<>))!;
+    var config = JsonSerializer.Deserialize(configJson, contract.GenericTypeArguments[0], JsonSerializerOptions.Web)!;
+    var instance = Activator.CreateInstance(type)!;
+
+    var cts = new CancellationTokenSource();
+    runningTriggers[triggerId] = cts;
+
+    var context = new TriggerContext
+    {
+        Logger = new FrameLogger(Send, triggerId),
+        Http = new HttpClient(),
+        TriggerId = Guid.TryParse(triggerId, out var parsed) ? parsed : Guid.Empty,
+        Fire = async payload =>
+            await CallHostAsync("trigger.fire", new JsonObject { ["triggerId"] = triggerId, ["payloadJson"] = payload }),
+        State = new HostTriggerState(CallHostAsync, triggerId),
+    };
+
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            var task = (Task)contract.GetMethod(nameof(ITriggerListener<object>.RunAsync))!
+                .Invoke(instance, [config, context, cts.Token])!;
+            await task;
+        }
+        catch (OperationCanceledException)
+        {
+            // cancelled — normal shutdown
+        }
+        catch (Exception ex)
+        {
+            Send(new JsonObject
+            {
+                ["method"] = "trigger.error",
+                ["params"] = new JsonObject
+                {
+                    ["triggerId"] = triggerId,
+                    ["message"] = (ex as TargetInvocationException)?.InnerException?.Message ?? ex.Message,
+                },
+            });
+        }
+        finally
+        {
+            runningTriggers.TryRemove(triggerId, out _);
+            cts.Dispose();
+        }
+    });
+}
 
 static JsonObject Describe(Assembly assembly)
 {
@@ -236,6 +331,43 @@ static async Task<string?> ExecuteActionAsync(
 
     var result = task.GetType().GetProperty("Result")!.GetValue(task);
     return result is null ? null : JsonSerializer.Serialize(result, result.GetType(), JsonSerializerOptions.Web);
+}
+
+// ITriggerState backed by the host: each call round-trips over the pipe to the durable store.
+internal sealed class HostTriggerState(Func<string, JsonObject, Task<JsonObject>> callHost, string triggerId) : ITriggerState
+{
+    public async Task<string?> GetAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var reply = await callHost("trigger.state.get", new JsonObject { ["triggerId"] = triggerId, ["key"] = key });
+        return (string?)reply["result"]?["value"];
+    }
+
+    public async Task SetAsync(string key, string value, TimeSpan? ttl = null, CancellationToken cancellationToken = default) =>
+        await callHost("trigger.state.set", new JsonObject
+        {
+            ["triggerId"] = triggerId,
+            ["key"] = key,
+            ["value"] = value,
+            ["ttlSeconds"] = ttl?.TotalSeconds,
+        });
+
+    public async Task<bool> SetIfAbsentAsync(string key, string value, TimeSpan? ttl = null, CancellationToken cancellationToken = default)
+    {
+        var reply = await callHost("trigger.state.setIfAbsent", new JsonObject
+        {
+            ["triggerId"] = triggerId,
+            ["key"] = key,
+            ["value"] = value,
+            ["ttlSeconds"] = ttl?.TotalSeconds,
+        });
+        return (bool?)reply["result"]?["acquired"] ?? false;
+    }
+
+    public async Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var reply = await callHost("trigger.state.remove", new JsonObject { ["triggerId"] = triggerId, ["key"] = key });
+        return (bool?)reply["result"]?["removed"] ?? false;
+    }
 }
 
 // Forwards plugin logs to the host as `log` frames — validates the callback channel.
