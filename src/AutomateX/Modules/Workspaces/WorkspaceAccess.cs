@@ -69,6 +69,36 @@ public sealed class WorkspaceAccess(AutomateXDbContext dbContext, IOptions<AuthO
     public static string GetActor(ClaimsPrincipal user) =>
         GetSubject(user) ?? GetEmail(user) ?? "api-key";
 
+    // Instance operator: above workspace-owner, sees across workspaces. In open/api-key mode the
+    // caller through the gate is the operator; in OIDC mode they must be listed in Auth__InstanceAdmins
+    // (by subject or email). Never inferred from workspace data.
+    public bool IsInstanceAdmin(ClaimsPrincipal user)
+    {
+        if (!authOptions.Value.OidcConfigured)
+        {
+            return true;
+        }
+
+        // A machine client (api-key through the gate, no OIDC identity) is the instance master
+        // credential — treat it as an operator, consistent with it getting Owner everywhere.
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return true;
+        }
+
+        var admins = authOptions.Value.InstanceAdmins;
+        if (admins.Count == 0)
+        {
+            return false;
+        }
+
+        var subject = GetSubject(user);
+        var email = GetEmail(user);
+        return admins.Any(admin =>
+            (subject is not null && string.Equals(admin, subject, StringComparison.Ordinal))
+            || (email is not null && string.Equals(admin, email, StringComparison.OrdinalIgnoreCase)));
+    }
+
     // Self-identification for member self-service (e.g. leaving a workspace).
     public static bool IsSelf(WorkspaceMember member, ClaimsPrincipal user)
     {

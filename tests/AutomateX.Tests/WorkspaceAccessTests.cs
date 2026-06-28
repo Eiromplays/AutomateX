@@ -117,4 +117,43 @@ public sealed class WorkspaceAccessTests(EngineFixture fixture) : IClassFixture<
 
         Assert.Null(role);
     }
+
+    [Fact]
+    public async Task Open_and_apikey_callers_are_instance_admins()
+    {
+        var (open, _, openScope) = await CreateAsync(new AuthOptions());
+        using var _o = openScope;
+        Assert.True(open.IsInstanceAdmin(new ClaimsPrincipal()));
+
+        // OIDC mode, machine client (api-key through the gate → unauthenticated principal).
+        var (oidc, _, oidcScope) = await CreateAsync(OidcMode);
+        using var _a = oidcScope;
+        Assert.True(oidc.IsInstanceAdmin(new ClaimsPrincipal(new ClaimsIdentity())));
+    }
+
+    [Fact]
+    public async Task Oidc_users_are_admins_only_when_listed()
+    {
+        var options = new AuthOptions
+        {
+            Authority = OidcMode.Authority,
+            ClientId = OidcMode.ClientId,
+            InstanceAdmins = ["sub-boss", "Admin@Corp.com"],
+        };
+        var (access, _, scope) = await CreateAsync(options);
+        using var _ = scope;
+
+        Assert.True(access.IsInstanceAdmin(User("sub-boss", "x@y.z"))); // by subject
+        Assert.True(access.IsInstanceAdmin(User("other", "admin@corp.com"))); // by email, case-insensitive
+        Assert.False(access.IsInstanceAdmin(User("nobody", "user@corp.com"))); // not listed
+    }
+
+    [Fact]
+    public async Task Oidc_with_no_admins_configured_grants_no_one()
+    {
+        var (access, _, scope) = await CreateAsync(OidcMode);
+        using var _ = scope;
+
+        Assert.False(access.IsInstanceAdmin(User("sub-1", "user@corp.com")));
+    }
 }

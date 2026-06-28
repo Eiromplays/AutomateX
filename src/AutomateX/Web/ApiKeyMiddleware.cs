@@ -25,6 +25,11 @@ public sealed class AuthOptions
     // "7.00:00:00" (7 days) or "08:00:00" (8 hours); unset = the framework default.
     public TimeSpan? SessionLifetime { get; set; }
 
+    // Instance operators (a role above workspace-owner): OIDC subjects and/or emails, e.g.
+    // Auth__InstanceAdmins__0=admin@corp.com. Only consulted in OIDC mode — open/api-key callers
+    // through the gate are already operators. An admin grant is config-only, never inferred from data.
+    public List<string> InstanceAdmins { get; set; } = [];
+
     public bool OidcConfigured => !string.IsNullOrEmpty(Authority) && !string.IsNullOrEmpty(ClientId);
 
     public TimeSpan ResolvedSessionLifetime =>
