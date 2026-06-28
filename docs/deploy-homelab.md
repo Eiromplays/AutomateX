@@ -47,7 +47,8 @@ echo "$GHCR_PAT" | docker login ghcr.io -u <github-username> --password-stdin
 ## 3. Fill in `.env`
 
 ```bash
-# Encryption key — generate once, never change (changing it orphans stored connection secrets):
+# Encryption key (KEK) — back it up; it wraps every workspace key. To change it later, set the old
+# value as Encryption__PreviousKey, restart, re-wrap keys, then drop PreviousKey (see key-rotation recipe):
 openssl rand -base64 32
 ```
 
@@ -142,5 +143,7 @@ docker compose -f docker-compose.prod.yml exec -T postgres \
   pg_dump -U automatex automatex | gzip > automatex-$(date +%F).sql.gz
 ```
 
-Back up your `.env` too — without `ENCRYPTION_KEY` the stored connection secrets can't be decrypted.
+Back up your `.env` too — `ENCRYPTION_KEY` (the KEK) wraps every workspace's data-encryption key, so
+without it none of the stored connection secrets can be decrypted. Rotating it later is supported via
+`Encryption__PreviousKey` + re-wrap ([key-rotation recipe](recipes/key-rotation.md)).
 (You could even run this dump *as an AutomateX workflow* once it's up: a cron trigger → `ssh.command`.)

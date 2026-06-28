@@ -3,6 +3,19 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v3.7.0
+
+- **Per-tenant encryption keys.** Connection secrets are now encrypted with a per-workspace
+  data-encryption key (DEK) wrapped by the instance key (`Encryption__Key`, the KEK) — so a single
+  compromised key exposes one workspace, not the whole instance. Transparent and backward-compatible:
+  existing `v1:` ciphertext keeps decrypting, new writes use `v2:` per-tenant.
+- **Key rotation.** Rotate a workspace's DEK (re-encrypts its connections) or re-wrap every DEK under
+  a new instance key — from the workspace settings page (instance-admin only) or
+  `POST /api/workspaces/{id}/rotate-key` / `POST /api/keys/rewrap`. A KEK change is bridged by
+  `Encryption__PreviousKey` so old-wrapped data still reads during the swap. Rotations are audited.
+  Adds the `WorkspaceKeys` table. See [docs/recipes/key-rotation.md](docs/recipes/key-rotation.md) and
+  [docs/per-tenant-deks-design.md](docs/per-tenant-deks-design.md).
+
 ## v3.6.0
 
 - **Audit log.** An append-only trail of who did what: every config mutation (workflow, connection,

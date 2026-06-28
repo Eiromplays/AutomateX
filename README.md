@@ -59,7 +59,8 @@ config fields:
 - **Durable KV store** — per-workflow state via `kv.*`; `setIfAbsent` + `gate` gives run-once dedup
   ([recipe](docs/recipes/dedup-and-state.md)).
 - **Encrypted connections** — AES-256-GCM secret bundles + OAuth2 connections, referenced as
-  `{{connections.<name>.<field>}}`, masked everywhere.
+  `{{connections.<name>.<field>}}`, masked everywhere. Per-workspace data-encryption keys (wrapped by
+  the instance key) with one-click rotation and instance-key re-wrap ([recipe](docs/recipes/key-rotation.md)).
 - **Workspaces & auth** — viewer/editor/owner roles; auth is open → API key → OIDC (with
   refresh-token sessions).
 - **Plugin platform** — plugins contribute actions, triggers, and connection types; hot-reload,
@@ -160,6 +161,7 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [sub-workflows & loops](docs/recipes/sub-workflows-and-loops.md) ·
   [failure alerting & metrics](docs/recipes/failure-alerting.md) ·
   [idempotency](docs/recipes/idempotency.md) · [audit log](docs/recipes/audit-log.md) ·
+  [key rotation](docs/recipes/key-rotation.md) ·
   [conditional gate](docs/recipes/conditional-gate.md) · [reminders](docs/recipes/reminders.md) ·
   [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md)
 - Design notes: [branching](docs/branching-design.md) ·
@@ -170,7 +172,8 @@ First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is
   [sub-workflows](docs/sub-workflows-design.md) · [forEach](docs/foreach-design.md) ·
   [OAuth connections](docs/oauth-connections-design.md) · [llm.agent](docs/llm-agent-design.md) ·
   [mcp.call](docs/mcp-call-design.md) · [metrics & alerting](docs/metrics-and-alerting-design.md) ·
-  [idempotency](docs/idempotency-design.md) · [audit & admin](docs/audit-and-admin-design.md)
+  [idempotency](docs/idempotency-design.md) · [audit & admin](docs/audit-and-admin-design.md) ·
+  [per-tenant DEKs](docs/per-tenant-deks-design.md)
 
 ## Contributing & security
 
