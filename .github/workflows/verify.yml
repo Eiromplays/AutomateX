@@ -24,7 +24,11 @@ jobs:
       - run: dotnet build AutomateX.slnx --no-restore --configuration Release
 
       # Integration tests use Testcontainers against the runner's Docker daemon.
+      # AUTOMATEX_REQUIRE_OOP turns the out-of-proc tests' "binaries not built" skip into a failure,
+      # so the sandbox path is always exercised on the Linux release runner (never a silent skip).
       - run: dotnet test AutomateX.slnx --no-build --configuration Release
+        env:
+          AUTOMATEX_REQUIRE_OOP: "1"
 
   web:
     runs-on: ubuntu-latest
