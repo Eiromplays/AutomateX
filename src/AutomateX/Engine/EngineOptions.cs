@@ -45,6 +45,14 @@ public sealed class EngineOptions
     // Null (default) keeps history forever.
     public TimeSpan? ExecutionRetention { get; set; }
 
+    // When set, audit entries older than this are pruned by the retention sweeper. Null (default)
+    // keeps the audit trail forever — auto-deleting it is opt-in, since it's often compliance data.
+    public TimeSpan? AuditRetention { get; set; }
+
+    // When set, idempotency records older than this are pruned. Null (default) keeps them forever;
+    // a pruned key simply allows a re-send after its window (the records are dedup cache, not data).
+    public TimeSpan? IdempotencyRetention { get; set; }
+
     // The operator-declared public origin (e.g. https://automatex.example.com) used to
     // build absolute webhook URLs. Unset = relative URLs, UI prefixes its own origin.
     public string? PublicBaseUrl { get; set; }

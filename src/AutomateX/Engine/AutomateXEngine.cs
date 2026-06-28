@@ -98,6 +98,7 @@ public static class AutomateXEngine
         builder.Services.AddHostedService<Triggers.PluginTriggerHost>();
         builder.Services.AddHostedService<PluginWatcher>();
         builder.Services.AddHostedService<StuckExecutionSweeper>();
+        builder.Services.AddHostedService<RetentionSweeper>();
 
         return builder;
     }
