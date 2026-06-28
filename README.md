@@ -63,9 +63,10 @@ config fields:
   the instance key) with one-click rotation and instance-key re-wrap ([recipe](docs/recipes/key-rotation.md)).
 - **Workspaces & auth** — viewer/editor/owner roles; auth is open → API key → OIDC (with
   refresh-token sessions).
-- **Plugin platform** — plugins contribute actions, triggers, and connection types; hot-reload,
-  workspace-scoped plugins, and an in-app catalog with sha256-verified installs (upload gated behind
-  `Engine__AllowPluginUpload`).
+- **Plugin platform** — plugins contribute actions, triggers, and connection types, each running
+  **out-of-process** in its own sandboxed host (own dependency closure; can't crash or read the
+  engine); hot-reload, workspace-scoped plugins, and an in-app catalog with sha256-verified installs
+  (upload gated behind `Engine__AllowPluginUpload`).
 - **Self-hosting** — `docker compose up`, GHCR images on `v*` tags, and a full homelab guide
   (Proxmox + Tailscale HTTPS + OIDC) in [docs/deploy-homelab.md](docs/deploy-homelab.md).
 
@@ -147,8 +148,16 @@ dotnet new automatex-plugin -n MyPlugin
 ```
 
 First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is in
-`samples/AutomateX.SamplePlugin`. Deploy convention: `plugins/<PluginName>/<PluginName>.dll`
-(override the root with `Engine__PluginsPath`).
+`samples/AutomateX.SamplePlugin`. Deploy convention: `plugins/<PluginName>/<PluginName>.dll` **with its
+dependency dlls in the same folder** (a normal `dotnet publish`/`build`, or the catalog zip — both
+include them); override the root with `Engine__PluginsPath`.
+
+Plugins run **out-of-process** (v4.0): each loads in its own `AutomateX.PluginHost` child with its own
+dependency closure, so a plugin can't crash or read the engine. Two rules follow from the boundary:
+take services from `ActionContext` (`context.Logger`, `context.Http`) rather than constructor
+injection (the host fills only optional ctor params), and note that a plugin can't register engine
+event listeners — use a trigger such as `execution.onFailure`. See
+[docs/plugin-sandboxing-design.md](docs/plugin-sandboxing-design.md).
 
 ## Docs
 

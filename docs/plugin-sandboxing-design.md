@@ -1,5 +1,14 @@
 # Out-of-process plugin sandboxing (v4.0)
 
+> **Status: shipped in v4.0.0.** Out-of-proc is the only mode; the in-proc loader
+> (`PluginLoadContext`, shadow-copy) is removed. The "Today (in-proc)" section below is kept as the
+> motivation that led here. Author-facing notes:
+> [README → Writing a plugin](../README.md#writing-a-plugin) and
+> [RELEASE-v4.0.0](samples/RELEASE-v4.0.0.md). Two boundary rules landed beyond the original plan:
+> plugin types are constructed via their longest constructor with optional params defaulted (services
+> come from `ActionContext`, not ctor injection), and plugin-registered engine event listeners are no
+> longer supported (the protocol has no listener channel — use a trigger like `execution.onFailure`).
+
 The real isolation boundary: each plugin runs in its **own process**, not just its own
 `AssemblyLoadContext`. A plugin can't read the host's or another plugin's memory, can't crash the
 host, and gets its own dependency closure (and, later, its own resource limits). This is the largest

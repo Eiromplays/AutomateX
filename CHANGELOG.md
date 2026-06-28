@@ -3,6 +3,30 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.0.0
+
+- **Out-of-process plugin sandboxing (breaking).** Plugins no longer load into the engine — each runs
+  in its own `AutomateX.PluginHost` child process with its own `AssemblyLoadContext` and dependency
+  closure, addressed over a stdio JSON protocol. A plugin can no longer read engine memory, crash the
+  host, or collide on dependency versions. The engine discovers actions/triggers/connection types by
+  *describing* each host and marshals execution, OAuth-config, credential tests, and trigger listening
+  across the boundary. Out-of-proc is now the only mode (`Engine__OutOfProcPlugins` defaults on); the
+  in-proc loader (`PluginLoadContext`, shadow-copy) is removed.
+- **Bundled host.** The API image ships `AutomateX.PluginHost` under `pluginhost/` — no operator
+  action needed. `Engine__PluginHostPath` overrides the location.
+- **Hardened reload.** Installing/updating a plugin recycles its host process, so new code always wins.
+- **Breaking for plugin authors:**
+  - Plugin **event listeners** (`IEngineEventListener` inside a plugin) are no longer supported — the
+    protocol has no listener channel. Actions, triggers, and connection types are unchanged.
+  - Plugin types are constructed via their longest constructor with **optional parameters defaulted**;
+    a *required* constructor dependency is rejected. Take services from `ActionContext`
+    (`Logger`/`Http`), not constructor injection.
+  - Deploy unchanged in shape: `plugins/<Name>/<Name>.dll` **plus its dependency dlls in the same
+    folder** (a normal `dotnet publish`/`build`, or the catalog zip — both already include them).
+- Plugin management (list/install/upload) is path-based now; the reload fingerprint is a dll
+  content-hash. See [docs/plugin-sandboxing-design.md](docs/plugin-sandboxing-design.md) and
+  [RELEASE-v4.0.0](docs/samples/RELEASE-v4.0.0.md).
+
 ## v3.8.0
 
 - **Retention pruning.** Optional windows bound the growth of the append-only/cache tables: a
