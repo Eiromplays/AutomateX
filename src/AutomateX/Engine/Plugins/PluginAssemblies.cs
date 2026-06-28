@@ -6,6 +6,9 @@ namespace AutomateX.Engine.Plugins;
 
 public sealed record PluginAssembly(string Name, Assembly Assembly, AssemblyLoadContext LoadContext);
 
+// A plugin discovered by path only (out-of-proc mode): never loaded into the host.
+public sealed record PluginPath(string Name, string DllPath, Guid? WorkspaceId);
+
 public sealed class PluginSnapshot(
     IReadOnlyList<PluginAssembly> global,
     IReadOnlyDictionary<Guid, IReadOnlyList<PluginAssembly>> workspaces)
@@ -73,6 +76,51 @@ public sealed class PluginAssemblies(
                 {
                     logger.LogWarning(ex, "Failed to unload plugin context {Plugin}", plugin.Name);
                 }
+            }
+        }
+    }
+
+    // Plugin dll paths without loading anything in-process — the out-of-proc runtime launches a host
+    // per path and describes it, so plugin code never runs in the engine.
+    public IReadOnlyList<PluginPath> EnumeratePaths()
+    {
+        var root = ResolveRoot();
+        List<PluginPath> result = [.. ScanPaths(root, null)];
+
+        var workspacesRoot = Path.Combine(root, WorkspacesDirName);
+        if (Directory.Exists(workspacesRoot))
+        {
+            foreach (var directory in Directory.EnumerateDirectories(workspacesRoot))
+            {
+                if (Guid.TryParse(Path.GetFileName(directory), out var workspaceId))
+                {
+                    result.AddRange(ScanPaths(directory, workspaceId));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static IEnumerable<PluginPath> ScanPaths(string path, Guid? workspaceId)
+    {
+        if (!Directory.Exists(path))
+        {
+            yield break;
+        }
+
+        foreach (var directory in Directory.EnumerateDirectories(path))
+        {
+            var name = Path.GetFileName(directory);
+            if (name.StartsWith('.'))
+            {
+                continue; // reserved (e.g. .workspaces)
+            }
+
+            var dll = Path.Combine(directory, $"{name}.dll");
+            if (File.Exists(dll))
+            {
+                yield return new PluginPath(name, dll, workspaceId);
             }
         }
     }

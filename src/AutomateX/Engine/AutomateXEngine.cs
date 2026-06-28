@@ -87,6 +87,13 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<Connections.ConnectionResolver>();
         builder.Services.AddSingleton<EngineEventBus>();
         builder.Services.AddSingleton<PluginReloader>();
+        builder.Services.AddSingleton(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<EngineOptions>>().Value;
+            var hostDll = options.PluginHostPath ?? Path.Combine(AppContext.BaseDirectory, "AutomateX.PluginHost.dll");
+            return new Plugins.PluginProcessSupervisor(
+                sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILoggerFactory>(), hostDll);
+        });
 
         builder.Services.AddSingleton<Metrics.ExecutionMetrics>();
         builder.Services.AddSingleton<IEngineEventListener, Metrics.MetricsEventListener>();
