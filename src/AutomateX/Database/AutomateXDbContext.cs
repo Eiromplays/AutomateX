@@ -53,6 +53,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<Modules.Variables.VariableValue> VariableValues => Set<Modules.Variables.VariableValue>();
 
+    public DbSet<Modules.Templates.WorkflowTemplate> WorkflowTemplates => Set<Modules.Templates.WorkflowTemplate>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
 }

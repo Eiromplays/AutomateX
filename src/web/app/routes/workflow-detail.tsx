@@ -111,6 +111,12 @@ export default function WorkflowDetail() {
     }
   };
 
+  const saveTemplate = useMutation({
+    mutationFn: (name: string) => api.workflowTemplates.save({ name, fromWorkflowId: id }),
+    onSuccess: () => toast.success("Saved as template — find it on the Templates page."),
+    onError: (error) => toast.error(`Save failed — ${String(error)}`),
+  });
+
   const removeWorkflow = useMutation({
     mutationFn: () => api.workflows.remove(id),
     onSuccess: () => {
@@ -231,6 +237,14 @@ export default function WorkflowDetail() {
                 {workflow.enabled ? "Disable" : "Enable"}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={exportWorkflow}>Export</DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  const name = window.prompt("Template name", workflow.name);
+                  if (name?.trim()) saveTemplate.mutate(name.trim());
+                }}
+              >
+                Save as template
+              </DropdownMenuItem>
               <DropdownMenuItem
                 destructive
                 onSelect={async () => {

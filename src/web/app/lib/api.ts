@@ -92,6 +92,15 @@ export type StepTestResult = {
   error: string | null;
 };
 
+export type WorkflowTemplateSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  doc: unknown;
+  createdAt: string;
+};
+
 export type EnvironmentSummary = { id: string; name: string; active: boolean };
 
 export type VariableSummary = {
@@ -575,6 +584,12 @@ export const api = {
         method: "DELETE",
         body: JSON.stringify({ key }),
       }),
+  },
+  workflowTemplates: {
+    list: () => request<WorkflowTemplateSummary[]>("/templates"),
+    save: (body: { name: string; description?: string | null; category?: string | null; fromWorkflowId: string }) =>
+      request<{ id: string; name: string }>("/templates", { method: "POST", body: JSON.stringify(body) }),
+    remove: (id: string) => request<void>(`/templates/${id}`, { method: "DELETE" }),
   },
   environments: {
     list: () => request<EnvironmentSummary[]>("/environments"),
