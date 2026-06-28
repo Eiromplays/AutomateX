@@ -1,4 +1,6 @@
+using System.Text.Json.Nodes;
 using AutomateX.Engine.Plugins;
+using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Actions;
 
@@ -11,6 +13,8 @@ public sealed class ActionRegistry
     private readonly IReadOnlyList<IActionExecutor> _hostExecutors;
     private readonly IReadOnlyList<IActionSource> _sources;
     private readonly PluginAssemblies _plugins;
+    private readonly PluginProcessSupervisor _supervisor;
+    private readonly bool _outOfProc;
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<ActionRegistry> _logger;
     private volatile ActionSnapshot _snapshot;
@@ -19,12 +23,16 @@ public sealed class ActionRegistry
         IEnumerable<IActionExecutor> executors,
         IEnumerable<IActionSource> sources,
         PluginAssemblies plugins,
+        PluginProcessSupervisor supervisor,
+        IOptions<EngineOptions> engineOptions,
         IServiceProvider serviceProvider,
         ILogger<ActionRegistry> logger)
     {
         _hostExecutors = [.. executors];
         _sources = [.. sources];
         _plugins = plugins;
+        _supervisor = supervisor;
+        _outOfProc = engineOptions.Value.OutOfProcPlugins;
         _serviceProvider = serviceProvider;
         _logger = logger;
         _snapshot = Build();
@@ -57,19 +65,70 @@ public sealed class ActionRegistry
             global.AddRange(source.GetActions());
         }
 
-        var plugins = _plugins.Current;
-        foreach (var plugin in plugins.Global)
+        Dictionary<Guid, IReadOnlyList<RegisteredAction>> workspaces;
+        if (_outOfProc)
         {
-            global.AddRange(Discover(plugin, $"plugin:{plugin.Name}"));
+            // Plugins run out-of-process: discover by describing each host, never loading it in-host.
+            var paths = _plugins.EnumeratePaths();
+            foreach (var path in paths.Where(p => p.WorkspaceId is null))
+            {
+                global.AddRange(DescribeOutOfProc(path, $"plugin:{path.Name}"));
+            }
+
+            workspaces = paths
+                .Where(p => p.WorkspaceId is not null)
+                .GroupBy(p => p.WorkspaceId!.Value)
+                .ToDictionary(
+                    g => g.Key,
+                    g => (IReadOnlyList<RegisteredAction>)g.SelectMany(p => DescribeOutOfProc(p, $"workspace:{p.Name}")).ToList());
+        }
+        else
+        {
+            var plugins = _plugins.Current;
+            foreach (var plugin in plugins.Global)
+            {
+                global.AddRange(Discover(plugin, $"plugin:{plugin.Name}"));
+            }
+
+            workspaces = plugins.Workspaces.ToDictionary(
+                x => x.Key,
+                x => (IReadOnlyList<RegisteredAction>)x.Value
+                    .SelectMany(plugin => Discover(plugin, $"workspace:{plugin.Name}"))
+                    .ToList());
         }
 
-        var workspaces = plugins.Workspaces.ToDictionary(
-            x => x.Key,
-            x => (IReadOnlyList<RegisteredAction>)x.Value
-                .SelectMany(plugin => Discover(plugin, $"workspace:{plugin.Name}"))
-                .ToList());
-
         return ActionSnapshot.Compose(global, workspaces);
+    }
+
+    // Describe a plugin host (blocking at startup/reload — not a request path) and map its actions to
+    // proc-call executors.
+    private List<RegisteredAction> DescribeOutOfProc(PluginPath path, string source)
+    {
+        try
+        {
+            var described = _supervisor.DescribeAsync(path.DllPath).GetAwaiter().GetResult();
+            List<RegisteredAction> result = [];
+            foreach (var action in (JsonArray?)described["result"]?["actions"] ?? [])
+            {
+                var type = (string)action!["type"]!;
+                result.Add(new RegisteredAction(
+                    new ActionDescriptor(
+                        type,
+                        (string?)action["displayName"] ?? type,
+                        (string?)action["description"],
+                        source,
+                        action["configSchema"]?.DeepClone(),
+                        action["resultSchema"]?.DeepClone()),
+                    new ProcCallActionExecutor(_supervisor, path.DllPath, type)));
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to describe out-of-proc plugin {Plugin}", path.Name);
+            return [];
+        }
     }
 
     private List<RegisteredAction> Discover(PluginAssembly plugin, string source)
