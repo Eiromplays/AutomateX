@@ -45,6 +45,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<Modules.Audit.AuditEntry> AuditEntries => Set<Modules.Audit.AuditEntry>();
 
+    public DbSet<Modules.Workspaces.WorkspaceKey> WorkspaceKeys => Set<Modules.Workspaces.WorkspaceKey>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
 }

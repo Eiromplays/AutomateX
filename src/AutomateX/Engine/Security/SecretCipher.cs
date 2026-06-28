@@ -38,23 +38,11 @@ public sealed class SecretCipher(IOptions<EncryptionOptions> options)
         }
     }
 
-    public string Encrypt(string plaintext)
-    {
-        var key = RequireKey();
-        var nonce = RandomNumberGenerator.GetBytes(12);
-        var plainBytes = Encoding.UTF8.GetBytes(plaintext);
-        var cipherBytes = new byte[plainBytes.Length];
-        var tag = new byte[16];
-
-        using var aes = new AesGcm(key, tagSizeInBytes: 16);
-        aes.Encrypt(nonce, plainBytes, cipherBytes, tag);
-
-        return Prefix + Convert.ToBase64String([.. nonce, .. tag, .. cipherBytes]);
-    }
+    // v1: KEK-encrypted, the original single-key format. Per-tenant (v2) lives in TenantCipher.
+    public string Encrypt(string plaintext) => Prefix + Convert.ToBase64String(SealBytes(plaintext, RequireKey()));
 
     public string Decrypt(string ciphertext)
     {
-        var key = RequireKey();
         if (!ciphertext.StartsWith(Prefix, StringComparison.Ordinal))
         {
             throw new SecretCipherException("Unrecognized ciphertext format.");
@@ -70,6 +58,26 @@ public sealed class SecretCipher(IOptions<EncryptionOptions> options)
             throw new SecretCipherException("Ciphertext is not valid base64.");
         }
 
+        return OpenBytes(data, RequireKey());
+    }
+
+    // Raw AES-256-GCM, no prefix: nonce[12] | tag[16] | ciphertext. Key-agnostic so the KEK (v1) and
+    // per-tenant DEK (v2) paths share one implementation.
+    public static byte[] SealBytes(string plaintext, byte[] key)
+    {
+        var nonce = RandomNumberGenerator.GetBytes(12);
+        var plainBytes = Encoding.UTF8.GetBytes(plaintext);
+        var cipherBytes = new byte[plainBytes.Length];
+        var tag = new byte[16];
+
+        using var aes = new AesGcm(key, tagSizeInBytes: 16);
+        aes.Encrypt(nonce, plainBytes, cipherBytes, tag);
+
+        return [.. nonce, .. tag, .. cipherBytes];
+    }
+
+    public static string OpenBytes(ReadOnlySpan<byte> data, byte[] key)
+    {
         if (data.Length < 28)
         {
             throw new SecretCipherException("Ciphertext is too short.");
@@ -79,11 +87,11 @@ public sealed class SecretCipher(IOptions<EncryptionOptions> options)
         using var aes = new AesGcm(key, tagSizeInBytes: 16);
         try
         {
-            aes.Decrypt(data.AsSpan(0, 12), data.AsSpan(28), data.AsSpan(12, 16), plainBytes);
+            aes.Decrypt(data[..12], data[28..], data.Slice(12, 16), plainBytes);
         }
         catch (CryptographicException)
         {
-            throw new SecretCipherException("Decryption failed — wrong Encryption:Key or corrupted data.");
+            throw new SecretCipherException("Decryption failed — wrong key or corrupted data.");
         }
 
         return Encoding.UTF8.GetString(plainBytes);
