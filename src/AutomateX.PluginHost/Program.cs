@@ -64,6 +64,24 @@ while (PluginFrames.TryRead(stdin, out var request))
                 Send(new JsonObject { ["id"] = id, ["result"] = new JsonObject { ["resultJson"] = resultJson } });
                 break;
 
+            case "connection.buildOAuthConfig":
+                var oauthParams = request["params"]!;
+                Send(new JsonObject
+                {
+                    ["id"] = id,
+                    ["result"] = BuildOAuthConfig(assembly, (string)oauthParams["type"]!, (JsonObject)oauthParams["values"]!),
+                });
+                break;
+
+            case "connection.test":
+                var testParams = request["params"]!;
+                Send(new JsonObject
+                {
+                    ["id"] = id,
+                    ["result"] = await TestConnectionAsync(assembly, (string)testParams["type"]!, (JsonObject)testParams["values"]!),
+                });
+                break;
+
             default:
                 Send(new JsonObject { ["id"] = id, ["error"] = $"Unknown method '{method}'." });
                 break;
@@ -80,24 +98,115 @@ return 0;
 static JsonObject Describe(Assembly assembly)
 {
     var actions = new JsonArray();
+    var triggers = new JsonArray();
+    var connectionTypes = new JsonArray();
+
     foreach (var type in assembly.GetTypes())
     {
-        var attribute = type.GetCustomAttribute<ActionAttribute>();
-        if (attribute is null || type.IsAbstract)
+        if (type.IsAbstract)
         {
             continue;
         }
 
-        actions.Add(new JsonObject
+        if (type.GetCustomAttribute<ActionAttribute>() is { } action)
         {
-            ["type"] = attribute.Type,
-            ["displayName"] = attribute.DisplayName,
-            ["description"] = attribute.Description,
-        });
+            var contract = ContractOf(type, typeof(IAction<,>));
+            actions.Add(new JsonObject
+            {
+                ["type"] = action.Type,
+                ["displayName"] = action.DisplayName,
+                ["description"] = action.Description,
+                ["configSchema"] = SchemaExport.ForType(contract.GenericTypeArguments[0]),
+                ["resultSchema"] = SchemaExport.ForType(contract.GenericTypeArguments[1]),
+            });
+        }
+        else if (type.GetCustomAttribute<TriggerAttribute>() is { } trigger)
+        {
+            var contract = ContractOf(type, typeof(ITriggerListener<>));
+            triggers.Add(new JsonObject
+            {
+                ["type"] = trigger.Type,
+                ["displayName"] = trigger.DisplayName,
+                ["description"] = trigger.Description,
+                ["configSchema"] = SchemaExport.ForType(contract.GenericTypeArguments[0]),
+            });
+        }
+        else if (type.GetCustomAttribute<ConnectionTypeAttribute>() is { } connection)
+        {
+            var instance = (IConnectionType)Activator.CreateInstance(type)!;
+            var fields = new JsonArray();
+            foreach (var field in instance.Fields)
+            {
+                fields.Add(new JsonObject
+                {
+                    ["key"] = field.Key,
+                    ["label"] = field.Label,
+                    ["secret"] = field.Secret,
+                    ["required"] = field.Required,
+                    ["helpText"] = field.HelpText,
+                    ["docsUrl"] = field.DocsUrl,
+                });
+            }
+
+            connectionTypes.Add(new JsonObject
+            {
+                ["type"] = connection.Type,
+                ["displayName"] = connection.DisplayName,
+                ["description"] = connection.Description,
+                ["isOAuth"] = instance is IOAuthConnectionType,
+                ["isTester"] = instance is IConnectionTester,
+                ["fields"] = fields,
+            });
+        }
     }
 
-    return new JsonObject { ["actions"] = actions };
+    return new JsonObject
+    {
+        ["actions"] = actions,
+        ["triggers"] = triggers,
+        ["connectionTypes"] = connectionTypes,
+    };
 }
+
+static Type ContractOf(Type type, Type openInterface) =>
+    Array.Find(type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == openInterface)
+        ?? throw new InvalidOperationException($"{type.FullName} does not implement {openInterface.Name}.");
+
+static JsonObject BuildOAuthConfig(Assembly assembly, string connectionType, JsonObject values)
+{
+    var instance = FindConnectionType(assembly, connectionType);
+    if (instance is not IOAuthConnectionType oauth)
+    {
+        throw new InvalidOperationException($"Connection type '{connectionType}' is not OAuth.");
+    }
+
+    var config = oauth.BuildOAuthConfig(ToDictionary(values));
+    return JsonSerializer.SerializeToNode(config, JsonSerializerOptions.Web)!.AsObject();
+}
+
+static async Task<JsonObject> TestConnectionAsync(Assembly assembly, string connectionType, JsonObject values)
+{
+    var instance = FindConnectionType(assembly, connectionType);
+    if (instance is not IConnectionTester tester)
+    {
+        throw new InvalidOperationException($"Connection type '{connectionType}' has no tester.");
+    }
+
+    using var http = new HttpClient();
+    var result = await tester.TestAsync(ToDictionary(values), http, CancellationToken.None);
+    return new JsonObject { ["ok"] = result.Ok, ["message"] = result.Message };
+}
+
+static IConnectionType FindConnectionType(Assembly assembly, string connectionType)
+{
+    var type = Array.Find(
+        assembly.GetTypes(), t => t.GetCustomAttribute<ConnectionTypeAttribute>()?.Type == connectionType)
+        ?? throw new InvalidOperationException($"No connection type '{connectionType}' in this plugin.");
+    return (IConnectionType)Activator.CreateInstance(type)!;
+}
+
+static Dictionary<string, string> ToDictionary(JsonObject values) =>
+    values.Where(p => p.Value is not null).ToDictionary(p => p.Key, p => (string)p.Value!);
 
 static async Task<string?> ExecuteActionAsync(
     Assembly assembly, string actionType, string configJson, string? id, Action<JsonObject> send)

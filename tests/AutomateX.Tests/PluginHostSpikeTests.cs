@@ -44,8 +44,13 @@ public sealed class PluginHostSpikeTests(ITestOutputHelper output)
             // describe
             PluginFrames.Write(stdin, new JsonObject { ["id"] = "1", ["method"] = "describe" });
             var described = ReadResponse(stdout, "1");
-            var actions = (JsonArray)described["result"]!["actions"]!;
-            Assert.Contains(actions, a => (string?)a!["type"] == "sample.echo");
+            var result = described["result"]!;
+
+            var echo = Assert.Single((JsonArray)result["actions"]!, a => (string?)a!["type"] == "sample.echo")!;
+            Assert.NotNull(echo["configSchema"]); // schema generated plugin-side, out-of-proc
+
+            var triggers = (JsonArray)result["triggers"]!;
+            Assert.Contains(triggers, t => (string?)t!["type"] == "sample.ticker");
 
             // action.execute (timed — warm call, process already started)
             var sw = Stopwatch.StartNew();
