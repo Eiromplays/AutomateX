@@ -14,7 +14,10 @@ public sealed record TemplateContext(
     IReadOnlyDictionary<string, JsonElement>? Connections = null,
     IReadOnlyDictionary<string, int>? StepKeys = null,
     IReadOnlyDictionary<int, JsonElement>? StepErrors = null,
-    ISet<string>? SecretSink = null);
+    ISet<string>? SecretSink = null,
+    // Preview mode: when set, an unresolvable path is recorded here and rendered as a placeholder
+    // instead of throwing — so a dry-run can report *every* miss in one pass. Null = strict (execution).
+    ICollection<string>? UnresolvedSink = null);
 
 // Resolves {{path}} tokens in step configs before execution. Roots:
 //   trigger.payload[.x.y]   steps.<order>.output[.x.y]   execution.id   workflow.id
@@ -91,14 +94,47 @@ public static partial class TemplateResolver
 
         if (matches.Count == 1 && matches[0].Index == 0 && matches[0].Length == text.Length)
         {
-            var element = ResolvePath(matches[0].Groups[1].Value, context);
+            var path = matches[0].Groups[1].Value;
+            if (!TryResolvePath(path, context, out var element))
+            {
+                return JsonValue.Create(Placeholder(path));
+            }
+
             return element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
                 ? null
                 : JsonNode.Parse(element.GetRawText());
         }
 
-        var interpolated = Token().Replace(text, match => Stringify(ResolvePath(match.Groups[1].Value, context)));
+        var interpolated = Token().Replace(text, match =>
+            TryResolvePath(match.Groups[1].Value, context, out var value)
+                ? Stringify(value)
+                : Placeholder(match.Groups[1].Value));
         return JsonValue.Create(interpolated);
+    }
+
+    private static string Placeholder(string path) => $"[unresolved: {path}]";
+
+    // Strict (UnresolvedSink null): resolve or throw, unchanged. Preview: catch the miss, record the
+    // path, and signal the caller to substitute a placeholder.
+    private static bool TryResolvePath(string path, TemplateContext context, out JsonElement element)
+    {
+        if (context.UnresolvedSink is null)
+        {
+            element = ResolvePath(path, context);
+            return true;
+        }
+
+        try
+        {
+            element = ResolvePath(path, context);
+            return true;
+        }
+        catch (TemplateResolutionException)
+        {
+            context.UnresolvedSink.Add(path);
+            element = default;
+            return false;
+        }
     }
 
     private static string Stringify(JsonElement element) => element.ValueKind switch
