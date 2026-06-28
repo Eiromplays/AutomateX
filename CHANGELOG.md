@@ -3,6 +3,22 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.2.0
+
+- **Workflow variables & environments.** Reusable values referenced as `{{vars.<name>}}`, defined per
+  **workspace** (shared by every workflow) or **per workflow** (an override that shadows a workspace
+  variable of the same name). Each variable holds a value per **environment** (e.g. `default` /
+  `staging` / `prod`); a run resolves against the workspace's active environment, with a per-run
+  override and a stamp of the chosen environment on the execution. **Secret** variables are encrypted
+  at rest (workspace DEK) and masked everywhere, like connections; plain values are shown in clear.
+  Manage them on the new **Variables** page; `{{vars.x}}` joins the builder autocomplete; preview shows
+  vars (secrets masked) and a real single-step run uses live values. Variables ride exported workflows
+  as name references (the importing instance needs same-named variables/environments), the same as
+  connections. Adds the `WorkspaceEnvironments`, `Variables`, `VariableValues` tables, a workspace
+  active-environment column, and an execution environment stamp. See
+  [docs/recipes/variables.md](docs/recipes/variables.md) and
+  [docs/workflow-variables-design.md](docs/workflow-variables-design.md).
+
 ## v4.1.0
 
 - **Per-step preview / test.** Tighten the authoring loop on a single step without running the whole

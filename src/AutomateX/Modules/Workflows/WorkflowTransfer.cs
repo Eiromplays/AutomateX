@@ -6,8 +6,9 @@ namespace AutomateX.Modules.Workflows;
 
 // The portable workflow document. Secrets cannot travel by construction: webhook
 // triggers (per-trigger secrets) and chain triggers (instance-local ids) are
-// excluded, and connections ride as name references inside step configs — the
-// importing instance needs same-named connections.
+// excluded, and connections + variables ride as name references inside step configs
+// ({{connections.x}}, {{vars.x}}) — the importing instance needs same-named
+// connections and variables/environments.
 public static class WorkflowTransfer
 {
     public const int FormatVersion = 1;
