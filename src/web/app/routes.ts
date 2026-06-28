@@ -11,5 +11,6 @@ export default [
   route("executions/:id", "routes/execution-detail.tsx"),
   route("connections", "routes/connections.tsx"),
   route("plugins", "routes/plugins.tsx"),
+  route("audit", "routes/audit.tsx"),
   route("workspace", "routes/workspace.tsx"),
 ] satisfies RouteConfig;

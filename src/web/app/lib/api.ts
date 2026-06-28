@@ -324,6 +324,19 @@ export type ExecutionStats = {
   recentFailures: RecentFailure[];
 };
 
+export type AuditEntry = {
+  id: string;
+  at: string;
+  actor: string;
+  workspaceId: string | null;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  summary: string | null;
+};
+
+export type AuditFilter = { take?: number; actor?: string; action?: string };
+
 export const api = {
   workspaces: {
     list: () => request<WorkspaceSummary[]>("/workspaces"),
@@ -571,6 +584,16 @@ export const api = {
   },
   stats: {
     get: (days?: number) => request<ExecutionStats>(`/stats${days ? `?days=${days}` : ""}`),
+  },
+  audit: {
+    list: (filter: AuditFilter = {}) => {
+      const params = new URLSearchParams();
+      if (filter.take) params.set("take", String(filter.take));
+      if (filter.actor) params.set("actor", filter.actor);
+      if (filter.action) params.set("action", filter.action);
+      const query = params.toString();
+      return request<AuditEntry[]>(`/audit${query ? `?${query}` : ""}`);
+    },
   },
   meta: {
     version: () => request<{ version: string }>("/version"),

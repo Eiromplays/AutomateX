@@ -265,6 +265,9 @@ function Shell() {
               <NavLink to="/plugins" className={navLinkClass}>
                 Plugins
               </NavLink>
+              <NavLink to="/audit" className={navLinkClass}>
+                Audit
+              </NavLink>
               <NavLink to="/workspace" className={navLinkClass}>
                 Workspace
               </NavLink>
