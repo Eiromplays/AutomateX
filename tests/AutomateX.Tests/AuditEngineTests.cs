@@ -63,6 +63,31 @@ public sealed class AuditEngineTests(EngineFixture fixture) : IClassFixture<Engi
     }
 
     [Fact]
+    public async Task Read_scopes_to_a_workspace_for_members_but_is_global_for_admins()
+    {
+        var wsA = Guid.CreateVersion7();
+        var wsB = Guid.CreateVersion7();
+        var marker = $"test.{Guid.CreateVersion7():N}"; // unique action isolates these rows
+
+        await using (var scope = fixture.Host.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+            db.AuditEntries.Add(AuditEntry.Create("a", wsA, marker, "x", "1", null));
+            db.AuditEntries.Add(AuditEntry.Create("b", wsB, marker, "x", "2", null));
+            await db.SaveChangesAsync();
+        }
+
+        await using var read = fixture.Host.Services.CreateAsyncScope();
+        var dbContext = read.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+
+        var scoped = await AuditQuery.Apply(dbContext.AuditEntries.AsNoTracking(), wsA, action: marker).ToListAsync();
+        Assert.Equal(wsA, Assert.Single(scoped).WorkspaceId);
+
+        var global = await AuditQuery.Apply(dbContext.AuditEntries.AsNoTracking(), null, action: marker).ToListAsync();
+        Assert.Equal(2, global.Count);
+    }
+
+    [Fact]
     public async Task Sink_records_an_explicit_mutation_entry()
     {
         var workspaceId = Guid.CreateVersion7();

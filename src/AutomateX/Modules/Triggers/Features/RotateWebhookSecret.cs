@@ -11,7 +11,7 @@ namespace AutomateX.Modules.Triggers.Features;
 // stops working immediately; the new one is shown exactly once.
 public static class RotateWebhookSecret
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions, WorkspaceAccess access) : EndpointWithoutRequest<Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, IOptions<EngineOptions> engineOptions, WorkspaceAccess access, Audit.IAuditSink audit) : EndpointWithoutRequest<Response>
     {
         public override void Configure()
         {
@@ -42,6 +42,9 @@ public static class RotateWebhookSecret
             var (configJson, secret) = WebhookSecret.AddTo(trigger.ConfigJson);
             trigger.ReplaceConfig(configJson);
             await dbContext.SaveChangesAsync(ct);
+
+            await audit.RecordAsync(
+                "trigger.rotate-secret", ws, WorkspaceAccess.GetActor(User), "trigger", trigger.Id.ToString(), null, ct);
 
             await Send.OkAsync(new Response(
                 trigger.Id,

@@ -9,7 +9,7 @@ namespace AutomateX.Modules.Workflows.Features;
 // every path (triggers, chains, scheduled, manual) at once.
 public static class SetWorkflowEnabled
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : Endpoint<Request>
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request>
     {
         public override void Configure()
         {
@@ -36,6 +36,9 @@ public static class SetWorkflowEnabled
 
             workflow.SetEnabled(req.Enabled);
             await dbContext.SaveChangesAsync(ct);
+            await audit.RecordAsync(
+                req.Enabled ? "workflow.enable" : "workflow.disable", ws, WorkspaceAccess.GetActor(User),
+                "workflow", workflow.Id.ToString(), workflow.Name, ct);
             await Send.NoContentAsync(ct);
         }
     }

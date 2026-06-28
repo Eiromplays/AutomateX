@@ -7,7 +7,7 @@ namespace AutomateX.Modules.Triggers.Features;
 
 public static class DeleteTrigger
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : EndpointWithoutRequest
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access, Audit.IAuditSink audit) : EndpointWithoutRequest
     {
         public override void Configure()
         {
@@ -36,6 +36,7 @@ public static class DeleteTrigger
                 return;
             }
 
+            await audit.RecordAsync("trigger.delete", ws, WorkspaceAccess.GetActor(User), "trigger", id.ToString(), null, ct);
             await Send.NoContentAsync(ct);
         }
     }

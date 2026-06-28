@@ -14,7 +14,8 @@ public static class UpdateTrigger
     public sealed class Endpoint(
         AutomateXDbContext dbContext,
         TriggerRegistry triggerRegistry,
-        WorkspaceAccess access) : Endpoint<Request, Response>
+        WorkspaceAccess access,
+        Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -99,6 +100,9 @@ public static class UpdateTrigger
             }
 
             await dbContext.SaveChangesAsync(ct);
+            await audit.RecordAsync(
+                "trigger.update", ws, WorkspaceAccess.GetActor(User),
+                "trigger", trigger.Id.ToString(), trigger.Type, ct);
             await Send.OkAsync(new Response(trigger.Id, trigger.Type, trigger.Enabled, trigger.NextRunAt), ct);
         }
 

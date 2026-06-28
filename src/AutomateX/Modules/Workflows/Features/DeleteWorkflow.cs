@@ -6,7 +6,7 @@ namespace AutomateX.Modules.Workflows.Features;
 
 public static class DeleteWorkflow
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : EndpointWithoutRequest
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access, Audit.IAuditSink audit) : EndpointWithoutRequest
     {
         public override void Configure()
         {
@@ -22,12 +22,14 @@ public static class DeleteWorkflow
                 return;
             }
 
-            if (!await WorkflowDeletion.DeleteAsync(dbContext, Route<Guid>("id"), ws, ct))
+            var id = Route<Guid>("id");
+            if (!await WorkflowDeletion.DeleteAsync(dbContext, id, ws, ct))
             {
                 await Send.NotFoundAsync(ct);
                 return;
             }
 
+            await audit.RecordAsync("workflow.delete", ws, WorkspaceAccess.GetActor(User), "workflow", id.ToString(), null, ct);
             await Send.NoContentAsync(ct);
         }
     }

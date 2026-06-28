@@ -50,7 +50,7 @@ public static class GetWorkspaces
 
 public static class CreateWorkspace
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -83,6 +83,9 @@ public static class CreateWorkspace
             }
 
             await dbContext.SaveChangesAsync(ct);
+            await audit.RecordAsync(
+                "workspace.create", workspace.Id, WorkspaceAccess.GetActor(User),
+                "workspace", workspace.Id.ToString(), workspace.Name, ct);
             await Send.OkAsync(new Response(workspace.Id, workspace.Name), ct);
         }
     }
@@ -164,7 +167,7 @@ public static class GetMembers
 
 public static class UpsertMember
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -208,6 +211,9 @@ public static class UpsertMember
             }
 
             await dbContext.SaveChangesAsync(ct);
+            await audit.RecordAsync(
+                "member.upsert", id, WorkspaceAccess.GetActor(User),
+                "member", existing.Id.ToString(), $"{existing.Email} → {existing.Role}", ct);
             await Send.OkAsync(new Response(existing.Id, existing.Email, existing.Role.ToString()), ct);
         }
     }
@@ -219,7 +225,7 @@ public static class UpsertMember
 
 public static class RemoveMember
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : EndpointWithoutRequest
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access, Audit.IAuditSink audit) : EndpointWithoutRequest
     {
         public override void Configure()
         {
@@ -261,6 +267,8 @@ public static class RemoveMember
 
             dbContext.WorkspaceMembers.Remove(target);
             await dbContext.SaveChangesAsync(ct);
+            await audit.RecordAsync(
+                "member.remove", id, WorkspaceAccess.GetActor(User), "member", target.Id.ToString(), target.Email, ct);
             await Send.NoContentAsync(ct);
         }
     }

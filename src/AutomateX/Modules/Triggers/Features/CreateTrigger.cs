@@ -15,7 +15,8 @@ public static class CreateTrigger
         AutomateXDbContext dbContext,
         IOptions<EngineOptions> engineOptions,
         AutomateX.Engine.Triggers.TriggerRegistry triggerRegistry,
-        WorkspaceAccess access) : Endpoint<Request, Response>
+        WorkspaceAccess access,
+        Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -78,6 +79,10 @@ public static class CreateTrigger
             var trigger = Trigger.Create(req.WorkflowId, req.Type, configJson, nextRunAt, req.EntryStepOrder);
             dbContext.Triggers.Add(trigger);
             await dbContext.SaveChangesAsync(ct);
+
+            await audit.RecordAsync(
+                "trigger.create", ws, WorkspaceAccess.GetActor(User),
+                "trigger", trigger.Id.ToString(), trigger.Type, ct);
 
             // The webhook secret is shown exactly once — it is not retrievable afterwards.
             await Send.OkAsync(new Response(

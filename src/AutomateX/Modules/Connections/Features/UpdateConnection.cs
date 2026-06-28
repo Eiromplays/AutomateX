@@ -12,7 +12,7 @@ namespace AutomateX.Modules.Connections.Features;
 // and recreate to rename.
 public static class UpdateConnection
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -56,6 +56,10 @@ public static class UpdateConnection
             }
 
             await dbContext.SaveChangesAsync(ct);
+
+            await audit.RecordAsync(
+                "connection.update", ws, WorkspaceAccess.GetActor(User),
+                "connection", connection.Id.ToString(), connection.Name, ct);
 
             await Send.OkAsync(new Response(connection.Id, connection.Name, connection.Provider, [.. merged.Keys]), ct);
         }

@@ -78,7 +78,8 @@ public static class ImportWorkflow
         AutomateXDbContext dbContext,
         ActionRegistry actions,
         AutomateX.Engine.Triggers.TriggerRegistry triggerRegistry,
-        WorkspaceAccess access) : Endpoint<JsonObject, Response>
+        WorkspaceAccess access,
+        Audit.IAuditSink audit) : Endpoint<JsonObject, Response>
     {
         public override void Configure()
         {
@@ -140,6 +141,9 @@ public static class ImportWorkflow
             }
 
             await dbContext.SaveChangesAsync(ct);
+            await audit.RecordAsync(
+                "workflow.import", ws, WorkspaceAccess.GetActor(User),
+                "workflow", workflow.Id.ToString(), workflow.Name, ct);
             await Send.OkAsync(new Response(workflow.Id, version.Id, version.Version), ct);
         }
 

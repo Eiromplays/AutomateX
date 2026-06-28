@@ -7,7 +7,7 @@ namespace AutomateX.Modules.Connections.Features;
 
 public static class DeleteConnection
 {
-    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access) : EndpointWithoutRequest
+    public sealed class Endpoint(AutomateXDbContext dbContext, WorkspaceAccess access, Audit.IAuditSink audit) : EndpointWithoutRequest
     {
         public override void Configure()
         {
@@ -52,6 +52,9 @@ public static class DeleteConnection
                 .Where(x => x.Id == id && x.WorkspaceId == ws)
                 .ExecuteDeleteAsync(ct);
 
+            await audit.RecordAsync(
+                "connection.delete", ws, WorkspaceAccess.GetActor(User),
+                "connection", id.ToString(), connection.Name, ct);
             await Send.NoContentAsync(ct);
         }
     }

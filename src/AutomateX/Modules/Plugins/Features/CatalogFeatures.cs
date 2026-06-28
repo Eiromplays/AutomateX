@@ -81,7 +81,8 @@ public static class InstallCatalogPlugin
         PluginReloader reloader,
         IHttpClientFactory httpClientFactory,
         IOptions<EngineOptions> options,
-        WorkspaceAccess access) : Endpoint<Request, Response>
+        WorkspaceAccess access,
+        Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -152,6 +153,9 @@ public static class InstallCatalogPlugin
 
             reloader.Reload();
             var fingerprint = PluginFingerprints.Find(plugins.Current, "global", Guid.Empty, entry.Name);
+            await audit.RecordAsync(
+                "plugin.install", null, WorkspaceAccess.GetActor(User),
+                "plugin", entry.Name, $"{entry.Name} {entry.Version}", ct);
             await Send.OkAsync(new Response(entry.Name, entry.Version, previous, fingerprint), ct);
         }
     }

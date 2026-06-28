@@ -13,7 +13,7 @@ public static partial class CreateConnection
     [GeneratedRegex("^[A-Za-z0-9_-]{1,64}$")]
     private static partial Regex NamePattern();
 
-    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access) : Endpoint<Request, Response>
+    public sealed class Endpoint(AutomateXDbContext dbContext, SecretCipher cipher, WorkspaceAccess access, Audit.IAuditSink audit) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -58,6 +58,10 @@ public static partial class CreateConnection
             var connection = Connection.Create(req.Name!, req.Provider, encrypted, ws);
             dbContext.Connections.Add(connection);
             await dbContext.SaveChangesAsync(ct);
+
+            await audit.RecordAsync(
+                "connection.create", ws, WorkspaceAccess.GetActor(User),
+                "connection", connection.Id.ToString(), connection.Name, ct);
 
             // Key names only — secret values never leave the server.
             await Send.OkAsync(new Response(connection.Id, connection.Name, connection.Provider, [.. req.Secrets!.Keys]), ct);
