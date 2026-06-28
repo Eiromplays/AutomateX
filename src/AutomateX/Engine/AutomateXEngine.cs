@@ -74,6 +74,7 @@ public static class AutomateXEngine
         }
 
         builder.Services.AddScoped<Modules.Workspaces.WorkspaceAccess>();
+        builder.Services.AddScoped<StepTestRunner>();
         builder.Services.AddScoped<Modules.State.IWorkflowStateStore, Modules.State.WorkflowStateStore>();
         builder.Services.AddSingleton<ActionContextFactory>();
         builder.Services.AddSingleton<PluginAssemblies>();

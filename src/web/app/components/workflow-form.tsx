@@ -332,6 +332,7 @@ export function WorkflowForm({
               {workflowId && (
                 <StepPreviewPanel
                   workflowId={workflowId}
+                  actionType={step.actionType}
                   configJson={JSON.stringify(step.config)}
                   stepKeys={stepKeyMap}
                 />

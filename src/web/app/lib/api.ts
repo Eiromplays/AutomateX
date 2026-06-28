@@ -86,6 +86,12 @@ export type StepPreviewResult = {
   connectionsUsed: { name: string; fields: string[] }[];
 };
 
+export type StepTestResult = {
+  ok: boolean;
+  output: unknown | null;
+  error: string | null;
+};
+
 export type WorkflowTrigger = {
   id: string;
   type: string;
@@ -526,6 +532,21 @@ export const api = {
       },
     ) =>
       request<StepPreviewResult>(`/workflows/${id}/preview-step`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    // Opt-in real run of one leaf action — real side effects; needs confirm=true.
+    testStep: (
+      id: string,
+      body: {
+        configJson: string;
+        actionType: string;
+        stepKeys?: Record<string, number>;
+        sampleContext?: { triggerPayload?: unknown; stepOutputs?: Record<string, unknown> };
+        confirm: boolean;
+      },
+    ) =>
+      request<StepTestResult>(`/workflows/${id}/test-step`, {
         method: "POST",
         body: JSON.stringify(body),
       }),

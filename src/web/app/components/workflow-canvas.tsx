@@ -225,6 +225,7 @@ export function WorkflowCanvas({
             {workflowId && (
               <StepPreviewPanel
                 workflowId={workflowId}
+                actionType={selectedStep.actionType}
                 configJson={JSON.stringify(selectedStep.config)}
                 stepKeys={stepKeyMap}
               />
