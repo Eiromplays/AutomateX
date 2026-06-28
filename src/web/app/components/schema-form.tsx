@@ -802,6 +802,14 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
     staleTime: 60_000,
   });
 
+  // Workspace variable names for {{vars.<name>}} autocomplete.
+  const { data: variables } = useQuery({
+    queryKey: ["variables"],
+    queryFn: () => api.variables.list(),
+    staleTime: 60_000,
+  });
+  const varNames = (variables ?? []).map((v) => v.name);
+
   if (actionType === "mcp.call") {
     return <McpCallEditor value={value} onChange={onChange} />;
   }
@@ -948,6 +956,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
                   connections={connections ?? []}
                   steps={stepRefs}
                   stepOrder={stepOrder}
+                  vars={varNames}
                 />
                 <div className="absolute right-1.5 top-1.5 flex items-center">
                   <ReferenceInserter
@@ -966,6 +975,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
                   connections={connections ?? []}
                   steps={stepRefs}
                   stepOrder={stepOrder}
+                  vars={varNames}
                 />
                 <div className="absolute inset-y-0 right-1.5 flex items-center">
                   <ReferenceInserter

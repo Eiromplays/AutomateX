@@ -9,6 +9,7 @@ import {
 import type { ConnectionLite } from "./connection-refs";
 import { stepAutocompleteQuery, stepCompletions } from "./step-autocomplete";
 import type { StepOutput } from "./step-refs";
+import { varsAutocompleteQuery, varsCompletions } from "./vars-autocomplete";
 
 type Props = {
   value: string;
@@ -16,6 +17,7 @@ type Props = {
   connections: ConnectionLite[];
   steps?: StepOutput[];
   stepOrder?: number;
+  vars?: string[];
   multiline?: boolean;
   className?: string;
   placeholder?: string;
@@ -30,6 +32,7 @@ export function ConnectionAutocompleteField({
   connections,
   steps,
   stepOrder,
+  vars,
   multiline,
   className,
   placeholder,
@@ -62,12 +65,18 @@ export function ConnectionAutocompleteField({
     if (!conn && steps) {
       step = stepAutocompleteQuery(text, at);
     }
-    const active = conn ?? step;
+    let varsQuery: { start: number; query: string } | null = null;
+    if (!conn && !step && vars) {
+      varsQuery = varsAutocompleteQuery(text, at);
+    }
+    const active = conn ?? step ?? varsQuery;
     let matches: Completion[] = [];
     if (conn) {
       matches = connectionCompletions(connections, conn.query).slice(0, 8);
     } else if (step && steps) {
       matches = stepCompletions(steps, step.query, stepOrder).slice(0, 8);
+    } else if (varsQuery && vars) {
+      matches = varsCompletions(vars, varsQuery.query).slice(0, 8);
     }
     if (!active || matches.length === 0) {
       close();
@@ -161,7 +170,7 @@ export function ConnectionAutocompleteField({
                 }}
                 className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
               >
-                <span className="text-zinc-500">{c.name}.</span>
+                {c.name && <span className="text-zinc-500">{c.name}.</span>}
                 {c.key}
               </button>
             ))}
