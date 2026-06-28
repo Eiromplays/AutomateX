@@ -127,19 +127,18 @@ No engine changes — this is breadth on the existing action/trigger/connection 
 
 The tier that matters once an instance is exposed or multi-tenant.
 
-- **Out-of-proc plugin sandboxing** — the real isolation boundary. Each plugin loads in its own
-  process with its own dependency closure behind a serialized boundary. **This retires the in-proc
-  workarounds** (`PluginLoadContext` name rules, `PluginReflection.LoadableTypes` partial-failure
-  tolerance) — delete them when it lands rather than carry them. Largest single item; could be its own
-  release or slip to v4.
-- **Audit log + instance-admin role** — who changed/ran/deleted what; a role above workspace-owner for
-  instance operators.
-- **Metrics + failure alerting** — finish the OTel/Prometheus export and add a built-in
-  "on execution failed → notify" hook (a system-level workflow or engine event).
-- **Action idempotency keys** — dedup external side-effects on retry (send/`webhook.send` actions take
-  an idempotency key), so a redelivery can't double-send.
-- **Per-tenant DEKs + secret rotation** — the `v1:`/`v2:` ciphertext prefix is already in place for
-  envelope encryption; finish per-tenant data-encryption keys and a rotation path.
+> **Shipped:** **Metrics + failure alerting** (v3.5.0 — OTel/Prometheus export + the
+> `execution.onFailure` trigger) and **action idempotency keys** (v3.5.1). The remaining three —
+> out-of-proc plugin sandboxing, audit log + instance-admin, per-tenant DEKs — carry into
+> **[v3.6](v3.6-roadmap.md)**.
+
+- **Metrics + failure alerting** *(shipped v3.5.0)* — OTel/Prometheus export plus the
+  `execution.onFailure` trigger (run a workflow when another fails).
+- **Action idempotency keys** *(shipped v3.5.1)* — a step's templated key caches its first success so
+  a redelivery/re-fire can't double-send; `webhook.send` forwards an `Idempotency-Key` header.
+- **Out-of-proc plugin sandboxing** → v3.6.
+- **Audit log + instance-admin role** → v3.6.
+- **Per-tenant DEKs + secret rotation** → v3.6.
 
 ---
 
