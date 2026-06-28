@@ -1,5 +1,6 @@
 using System.Net;
 using AutomateX.Database;
+using AutomateX.Modules.Workspaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -10,7 +11,7 @@ using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 namespace AutomateX.Web;
 
-public sealed record AuthMe(string Mode, bool Authenticated, string? Name, string? Email);
+public sealed record AuthMe(string Mode, bool Authenticated, string? Name, string? Email, bool IsInstanceAdmin);
 
 // API-side OIDC (recorded decision): the proxy makes browser↔API same-origin, so the
 // API owns the OIDC flow with standard ASP.NET middleware — no tokens in the browser,
@@ -149,7 +150,7 @@ public static class AuthExtensions
 
         app.UseMiddleware<AuthGateMiddleware>();
 
-        app.MapGet("/api/auth/me", (HttpContext context, IOptions<AuthOptions> options) =>
+        app.MapGet("/api/auth/me", (HttpContext context, IOptions<AuthOptions> options, WorkspaceAccess access) =>
         {
             var current = options.Value;
             if (current.OidcConfigured)
@@ -159,17 +160,18 @@ public static class AuthExtensions
                     "oidc",
                     user.Identity?.IsAuthenticated == true,
                     user.FindFirst("name")?.Value ?? user.Identity?.Name,
-                    user.FindFirst("preferred_username")?.Value));
+                    user.FindFirst("preferred_username")?.Value,
+                    access.IsInstanceAdmin(user)));
             }
 
             if (!string.IsNullOrEmpty(current.ApiKey))
             {
                 var cookie = context.Request.Cookies[AuthGateMiddleware.CookieName];
                 var authenticated = cookie is not null && AuthGateMiddleware.FixedTimeEquals(cookie, current.ApiKey);
-                return Results.Ok(new AuthMe("apikey", authenticated, null, null));
+                return Results.Ok(new AuthMe("apikey", authenticated, null, null, authenticated));
             }
 
-            return Results.Ok(new AuthMe("open", true, null, null));
+            return Results.Ok(new AuthMe("open", true, null, null, true));
         });
 
         return app;

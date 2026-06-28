@@ -66,6 +66,19 @@ export default function WorkspaceSettings() {
     },
   });
 
+  const rotateKey = useMutation({
+    mutationFn: () => api.workspaces.rotateKey(current!.id),
+    onSuccess: (r) =>
+      toast.success(`Key rotated to v${r.version} — ${r.reEncrypted} connection(s) re-encrypted.`),
+    onError: (error) => toast.error(`Rotation failed — ${String(error)}`),
+  });
+
+  const rewrap = useMutation({
+    mutationFn: () => api.keys.rewrap(),
+    onSuccess: (r) => toast.success(`Re-wrapped ${r.rewrapped} key(s) under the current encryption key.`),
+    onError: (error) => toast.error(`Re-wrap failed — ${String(error)}`),
+  });
+
   if (!current) return <p className="text-sm text-zinc-500">Loading…</p>;
 
   return (
@@ -162,6 +175,54 @@ export default function WorkspaceSettings() {
           </p>
         )}
       </section>
+
+      {me?.isInstanceAdmin && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-medium text-zinc-300">Encryption</h2>
+          <p className="text-xs text-zinc-500">
+            Rotate this workspace's data-encryption key (re-encrypts its connection secrets), or re-wrap
+            every key under the current instance key after changing <code>Encryption__Key</code>.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={rotateKey.isPending}
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: "Rotate workspace key?",
+                    body: "Mints a new data-encryption key and re-encrypts this workspace's connection secrets.",
+                    confirmLabel: "Rotate",
+                  })
+                ) {
+                  rotateKey.mutate();
+                }
+              }}
+              className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+            >
+              {rotateKey.isPending ? "Rotating…" : "Rotate workspace key"}
+            </button>
+            <button
+              type="button"
+              disabled={rewrap.isPending}
+              onClick={async () => {
+                if (
+                  await confirm({
+                    title: "Re-wrap all keys?",
+                    body: "Re-wraps every workspace key under the current instance encryption key. Run after changing Encryption__Key (with the old key set as Encryption__PreviousKey).",
+                    confirmLabel: "Re-wrap",
+                  })
+                ) {
+                  rewrap.mutate();
+                }
+              }}
+              className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+            >
+              {rewrap.isPending ? "Re-wrapping…" : "Re-wrap all keys"}
+            </button>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

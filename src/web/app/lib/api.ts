@@ -233,6 +233,7 @@ export type AuthMe = {
   authenticated: boolean;
   name: string | null;
   email: string | null;
+  isInstanceAdmin: boolean;
 };
 
 export type WorkspaceSummary = {
@@ -358,6 +359,13 @@ export const api = {
           method: "DELETE",
         }),
     },
+    rotateKey: (id: string) =>
+      request<{ version: number; reEncrypted: number }>(`/workspaces/${id}/rotate-key`, {
+        method: "POST",
+      }),
+  },
+  keys: {
+    rewrap: () => request<{ rewrapped: number }>("/keys/rewrap", { method: "POST" }),
   },
   connections: {
     list: () => request<ConnectionSummary[]>("/connections"),
