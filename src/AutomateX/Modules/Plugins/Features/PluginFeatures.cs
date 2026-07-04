@@ -41,6 +41,7 @@ public static class GetPlugins
 {
     public sealed class Endpoint(
         PluginAssemblies plugins,
+        PluginProcessSupervisor supervisor,
         IOptions<EngineOptions> options,
         WorkspaceAccess access) : EndpointWithoutRequest<Response>
     {
@@ -68,8 +69,9 @@ public static class GetPlugins
         }
 
         // Read the dll's metadata (no in-host load) for version + a content-hash fingerprint that
-        // makes "did the reload actually pick up my new code?" a fact instead of a guess.
-        private static PluginInfo Describe(PluginPath path)
+        // makes "did the reload actually pick up my new code?" a fact instead of a guess, plus the live
+        // host-process status from the supervisor.
+        private PluginInfo Describe(PluginPath path)
         {
             var version = "0.0.0";
             DateTimeOffset? modifiedAt = null;
@@ -82,11 +84,22 @@ public static class GetPlugins
             {
             }
 
-            return new PluginInfo(path.Name, version, PluginFingerprints.OfPath(path.DllPath) ?? "", modifiedAt);
+            var status = supervisor.Status(path.DllPath);
+            return new PluginInfo(
+                path.Name, version, PluginFingerprints.OfPath(path.DllPath) ?? "", modifiedAt,
+                status.State, status.MemoryBytes, status.Restarts, status.StartedAt);
         }
     }
 
-    public sealed record PluginInfo(string Name, string Version, string Fingerprint, DateTimeOffset? ModifiedAt);
+    public sealed record PluginInfo(
+        string Name,
+        string Version,
+        string Fingerprint,
+        DateTimeOffset? ModifiedAt,
+        string State,
+        long MemoryBytes,
+        int Restarts,
+        DateTimeOffset? StartedAt);
 
     public sealed record Response(bool UploadEnabled, List<PluginInfo> Global, List<PluginInfo> Workspace);
 }

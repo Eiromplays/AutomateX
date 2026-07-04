@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { groupBySource, SourceChip, sourceLabel } from "../components/action-source";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
+import { PluginOps } from "../components/plugin-ops";
 import { type ActionDescriptor, api, type PluginInfo } from "../lib/api";
 
 function configFields(raw: string | null): { name: string; required: boolean }[] {
@@ -182,6 +183,7 @@ function PluginManager() {
                   {plugin.modifiedAt && ` · ${formatTimestamp(plugin.modifiedAt)}`}
                 </div>
                 {summary && <div className="text-[11px] text-zinc-500">{summary}</div>}
+                {scope === "global" && <PluginOps plugin={plugin} />}
               </div>
               {plugins.uploadEnabled && (
                 <button

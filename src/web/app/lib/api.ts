@@ -281,7 +281,21 @@ export type PluginInfo = {
   version: string;
   fingerprint: string;
   modifiedAt: string | null;
+  state: string;
+  memoryBytes: number;
+  restarts: number;
+  startedAt: string | null;
 };
+
+export type PluginLogLine = {
+  seq: number;
+  at: string;
+  level: string;
+  source: string | null;
+  message: string;
+};
+
+export type PluginLogs = { lines: PluginLogLine[]; cursor: number };
 
 export type PluginsOverview = {
   uploadEnabled: boolean;
@@ -466,6 +480,8 @@ export const api = {
       }
       return (await response.json()) as PluginUploadResult;
     },
+    logs: (name: string, since = 0) =>
+      request<PluginLogs>(`/plugins/${encodeURIComponent(name)}/logs?since=${since}`),
     catalog: () => request<PluginCatalogInfo>("/plugins/catalog"),
     installFromCatalog: (name: string) =>
       request<{
