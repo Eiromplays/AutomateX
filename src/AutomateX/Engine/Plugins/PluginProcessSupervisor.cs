@@ -20,8 +20,8 @@ public sealed class PluginProcessSupervisor(
     private readonly Dictionary<string, PluginClient> _clients = [];
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _gates = new();
     private readonly Dictionary<string, TriggerInfo> _triggers = new();
-    private readonly object _clientsLock = new();
-    private readonly object _triggersLock = new();
+    private readonly Lock _clientsLock = new();
+    private readonly Lock _triggersLock = new();
 
     public Task<JsonObject> DescribeAsync(string pluginDll, CancellationToken cancellationToken = default) =>
         Client(pluginDll).DescribeAsync(cancellationToken);

@@ -18,7 +18,8 @@ public sealed class ExecutionMetricsTests
         {
             InstrumentPublished = (instrument, l) =>
             {
-                if (instrument.Meter.Name == ExecutionMetrics.MeterName)
+                // This instance's meter only — parallel tests each create a Meter of the same name.
+                if (instrument.Meter == metrics.Meter)
                 {
                     l.EnableMeasurementEvents(instrument);
                 }

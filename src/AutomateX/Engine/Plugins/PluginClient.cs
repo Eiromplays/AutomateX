@@ -33,7 +33,7 @@ public sealed class PluginClient : IAsyncDisposable
     private readonly Stream _stdout;
     private readonly IPluginHostCallbacks _callbacks;
     private readonly ILogger _logger;
-    private readonly object _writeLock = new();
+    private readonly Lock _writeLock = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonObject>> _pending = new();
     private readonly Task _readLoop;
     private int _callCounter;

@@ -124,8 +124,8 @@ public static class ReloadPlugins
 public static class UploadPlugin
 {
     // scope: "global" (any authenticated caller) or "workspace" (Owner of the current
-    // workspace). Both require the explicit Engine:AllowPluginUpload opt-in — an
-    // uploaded plugin is code running in-process with full host trust.
+    // workspace). Both require the explicit Engine:AllowPluginUpload opt-in — an uploaded plugin is
+    // arbitrary code: it runs out-of-process (isolated since v4.0) but still as the host user.
     public sealed class Endpoint(
         PluginAssemblies plugins,
         PluginReloader reloader,

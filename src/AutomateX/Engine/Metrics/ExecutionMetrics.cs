@@ -12,6 +12,11 @@ public sealed class ExecutionMetrics : IDisposable
     public const string MeterName = "AutomateX";
 
     private readonly Meter _meter = new(MeterName);
+
+    // Exposed for tests: filter a MeterListener by this instance so parallel tests (which each create
+    // their own Meter of the same name) don't cross-contaminate captured measurements.
+    internal Meter Meter => _meter;
+
     private readonly Counter<long> _executionsStarted;
     private readonly Counter<long> _executionsSettled;
     private readonly Histogram<double> _executionDuration;

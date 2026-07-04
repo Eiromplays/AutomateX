@@ -2,9 +2,9 @@ using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Plugins;
 
-// Dev convenience, off by default: watches the plugins directory and hot-reloads
-// after writes settle (debounce — `dotnet publish` drops many files). Safe against
-// self-triggering because reloads shadow-copy to temp and never write back here.
+// Dev convenience, off by default: watches the plugins directory and hot-reloads after writes settle
+// (debounce — `dotnet publish` drops many files). A reload recycles the plugin host processes and
+// re-describes them; it never writes back into the watched directory, so it can't self-trigger.
 public sealed class PluginWatcher(
     PluginReloader reloader,
     PluginAssemblies plugins,
