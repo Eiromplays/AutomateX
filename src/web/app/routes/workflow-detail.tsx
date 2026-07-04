@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { WorkflowGraph } from "../components/workflow-graph";
+import { WorkflowMcpPanel } from "../components/workflow-mcp-panel";
 import { triggerSummary } from "../components/workflow-triggers";
 import { api, type WorkflowTrigger } from "../lib/api";
 
@@ -623,6 +624,8 @@ export default function WorkflowDetail() {
       </Dialog>
 
       <WorkflowStateSection workflowId={id} triggers={workflow.triggers} />
+
+      <WorkflowMcpPanel workflow={workflow} />
     </div>
   );
 }

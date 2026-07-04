@@ -156,6 +156,9 @@ export type WorkflowDetail = {
   triggers: WorkflowTrigger[];
   runsAfter: ChainLink[];
   feeds: ChainLink[];
+  mcpExposed: boolean;
+  mcpToolName: string | null;
+  mcpDescription: string | null;
 };
 
 export type ActionDescriptor = {
@@ -552,6 +555,12 @@ export const api = {
       request<void>(`/workflows/${id}/enabled`, {
         method: "PUT",
         body: JSON.stringify({ enabled }),
+      }),
+    // Expose (or unexpose) this workflow as an MCP tool.
+    setMcp: (id: string, body: { exposed: boolean; toolName?: string | null; description?: string | null }) =>
+      request<{ exposed: boolean; resolvedToolName: string }>(`/workflows/${id}/mcp`, {
+        method: "PUT",
+        body: JSON.stringify(body),
       }),
     // Portable document — secrets excluded by construction (cron triggers only,
     // connections as name references). Import needs same-named connections.

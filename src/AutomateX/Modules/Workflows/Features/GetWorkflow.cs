@@ -38,6 +38,9 @@ public static class GetWorkflow
                     x.Description,
                     x.CreatedAt,
                     x.Enabled,
+                    x.McpExposed,
+                    x.McpToolName,
+                    x.McpDescription,
                     LatestVersion = x.Versions
                         .OrderByDescending(v => v.Version)
                         .Select(v => new VersionResponse(
@@ -78,7 +81,8 @@ public static class GetWorkflow
             await Send.OkAsync(
                 new Response(
                     workflow.Id, workflow.Name, workflow.Description, workflow.CreatedAt, workflow.Enabled,
-                    workflow.LatestVersion, workflow.Versions, triggers, runsAfter, feeds),
+                    workflow.LatestVersion, workflow.Versions, triggers, runsAfter, feeds,
+                    workflow.McpExposed, workflow.McpToolName, workflow.McpDescription),
                 ct);
         }
 
@@ -149,7 +153,10 @@ public static class GetWorkflow
         List<VersionSummary> Versions,
         List<TriggerResponse> Triggers,
         List<ChainLink> RunsAfter,
-        List<ChainLink> Feeds);
+        List<ChainLink> Feeds,
+        bool McpExposed,
+        string? McpToolName,
+        string? McpDescription);
 
     public sealed record ChainLink(Guid WorkflowId, string Name, string On);
 
