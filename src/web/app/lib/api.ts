@@ -285,6 +285,7 @@ export type PluginInfo = {
   memoryBytes: number;
   restarts: number;
   startedAt: string | null;
+  disabled: boolean;
 };
 
 export type PluginLogLine = {
@@ -482,6 +483,13 @@ export const api = {
     },
     logs: (name: string, since = 0) =>
       request<PluginLogs>(`/plugins/${encodeURIComponent(name)}/logs?since=${since}`),
+    restart: (name: string) =>
+      request<void>(`/plugins/${encodeURIComponent(name)}/restart`, { method: "POST" }),
+    setEnabled: (name: string, enabled: boolean) =>
+      request<void>(`/plugins/${encodeURIComponent(name)}/enabled`, {
+        method: "POST",
+        body: JSON.stringify({ enabled }),
+      }),
     catalog: () => request<PluginCatalogInfo>("/plugins/catalog"),
     installFromCatalog: (name: string) =>
       request<{

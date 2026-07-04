@@ -62,7 +62,7 @@ public sealed class TriggerRegistry
         }
 
         Dictionary<string, string> outOfProc = [];
-        foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null))
+        foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null && !p.Disabled))
         {
             foreach (var trigger in DescribeOutOfProc(path))
             {

@@ -1,8 +1,83 @@
 using AutomateX.Engine.Plugins;
+using AutomateX.Modules.Audit;
 using AutomateX.Modules.Workspaces;
 using FastEndpoints;
 
 namespace AutomateX.Modules.Plugins.Features;
+
+// Instance-admin controls: restart a plugin's host process, or disable/enable it (a disabled plugin's
+// actions/triggers/connection types disappear until re-enabled).
+public static class RestartPlugin
+{
+    public sealed class Endpoint(
+        PluginAssemblies plugins, PluginProcessSupervisor supervisor, WorkspaceAccess access, IAuditSink audit)
+        : EndpointWithoutRequest
+    {
+        public override void Configure()
+        {
+            Post("plugins/{name}/restart");
+            AllowAnonymous();
+        }
+
+        public override async Task HandleAsync(CancellationToken ct)
+        {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws || !access.IsInstanceAdmin(User))
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
+            var name = Route<string>("name")!;
+            if (GetPluginStatus.ResolveDll(plugins, name) is not { } dll)
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            supervisor.Recycle(dll);
+            await audit.RecordAsync("plugin.restart", ws, WorkspaceAccess.GetActor(User), "plugin", name, name, ct);
+            await Send.NoContentAsync(ct);
+        }
+    }
+}
+
+public static class SetPluginEnabled
+{
+    public sealed record Request(bool Enabled);
+
+    public sealed class Endpoint(
+        PluginAssemblies plugins, PluginReloader reloader, WorkspaceAccess access, IAuditSink audit)
+        : Endpoint<Request>
+    {
+        public override void Configure()
+        {
+            Post("plugins/{name}/enabled");
+            AllowAnonymous();
+        }
+
+        public override async Task HandleAsync(Request req, CancellationToken ct)
+        {
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws || !access.IsInstanceAdmin(User))
+            {
+                await Send.ForbiddenAsync(ct);
+                return;
+            }
+
+            var name = Route<string>("name")!;
+            if (!plugins.SetDisabled(name, workspaceId: null, disabled: !req.Enabled))
+            {
+                await Send.NotFoundAsync(ct);
+                return;
+            }
+
+            reloader.Reload(); // rebuild registries so the plugin's capabilities appear/disappear
+            await audit.RecordAsync(
+                req.Enabled ? "plugin.enable" : "plugin.disable",
+                ws, WorkspaceAccess.GetActor(User), "plugin", name, name, ct);
+            await Send.NoContentAsync(ct);
+        }
+    }
+}
 
 // Read-only plugin operations: process status (member-visible) and the log tail (instance-admin —
 // logs can carry sensitive runtime data). Both target GLOBAL plugins by name.

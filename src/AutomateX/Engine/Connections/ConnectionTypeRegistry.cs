@@ -100,7 +100,7 @@ public sealed class ConnectionTypeRegistry
         // Plugins run out-of-process: discover connection types by describing each host, never loading
         // it in-host. Built-in types (from sources above) keep their in-host instance.
         Dictionary<string, string> outOfProc = [];
-        foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null))
+        foreach (var path in _plugins.EnumeratePaths().Where(p => p.WorkspaceId is null && !p.Disabled))
         {
             foreach (var descriptor in DescribeOutOfProc(path))
             {

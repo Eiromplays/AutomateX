@@ -59,7 +59,8 @@ public sealed class ActionRegistry
         }
 
         // Plugins run out-of-process: discover by describing each host, never loading it in-host.
-        var paths = _plugins.EnumeratePaths();
+        // Disabled plugins are skipped — their actions disappear until re-enabled.
+        var paths = _plugins.EnumeratePaths().Where(p => !p.Disabled).ToList();
         foreach (var path in paths.Where(p => p.WorkspaceId is null))
         {
             global.AddRange(DescribeOutOfProc(path, $"plugin:{path.Name}"));

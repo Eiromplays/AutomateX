@@ -87,7 +87,7 @@ public static class GetPlugins
             var status = supervisor.Status(path.DllPath);
             return new PluginInfo(
                 path.Name, version, PluginFingerprints.OfPath(path.DllPath) ?? "", modifiedAt,
-                status.State, status.MemoryBytes, status.Restarts, status.StartedAt);
+                path.Disabled ? "disabled" : status.State, status.MemoryBytes, status.Restarts, status.StartedAt, path.Disabled);
         }
     }
 
@@ -99,7 +99,8 @@ public static class GetPlugins
         string State,
         long MemoryBytes,
         int Restarts,
-        DateTimeOffset? StartedAt);
+        DateTimeOffset? StartedAt,
+        bool Disabled);
 
     public sealed record Response(bool UploadEnabled, List<PluginInfo> Global, List<PluginInfo> Workspace);
 }

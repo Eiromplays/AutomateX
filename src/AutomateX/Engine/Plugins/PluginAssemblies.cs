@@ -6,13 +6,16 @@ namespace AutomateX.Engine.Plugins;
 // PluginHost per path and describes it, so plugin code never runs in the engine process.
 // Convention: plugins/<Name>/<Name>.dll (global) and plugins/.workspaces/<id>/<Name>/<Name>.dll
 // (workspace-scoped); dot-prefixed directories are reserved and skipped by the global scan.
-public sealed record PluginPath(string Name, string DllPath, Guid? WorkspaceId);
+// Disabled = the plugin folder holds a '.disabled' marker: it's still listed (so the UI can re-enable
+// it) but the registries skip it, so its actions/triggers/connection types disappear.
+public sealed record PluginPath(string Name, string DllPath, Guid? WorkspaceId, bool Disabled);
 
 public sealed class PluginAssemblies(
     IOptions<EngineOptions> engineOptions,
     ILogger<PluginAssemblies> logger)
 {
     public const string WorkspacesDirName = ".workspaces";
+    private const string DisabledMarker = ".disabled";
 
     public string GlobalRoot => ResolveRoot();
 
@@ -59,9 +62,32 @@ public sealed class PluginAssemblies(
             var dll = Path.Combine(directory, $"{name}.dll");
             if (File.Exists(dll))
             {
-                yield return new PluginPath(name, dll, workspaceId);
+                yield return new PluginPath(name, dll, workspaceId, File.Exists(Path.Combine(directory, DisabledMarker)));
             }
         }
+    }
+
+    // Toggle a plugin's '.disabled' marker. Returns false if the plugin folder doesn't exist.
+    public bool SetDisabled(string name, Guid? workspaceId, bool disabled)
+    {
+        var root = workspaceId is { } ws ? WorkspaceRoot(ws) : ResolveRoot();
+        var directory = Path.Combine(root, name);
+        if (!Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        var marker = Path.Combine(directory, DisabledMarker);
+        if (disabled)
+        {
+            File.WriteAllText(marker, "");
+        }
+        else
+        {
+            File.Delete(marker);
+        }
+
+        return true;
     }
 
     private string ResolveRoot()
