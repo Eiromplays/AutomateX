@@ -3,6 +3,19 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.5.0
+
+- **AutomateX as an MCP server.** Expose opted-in workflows as MCP tools so Claude and other MCP
+  clients can call them. Flag a workflow **"Expose as MCP tool"** (with a name + description) and it
+  shows up in `tools/list`; a `tools/call` runs it with the given `payload` as the trigger payload,
+  waits (bounded by `Engine__McpCallTimeout`, ~60s) for it to settle, and returns the final step's
+  output — or the execution id if it's still running. JSON-RPC over **`POST /api/mcp`**, off unless
+  `Engine__AllowMcpServer=true` **and** an API key is configured (it refuses in open mode — exposing
+  workflows to a model must be deliberate); workspace-scoped via `X-Workspace-Id`; runs are tagged
+  `mcp:<tool>` for audit. Adds `McpExposed`/`McpToolName`/`McpDescription` columns to the workflow. See
+  [docs/recipes/mcp-server.md](docs/recipes/mcp-server.md) and
+  [docs/mcp-server-design.md](docs/mcp-server-design.md).
+
 ## v4.4.0
 
 - **Plugin operations.** The out-of-process plugin boundary is now an operations surface, on the
