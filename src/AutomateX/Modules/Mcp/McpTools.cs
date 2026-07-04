@@ -31,6 +31,11 @@ public static class McpTools
         return builder.ToString().Trim('_') is { Length: > 0 } slug ? slug : "workflow";
     }
 
+    // The tool name for an exposed workflow: its explicit McpToolName, else a slug of its name.
+    // Always slugged so the result is a valid tool identifier.
+    public static string ResolveToolName(string? explicitName, string workflowName) =>
+        Slug(string.IsNullOrWhiteSpace(explicitName) ? workflowName : explicitName);
+
     public static bool IsTerminal(ExecutionStatus status) =>
         status is ExecutionStatus.Succeeded or ExecutionStatus.Failed;
 

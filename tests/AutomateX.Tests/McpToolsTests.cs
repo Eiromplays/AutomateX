@@ -17,6 +17,14 @@ public sealed class McpToolsTests
     }
 
     [Fact]
+    public void ResolveToolName_prefers_explicit_else_slugs_the_name()
+    {
+        Assert.Equal("summarize_ticket", McpTools.ResolveToolName("summarize_ticket", "Summarize Ticket"));
+        Assert.Equal("summarize_ticket", McpTools.ResolveToolName(null, "Summarize Ticket"));
+        Assert.Equal("my_tool", McpTools.ResolveToolName("  ", "My Tool")); // blank explicit falls back
+    }
+
+    [Fact]
     public void IsTerminal_only_for_succeeded_or_failed()
     {
         Assert.True(McpTools.IsTerminal(ExecutionStatus.Succeeded));

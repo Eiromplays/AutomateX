@@ -72,6 +72,14 @@ public sealed class EngineOptions
     // build absolute webhook URLs. Unset = relative URLs, UI prefixes its own origin.
     public string? PublicBaseUrl { get; set; }
 
+    // Expose opted-in workflows as MCP tools over POST /api/mcp. Off by default and — by design —
+    // additionally requires a configured API key (Auth__ApiKey): exposing workflows to a model must be
+    // deliberate, never accidental in open mode.
+    public bool AllowMcpServer { get; set; }
+
+    // How long an MCP tools/call waits for a workflow to settle before returning the execution id.
+    public TimeSpan McpCallTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
     // SSRF guard for http.request: when true, requests whose host resolves to a loopback /
     // private / link-local (incl. cloud metadata) address are blocked. Off by default so internal
     // targets (a local LLM, LAN services) keep working — turn it on for internet-exposed instances.
