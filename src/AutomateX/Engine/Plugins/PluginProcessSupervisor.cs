@@ -224,6 +224,25 @@ public sealed class PluginProcessSupervisor(
                 .SetProperty(t => t.LastErrorAt, (DateTimeOffset?)null), CancellationToken.None);
     }
 
+    // A listener throw in the plugin process — stamp it on the trigger row so it's visible in the UI,
+    // not just the plugin log tail. A subsequent fire clears it (see OnFireAsync).
+    public async Task OnTriggerErrorAsync(string triggerId, string message)
+    {
+        if (Lookup(triggerId) is not { } info)
+        {
+            return;
+        }
+
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+        var trimmed = message.Length > 500 ? message[..500] : message;
+        await dbContext.Triggers
+            .Where(x => x.Id == info.TriggerId)
+            .ExecuteUpdateAsync(x => x
+                .SetProperty(t => t.LastError, trimmed)
+                .SetProperty(t => t.LastErrorAt, DateTimeOffset.UtcNow), CancellationToken.None);
+    }
+
     public async Task<string?> StateGetAsync(string triggerId, string key)
     {
         if (Lookup(triggerId) is not { } info)

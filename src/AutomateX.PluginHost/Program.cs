@@ -143,7 +143,7 @@ void StartTrigger(JsonNode parameters)
     var contract = Array.Find(
         type.GetInterfaces(), i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ITriggerListener<>))!;
     var config = JsonSerializer.Deserialize(configJson, contract.GenericTypeArguments[0], JsonSerializerOptions.Web)!;
-    var instance = CreateInstance(type);
+    var runMethod = contract.GetMethod(nameof(ITriggerListener<object>.RunAsync))!;
 
     var cts = new CancellationTokenSource();
     runningTriggers[triggerId] = cts;
@@ -158,29 +158,50 @@ void StartTrigger(JsonNode parameters)
         State = new HostTriggerState(CallHostAsync, triggerId),
     };
 
+    // Self-heal like the in-host loop: a listener that throws (transient DNS/socket blip, an upstream
+    // 5xx surfaced as an exception) restarts with quadratic backoff; a clean return re-runs after a
+    // short delay. Without this a single throw would leave the trigger dead until an app restart.
     _ = Task.Run(async () =>
     {
+        var failures = 0;
         try
         {
-            var task = (Task)contract.GetMethod(nameof(ITriggerListener<object>.RunAsync))!
-                .Invoke(instance, [config, context, cts.Token])!;
-            await task;
-        }
-        catch (OperationCanceledException)
-        {
-            // cancelled — normal shutdown
-        }
-        catch (Exception ex)
-        {
-            Send(new JsonObject
+            while (!cts.Token.IsCancellationRequested)
             {
-                ["method"] = "trigger.error",
-                ["params"] = new JsonObject
+                try
                 {
-                    ["triggerId"] = triggerId,
-                    ["message"] = (ex as TargetInvocationException)?.InnerException?.Message ?? ex.Message,
-                },
-            });
+                    var instance = CreateInstance(type);
+                    await (Task)runMethod.Invoke(instance, [config, context, cts.Token])!;
+                    failures = 0;
+                }
+                catch (OperationCanceledException) when (cts.Token.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    failures++;
+                    Send(new JsonObject
+                    {
+                        ["method"] = "trigger.error",
+                        ["params"] = new JsonObject
+                        {
+                            ["triggerId"] = triggerId,
+                            ["message"] = (ex as TargetInvocationException)?.InnerException?.Message ?? ex.Message,
+                        },
+                    });
+                }
+
+                var delay = TimeSpan.FromSeconds(Math.Min(5 * Math.Max(1, failures * failures), 300));
+                try
+                {
+                    await Task.Delay(delay, cts.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    return;
+                }
+            }
         }
         finally
         {

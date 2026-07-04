@@ -14,6 +14,8 @@ public sealed class PluginClientTests(ITestOutputHelper output)
     {
         public ConcurrentQueue<string?> Fires { get; } = new();
 
+        public ConcurrentQueue<string> Errors { get; } = new();
+
         private readonly ConcurrentDictionary<string, string> _state = new();
 
         public void OnLog(string? source, string level, string message) { }
@@ -21,6 +23,12 @@ public sealed class PluginClientTests(ITestOutputHelper output)
         public Task OnFireAsync(string triggerId, string? payloadJson)
         {
             Fires.Enqueue(payloadJson);
+            return Task.CompletedTask;
+        }
+
+        public Task OnTriggerErrorAsync(string triggerId, string message)
+        {
+            Errors.Enqueue(message);
             return Task.CompletedTask;
         }
 
@@ -71,6 +79,33 @@ public sealed class PluginClientTests(ITestOutputHelper output)
         client.CancelTrigger(triggerId);
         Assert.Equal(2, callbacks.Fires.Count);
         Assert.All(callbacks.Fires, payload => Assert.Contains("\"tick\"", payload));
+    }
+
+    [Fact]
+    public async Task Restarts_a_listener_that_throws()
+    {
+        var (hostDll, pluginDll) = Locate();
+        if (!OutOfProcGate.Ready(hostDll, pluginDll, output))
+        {
+            return;
+        }
+
+        var callbacks = new RecordingCallbacks();
+        await using var client = new PluginClient(hostDll, pluginDll, callbacks, NullLogger.Instance);
+
+        var triggerId = Guid.CreateVersion7().ToString();
+        // Throws on its first run, then the host's self-heal loop retries and it fires.
+        client.RunTrigger(triggerId, "sample.flaky", """{"failTimes":1}""");
+
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(20);
+        while (callbacks.Fires.IsEmpty && DateTimeOffset.UtcNow < deadline)
+        {
+            await Task.Delay(50);
+        }
+
+        client.CancelTrigger(triggerId);
+        Assert.False(callbacks.Errors.IsEmpty); // the first attempt's throw was reported
+        Assert.Single(callbacks.Fires); // and the listener recovered and fired
     }
 
     private static (string? HostDll, string? PluginDll) Locate()

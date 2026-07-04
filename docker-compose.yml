@@ -2,7 +2,9 @@
 #   1. dotnet publish src/AutomateX -t:PublishContainer   (builds automatex-api)
 #   2. docker compose up -d
 #   3. open http://localhost:8080
-# Drop plugins into ./plugins/<PluginName>/<PluginName>.dll and restart the api.
+# Plugins run out-of-process (v4.0+): drop a plugin's FULL published output into
+# ./plugins/<PluginName>/ — the <Name>.dll AND all its dependency dlls (a `dotnet publish` of the
+# plugin, or an unzipped catalog release). A dll-only folder won't load out-of-proc. Then restart the api.
 services:
   postgres:
     image: postgres:17-alpine
@@ -37,7 +39,8 @@ services:
       # Public origin used in generated webhook URLs (defaults to relative paths):
       # Engine__PublicBaseUrl: https://automatex.example.com
       # Opt-in: manage plugins (upload/delete zips) through the API + UI.
-      # An uploaded plugin runs in-process with full host trust — leave off unless you trust every user:
+      # An uploaded plugin is arbitrary code: it runs out-of-process (isolated since v4.0) but as the
+      # host user — leave off unless you trust every user:
       # Engine__AllowPluginUpload: "true"
     volumes:
       - ./plugins:/app/plugins

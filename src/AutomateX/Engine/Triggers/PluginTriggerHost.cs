@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using AutomateX.Database;
 using AutomateX.Engine.Security;
@@ -76,24 +78,34 @@ public sealed class PluginTriggerHost(
     {
         var types = registry.Types;
         List<(Guid Id, string Type, string ConfigJson, Guid WorkflowId, int? EntryStepOrder)> wanted = [];
+        Dictionary<Guid, Guid> triggerWorkspace = [];
 
         if (types.Count > 0)
         {
             await using var scope = scopeFactory.CreateAsyncScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
-            wanted = (await dbContext.Triggers
-                    .AsNoTracking()
-                    .Where(x => x.Enabled && types.Contains(x.Type))
-                    .Select(x => new { x.Id, x.Type, x.ConfigJson, x.WorkflowId, x.EntryStepOrder })
-                    .ToListAsync(stoppingToken))
-                .Select(x => (x.Id, x.Type, x.ConfigJson, x.WorkflowId, x.EntryStepOrder))
-                .ToList();
+            var rows = await dbContext.Triggers
+                .AsNoTracking()
+                .Where(x => x.Enabled && types.Contains(x.Type))
+                .Join(dbContext.Workflows, t => t.WorkflowId, w => w.Id,
+                    (t, w) => new { t.Id, t.Type, t.ConfigJson, t.WorkflowId, t.EntryStepOrder, w.WorkspaceId })
+                .ToListAsync(stoppingToken);
+            wanted = rows.Select(x => (x.Id, x.Type, x.ConfigJson, x.WorkflowId, x.EntryStepOrder)).ToList();
+            triggerWorkspace = rows.ToDictionary(x => x.Id, x => x.WorkspaceId);
         }
+
+        // {{connections.*}} in a trigger config are resolved once at listener start; fold a per-workspace
+        // connection version into the fingerprint so editing a connection recycles the listener — else it
+        // keeps running with the stale secret (e.g. an expired token) until an app restart.
+        var connectionVersions = await ConnectionVersionsAsync(
+            wanted.Where(x => ReferencesConnections(x.ConfigJson))
+                .Select(x => triggerWorkspace[x.Id]).Distinct().ToList(),
+            stoppingToken);
 
         var generation = registry.Generation;
         var wantedById = wanted.ToDictionary(
             x => x.Id,
-            x => (Row: x, Fingerprint: $"{x.Type}|{x.ConfigJson}|{generation}"));
+            x => (Row: x, Fingerprint: Fingerprint(x, generation, triggerWorkspace, connectionVersions)));
 
         foreach (var (id, runner) in _runners.ToList())
         {
@@ -187,6 +199,51 @@ public sealed class PluginTriggerHost(
                 return;
             }
         }
+    }
+
+    private static bool ReferencesConnections(string configJson) =>
+        configJson.Contains("{{connections", StringComparison.Ordinal);
+
+    private static string Fingerprint(
+        (Guid Id, string Type, string ConfigJson, Guid WorkflowId, int? EntryStepOrder) row,
+        int generation,
+        IReadOnlyDictionary<Guid, Guid> triggerWorkspace,
+        IReadOnlyDictionary<Guid, string> connectionVersions)
+    {
+        var connToken = ReferencesConnections(row.ConfigJson)
+            && triggerWorkspace.TryGetValue(row.Id, out var workspaceId)
+            && connectionVersions.TryGetValue(workspaceId, out var version)
+                ? version
+                : "";
+        return $"{row.Type}|{row.ConfigJson}|{generation}|{connToken}";
+    }
+
+    // A per-workspace hash of its connections. EncryptedSecrets is fresh ciphertext on every write
+    // (random AES-GCM nonce), so any add/edit/delete changes the hash — and thus every dependent
+    // trigger's fingerprint, forcing a re-resolve on the next sync.
+    private async Task<Dictionary<Guid, string>> ConnectionVersionsAsync(
+        IReadOnlyList<Guid> workspaceIds, CancellationToken cancellationToken)
+    {
+        if (workspaceIds.Count == 0)
+        {
+            return [];
+        }
+
+        await using var scope = scopeFactory.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
+        var connections = await dbContext.Connections
+            .AsNoTracking()
+            .Where(c => workspaceIds.Contains(c.WorkspaceId))
+            .OrderBy(c => c.Name)
+            .Select(c => new { c.WorkspaceId, c.Name, c.EncryptedSecrets })
+            .ToListAsync(cancellationToken);
+
+        return connections
+            .GroupBy(c => c.WorkspaceId)
+            .ToDictionary(
+                g => g.Key,
+                g => Convert.ToHexString(SHA256.HashData(
+                    Encoding.UTF8.GetBytes(string.Join('\n', g.Select(c => $"{c.Name}={c.EncryptedSecrets}"))))));
     }
 
     private async Task<string> ResolveConfigAsync(Guid workflowId, string configJson, CancellationToken cancellationToken)

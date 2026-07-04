@@ -13,6 +13,8 @@ public interface IPluginHostCallbacks
 
     Task OnFireAsync(string triggerId, string? payloadJson);
 
+    Task OnTriggerErrorAsync(string triggerId, string message);
+
     Task<string?> StateGetAsync(string triggerId, string key);
 
     Task StateSetAsync(string triggerId, string key, string value, double? ttlSeconds);
@@ -204,6 +206,11 @@ public sealed class PluginClient : IAsyncDisposable
                     var message = (string?)parameters["message"] ?? "";
                     Logs.Add("Error", source, message);
                     _callbacks.OnLog(source, "Error", message);
+                    if (source is not null)
+                    {
+                        await _callbacks.OnTriggerErrorAsync(source, message);
+                    }
+
                     return;
                 }
 
