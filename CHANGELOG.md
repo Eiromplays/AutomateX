@@ -3,6 +3,20 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.5.1
+
+- **Out-of-process trigger listeners now self-heal.** A plugin trigger whose `RunAsync` threw (e.g. a
+  transient `Resource temporarily unavailable` resolving an upstream host) was killed and never
+  restarted — in-process listeners retry, out-of-process ones didn't. A single network blip could
+  silently stop a poll trigger (e.g. self-deploy) until the app restarted. The plugin host now retries
+  a failed listener with backoff, mirroring the in-process loop.
+- **Listener failures are visible.** Out-of-process `trigger.error` now stamps the trigger's
+  `LastError`/`LastErrorAt` (cleared on the next successful fire), not just the plugin log ring.
+- **Connection edits recycle dependent listeners.** Trigger `{{connections.*}}` are resolved once at
+  listener start; a per-workspace connection version is now folded into the listener fingerprint, so
+  editing a connection (e.g. rotating an expired token) re-resolves running listeners instead of
+  requiring a restart. No migration.
+
 ## v4.5.0
 
 - **AutomateX as an MCP server.** Expose opted-in workflows as MCP tools so Claude and other MCP

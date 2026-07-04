@@ -162,6 +162,21 @@ fire for the same tag, so a release deploys exactly once. If you built the workf
 added, drop those two steps in ahead of the SSH step. See
 [dedup & durable state](./dedup-and-state.md). (`kv.*` are built-in — no plugin needed.)
 
+### Troubleshooting: the poll stopped firing
+
+If releases stop deploying and the workflow shows no recent executions:
+
+- **Check the trigger's `LastError`** (workflow detail) and the **Feed plugin's Logs** (Plugins page).
+  A poll that can't reach GitHub logs there — e.g. `Resource temporarily unavailable
+  (api.github.com:443)` (a transient DNS/socket error) or a `401` from an expired token.
+- **Expired token:** rotate the `github` connection's PAT. As of v4.5.1 editing the connection
+  re-resolves the running listener automatically; before that you had to disable/enable the trigger to
+  pick up the new value.
+- Before **v4.5.1**, a single transient listener error killed the poll loop until an app restart. On
+  v4.5.1+ the listener retries with backoff and surfaces the error on the trigger, so it recovers on
+  its own. After upgrading, the next successful poll re-fires once (the stored content-hash baseline is
+  stale) and reconciles to the newest release.
+
 ## Security posture
 
 The deploy credential is encrypted at rest (AES-256-GCM), write-only through the API, masked
