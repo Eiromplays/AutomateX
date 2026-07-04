@@ -3,6 +3,19 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.5.2
+
+- **Plugin HTTP regains a default User-Agent.** In-process plugins used a shared `HttpClient` that sent
+  `User-Agent: AutomateX/2.0`; the v4.0 out-of-process host handed plugins a bare `HttpClient` with no
+  UA, which some APIs (notably GitHub) reject with a **403** — silently breaking `http.poll` against
+  those hosts (e.g. self-deploy). The plugin host now defaults the same `AutomateX/2.0` UA for trigger,
+  action, and connection-test clients; a config-supplied `User-Agent` header still overrides it.
+- **`http.poll` logs non-2xx responses.** A poll that gets a 401/403/etc. is still ignored (never
+  fires, never moves the baseline) but now logs `http.poll <url> returned <status>` to the plugin's log
+  ring — a persistent auth failure is no longer indistinguishable from "nothing changed".
+- *Known follow-ups:* out-of-process plugin HTTP clients still bypass the in-process SSRF/egress guard
+  (`GuardedHandler`); and the trigger editor can't yet edit `http.poll` headers from the UI.
+
 ## v4.5.1
 
 - **Out-of-process trigger listeners now self-heal.** A plugin trigger whose `RunAsync` threw (e.g. a

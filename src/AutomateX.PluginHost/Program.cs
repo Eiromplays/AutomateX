@@ -151,7 +151,7 @@ void StartTrigger(JsonNode parameters)
     var context = new TriggerContext
     {
         Logger = new FrameLogger(Send, triggerId),
-        Http = new HttpClient(),
+        Http = CreateHttpClient(),
         TriggerId = Guid.TryParse(triggerId, out var parsed) ? parsed : Guid.Empty,
         Fire = async payload =>
             await CallHostAsync("trigger.fire", new JsonObject { ["triggerId"] = triggerId, ["payloadJson"] = payload }),
@@ -308,7 +308,7 @@ static async Task<JsonObject> TestConnectionAsync(Assembly assembly, string conn
         throw new InvalidOperationException($"Connection type '{connectionType}' has no tester.");
     }
 
-    using var http = new HttpClient();
+    using var http = CreateHttpClient();
     var result = await tester.TestAsync(ToDictionary(values), http, CancellationToken.None);
     return new JsonObject { ["ok"] = result.Ok, ["message"] = result.Message };
 }
@@ -319,6 +319,16 @@ static IConnectionType FindConnectionType(Assembly assembly, string connectionTy
         assembly.GetTypes(), t => t.GetCustomAttribute<ConnectionTypeAttribute>()?.Type == connectionType)
         ?? throw new InvalidOperationException($"No connection type '{connectionType}' in this plugin.");
     return (IConnectionType)CreateInstance(type);
+}
+
+// Plugins get a plain HttpClient here, so — unlike the in-proc named clients — it carries no default
+// User-Agent, and some APIs (GitHub) reject that with a 403. Match the in-proc client's UA so HTTP
+// behaviour is identical across the process boundary.
+static HttpClient CreateHttpClient()
+{
+    var client = new HttpClient();
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
+    return client;
 }
 
 // Out-of-proc plugins receive their services via ActionContext (Logger/Http), not ctor injection. Build
@@ -363,7 +373,7 @@ static async Task<string?> ExecuteActionAsync(
     var context = new ActionContext
     {
         Logger = new FrameLogger(send, id),
-        Http = new HttpClient(),
+        Http = CreateHttpClient(),
     };
 
     var task = (Task)contract.GetMethod(nameof(IAction<object, object>.ExecuteAsync))!

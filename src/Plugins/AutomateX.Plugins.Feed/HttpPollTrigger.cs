@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutomateX.Plugin.Sdk;
+using Microsoft.Extensions.Logging;
 
 namespace AutomateX.Plugins.Feed;
 
@@ -45,7 +46,8 @@ public sealed class HttpPollTrigger : ITriggerListener<HttpPollTriggerConfig>
 
             // Only a successful response counts as content. A non-2xx (auth error, rate limit, 404)
             // is skipped entirely: it never fires and never overwrites the baseline, so error-page
-            // churn can't masquerade as "the watched thing changed".
+            // churn can't masquerade as "the watched thing changed". It IS logged, though — a
+            // persistent 401/403 otherwise looks identical to "nothing changed".
             if (response.IsSuccessStatusCode)
             {
                 var body = await response.Content.ReadAsStringAsync(requestCts.Token);
@@ -61,6 +63,11 @@ public sealed class HttpPollTrigger : ITriggerListener<HttpPollTriggerConfig>
 
                     await context.State.SetAsync("hash", hash, cancellationToken: cancellationToken);
                 }
+            }
+            else
+            {
+                context.Logger.LogWarning(
+                    "http.poll {Url} returned {StatusCode} — ignored, no fire.", config.Url, (int)response.StatusCode);
             }
 
             await Task.Delay(TimeSpan.FromSeconds(config.PollSeconds), cancellationToken);

@@ -176,6 +176,11 @@ If releases stop deploying and the workflow shows no recent executions:
   v4.5.1+ the listener retries with backoff and surfaces the error on the trigger, so it recovers on
   its own. After upgrading, the next successful poll re-fires once (the stored content-hash baseline is
   stale) and reconciles to the newest release.
+- **403 with no obvious cause (pre-v4.5.2):** GitHub rejects requests with no `User-Agent`, and the
+  out-of-process plugin `HttpClient` sent none. Symptom: the listener runs, no errors, but no
+  `trigger:<id>:hash` state is ever written (every poll is a silently-ignored 403). Fixed in v4.5.2
+  (the plugin host defaults `User-Agent: AutomateX/2.0`). On older builds, add a `User-Agent` to the
+  trigger's `headers`. As of v4.5.2 non-2xx polls are logged to the plugin's Logs console.
 
 ## Security posture
 
