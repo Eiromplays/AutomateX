@@ -44,6 +44,10 @@ public sealed class EngineOptions
     // Path to AutomateX.PluginHost.dll for the out-of-proc runtime; null resolves it next to the app.
     public string? PluginHostPath { get; set; }
 
+    // Opt-in guardrails for out-of-proc plugins (all null/0 = unlimited, so existing plugins are
+    // unaffected until you set one).
+    public PluginLimits PluginLimits { get; set; } = new();
+
     // Watch the plugins directory and hot-reload on changes (debounced).
     // Off by default; the AppHost enables it for local development.
     public bool WatchPlugins { get; set; }
@@ -72,4 +76,19 @@ public sealed class EngineOptions
     // private / link-local (incl. cloud metadata) address are blocked. Off by default so internal
     // targets (a local LLM, LAN services) keep working — turn it on for internet-exposed instances.
     public bool BlockPrivateNetworkRequests { get; set; }
+}
+
+public sealed class PluginLimits
+{
+    // Cancel a plugin action that runs longer than this. Null = no timeout.
+    public TimeSpan? CallTimeout { get; set; }
+
+    // A plugin host over this working-set is killed + restarted by the watchdog. Null = unlimited.
+    public long? MaxMemoryBytes { get; set; }
+
+    // Bound concurrent action calls to one plugin host. Null/0 = unbounded.
+    public int? MaxConcurrentCalls { get; set; }
+
+    // How often the memory watchdog samples plugin hosts (only runs when MaxMemoryBytes is set).
+    public TimeSpan MemoryCheckInterval { get; set; } = TimeSpan.FromSeconds(15);
 }

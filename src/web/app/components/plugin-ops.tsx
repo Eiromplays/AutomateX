@@ -77,7 +77,7 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
             onClick={() => restart.mutate()}
             className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
           >
-            Restart
+            ↻ Restart
           </button>
         )}
         <button
@@ -86,7 +86,7 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
           onClick={() => setEnabled.mutate(plugin.disabled)}
           className="text-zinc-500 hover:text-amber-300 disabled:opacity-50"
         >
-          {plugin.disabled ? "Enable" : "Disable"}
+          {plugin.disabled ? "⏻ Enable" : "⏻ Disable"}
         </button>
       </div>
 

@@ -11,13 +11,14 @@ namespace AutomateX.Engine.Plugins;
 // IPluginHostCallbacks for every client, it backs trigger.fire with a RunWorkflow enqueue and
 // trigger.state.* with the durable WorkflowState store — the same semantics as the in-proc host.
 public sealed class PluginProcessSupervisor(
-    IServiceScopeFactory scopeFactory, ILoggerFactory loggerFactory, string pluginHostDll)
+    IServiceScopeFactory scopeFactory, ILoggerFactory loggerFactory, string pluginHostDll, PluginLimits? limits = null)
     : IPluginHostCallbacks, IAsyncDisposable
 {
     private sealed record TriggerInfo(Guid TriggerId, Guid WorkflowId, string Type, int? EntryStepOrder);
 
     private readonly ILogger _logger = loggerFactory.CreateLogger<PluginProcessSupervisor>();
     private readonly Dictionary<string, PluginClient> _clients = [];
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _gates = new();
     private readonly Dictionary<string, TriggerInfo> _triggers = new();
     private readonly object _clientsLock = new();
     private readonly object _triggersLock = new();
@@ -25,8 +26,62 @@ public sealed class PluginProcessSupervisor(
     public Task<JsonObject> DescribeAsync(string pluginDll, CancellationToken cancellationToken = default) =>
         Client(pluginDll).DescribeAsync(cancellationToken);
 
-    public Task<string?> ExecuteActionAsync(string pluginDll, string type, string configJson, CancellationToken cancellationToken = default) =>
-        Client(pluginDll).ExecuteActionAsync(type, configJson, cancellationToken);
+    public async Task<string?> ExecuteActionAsync(string pluginDll, string type, string configJson, CancellationToken cancellationToken = default)
+    {
+        var gate = Gate(pluginDll);
+        if (gate is not null)
+        {
+            await gate.WaitAsync(cancellationToken);
+        }
+
+        try
+        {
+            if (limits?.CallTimeout is { } timeout)
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                cts.CancelAfter(timeout);
+                return await Client(pluginDll).ExecuteActionAsync(type, configJson, cts.Token);
+            }
+
+            return await Client(pluginDll).ExecuteActionAsync(type, configJson, cancellationToken);
+        }
+        finally
+        {
+            gate?.Release();
+        }
+    }
+
+    private SemaphoreSlim? Gate(string pluginDll) =>
+        limits?.MaxConcurrentCalls is { } max && max > 0
+            ? _gates.GetOrAdd(pluginDll, _ => new SemaphoreSlim(max, max))
+            : null;
+
+    // Watchdog hook: kill + restart any plugin host over the memory budget (opt-in).
+    public void EnforceMemoryLimits()
+    {
+        if (limits?.MaxMemoryBytes is not { } max)
+        {
+            return;
+        }
+
+        List<string> over = [];
+        lock (_clientsLock)
+        {
+            foreach (var (dll, client) in _clients)
+            {
+                if (!client.HasExited && client.MemoryBytes > max)
+                {
+                    over.Add(dll);
+                }
+            }
+        }
+
+        foreach (var dll in over)
+        {
+            _logger.LogWarning("Plugin {Plugin} exceeded the memory limit ({Max} bytes); recycling", dll, max);
+            Recycle(dll);
+        }
+    }
 
     public Task<JsonObject> BuildOAuthConfigAsync(string pluginDll, string type, JsonObject values, CancellationToken cancellationToken = default) =>
         Client(pluginDll).BuildOAuthConfigAsync(type, values, cancellationToken);

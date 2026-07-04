@@ -3,6 +3,22 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.4.0
+
+- **Plugin operations.** The out-of-process plugin boundary is now an operations surface, on the
+  Plugins page.
+  - *Observability:* each plugin shows a live status (running / crashed / idle / disabled, uptime,
+    restart count) and memory, plus an expandable **console** — a bounded per-plugin log ring buffer,
+    polled every few seconds (logs are instance-admin only, as they can carry sensitive data).
+  - *Controls (instance-admin):* **restart** a plugin's host process, and **disable/enable** it — a
+    disabled plugin's actions, triggers, and connection types disappear until re-enabled (a `.disabled`
+    marker file; no DB).
+  - *Resource limits (opt-in, default off):* `Engine__PluginLimits__CallTimeout` (cancel a long call),
+    `__MaxMemoryBytes` (a watchdog kills + restarts an over-budget host), and `__MaxConcurrentCalls`.
+  - New endpoints under `/plugins/{name}`: `status`, `logs`, `restart`, `enabled`. No migration. See
+    [docs/recipes/plugin-operations.md](docs/recipes/plugin-operations.md) and
+    [docs/plugin-operations-design.md](docs/plugin-operations-design.md).
+
 ## v4.3.0
 
 - **Template gallery.** Start a workflow from a ready-made one, from three sources on a single page:
