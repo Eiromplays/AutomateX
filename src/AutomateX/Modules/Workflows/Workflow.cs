@@ -22,6 +22,21 @@ public sealed class Workflow
     // triggers, chains, scheduled and manual runs are all blocked until re-enabled.
     public bool Enabled { get; private set; } = true;
 
+    // Expose this workflow as an MCP tool (see docs/mcp-server-design.md). ToolName is the tool's
+    // identifier (slug); Description is what an MCP client reads to decide whether to call it.
+    public bool McpExposed { get; private set; }
+
+    public string? McpToolName { get; private set; }
+
+    public string? McpDescription { get; private set; }
+
+    public void SetMcp(bool exposed, string? toolName, string? description)
+    {
+        McpExposed = exposed;
+        McpToolName = toolName;
+        McpDescription = description;
+    }
+
     public List<WorkflowVersion> Versions { get; } = [];
 
     public static Workflow Create(string name, string? description, Guid? workspaceId = null) => new()

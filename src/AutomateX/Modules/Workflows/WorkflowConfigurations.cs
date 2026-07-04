@@ -8,6 +8,8 @@ internal sealed class WorkflowConfiguration : IEntityTypeConfiguration<Workflow>
     public void Configure(EntityTypeBuilder<Workflow> builder)
     {
         builder.Property(x => x.Name).HasMaxLength(128);
+        builder.Property(x => x.McpToolName).HasMaxLength(64);
+        builder.Property(x => x.McpDescription).HasMaxLength(512);
 
         // DB default true so the AddColumn migration backfills existing workflows as enabled.
         builder.Property(x => x.Enabled).HasDefaultValue(true);
