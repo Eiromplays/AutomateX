@@ -9,7 +9,8 @@ namespace AutomateX.Engine.Plugins;
 
 // Owns one warm PluginHost process per plugin assembly and routes the engine's calls to it. As the
 // IPluginHostCallbacks for every client, it backs trigger.fire with a RunWorkflow enqueue and
-// trigger.state.* with the durable WorkflowState store — the same semantics as the in-proc host.
+// trigger.state.* with the durable WorkflowState store — the same semantics the engine gives its own
+// (built-in) triggers. Also the ops seam: per-plugin status, log tail, restart, and memory limits.
 public sealed class PluginProcessSupervisor(
     IServiceScopeFactory scopeFactory, ILoggerFactory loggerFactory, string pluginHostDll, PluginLimits? limits = null)
     : IPluginHostCallbacks, IAsyncDisposable
