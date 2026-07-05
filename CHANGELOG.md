@@ -3,6 +3,31 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.6.0
+
+- **Dynamic, scoped API keys.** The single shared key is replaced by DB-stored, individually revocable
+  keys that each carry a **scope**, a **role**, and an optional **expiry**. Manage them in-app under
+  **Settings → API keys** or via `POST/GET/DELETE /api/keys`. A key's token has the form
+  `atx_<prefix>_<secret>`; only a SHA-256 hash of the secret is stored, and the full token is shown
+  **once** at creation. Presenting a key is unchanged — `X-Api-Key: atx_…` (or the HttpOnly session
+  cookie after signing in with it).
+- **Three scopes, least privilege.** `Instance` (admin across every workspace), `Workspace` (a role
+  within one workspace — an `X-Workspace-Id` naming another is refused), and `Workflow` (a role confined
+  to a single workflow: it can't see or touch other workflows, their executions, triggers, or state).
+  Instance admins mint any scope; a workspace `Owner` mints keys within their workspace at a role no
+  higher than their own.
+- **Per-key audit + last-used.** Actions are attributed to `key:<name>` instead of a single `api-key`
+  string, and each key records a throttled `LastUsedAt`. Revocation is soft (the row survives for the
+  audit trail) and takes effect immediately — the gate re-checks the key every request.
+- **MCP gets a real per-workflow credential.** Hand an MCP client a `Workflow`-scoped key and its
+  `tools/list`/`tools/call` are limited to exactly that one workflow — the headline use case.
+- **⚠ Breaking: `Auth__ApiKey` is removed.** The static shared key no longer exists. OIDC instances are
+  unaffected. For a no-IdP setup, set **`Auth__Bootstrap=true`** once: on first run (no OIDC, no keys
+  yet) AutomateX mints a single `Instance` admin key and logs it once (`AUTOMATEX BOOTSTRAP KEY: atx_…`).
+  Copy it, sign in, mint scoped keys, then revoke the bootstrap key. Scripts keep working — swap the old
+  shared value for a newly minted `atx_` key. See [docs/recipes/api-keys.md](docs/recipes/api-keys.md)
+  and `RELEASE-v4.6.0.md`. **No data migration** beyond the `ApiKeys` table added in this release.
+
 ## v4.5.2
 
 - **Plugin HTTP regains a default User-Agent.** In-process plugins used a shared `HttpClient` that sent

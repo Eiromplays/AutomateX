@@ -105,7 +105,7 @@ public static class McpServer
         {
             ["protocolVersion"] = "2024-11-05",
             ["capabilities"] = new JsonObject { ["tools"] = new JsonObject() },
-            ["serverInfo"] = new JsonObject { ["name"] = "AutomateX", ["version"] = "4.5.0" },
+            ["serverInfo"] = new JsonObject { ["name"] = "AutomateX", ["version"] = "4.6.0" },
         };
 
         private async Task<JsonObject> ToolsListAsync(Guid ws, Guid? only, CancellationToken ct)

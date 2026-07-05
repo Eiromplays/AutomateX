@@ -172,7 +172,8 @@ event listeners — use a trigger such as `execution.onFailure`. See
   [idempotency](docs/recipes/idempotency.md) · [audit log](docs/recipes/audit-log.md) ·
   [key rotation](docs/recipes/key-rotation.md) ·
   [conditional gate](docs/recipes/conditional-gate.md) · [reminders](docs/recipes/reminders.md) ·
-  [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md)
+  [jarvis-lite](docs/recipes/jarvis-lite.md) · [backups](docs/recipes/backups.md) ·
+  [API keys](docs/recipes/api-keys.md)
 - Design notes: [branching](docs/branching-design.md) ·
   [trigger → lane routing](docs/trigger-lane-routing-design.md) ·
   [named step references](docs/steps-references-design.md) ·

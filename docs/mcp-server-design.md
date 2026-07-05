@@ -25,15 +25,15 @@ Only flagged workflows are reachable; nothing is exposed by default.
 MCP over **HTTP** (the streamable-HTTP transport) — AutomateX is already an HTTP service. A single
 endpoint (`POST /mcp`) implements the JSON-RPC methods `initialize`, `tools/list`, `tools/call`.
 
-**Gating (deliberate by design):** the server is off unless `Engine__AllowMcpServer=true` **and** an
-API key is configured (`Auth__ApiKey`). If the instance runs in open mode (no API key), `/mcp` refuses
-— exposing workflows to a model should never be accidental. The client presents the API key (and an
-`X-Workspace-Id`), so an MCP connection is scoped to one workspace and sees only that workspace's
-exposed workflows.
+**Gating (deliberate by design):** the server is off unless `Engine__AllowMcpServer=true` **and** the
+instance authenticates the request — OIDC, or a dynamic API key. If the instance runs in open mode,
+`/mcp` refuses — exposing workflows to a model should never be accidental. The client presents its key
+(and an `X-Workspace-Id`), so an MCP connection is scoped to one workspace and sees only that
+workspace's exposed workflows.
 
-*Future:* the single shared API key is coarse. A follow-up should move to dynamically-issued,
-per-workspace (and maybe per-workflow) keys with their own scopes — tracked separately; v4.5 uses the
-existing key.
+*Since v4.6:* keys are dynamically-issued, scoped, and revocable (see `auth-keys-design.md`). Hand a
+client a **`Workflow`-scoped** key and its `tools/list`/`tools/call` are confined to that one workflow —
+the least-privilege MCP credential the "Future" note below originally called for.
 
 ## tools/list
 
