@@ -321,12 +321,17 @@ static IConnectionType FindConnectionType(Assembly assembly, string connectionTy
     return (IConnectionType)CreateInstance(type);
 }
 
-// Plugins get a plain HttpClient here, so — unlike the in-proc named clients — it carries no default
-// User-Agent, and some APIs (GitHub) reject that with a 403. Match the in-proc client's UA so HTTP
-// behaviour is identical across the process boundary.
+// Plugins get their HttpClient here. It carries the same default User-Agent as the in-proc named
+// clients (a missing UA gets a 403 from some APIs, e.g. GitHub). And when the engine sets
+// AUTOMATEX_EGRESS_BLOCK_PRIVATE, it applies the same EgressGuard as the in-proc clients — the
+// cross-process half of Engine:BlockPrivateNetworkRequests, so out-of-proc plugin HTTP can't reach
+// loopback/private/link-local addresses either. The var is read per-client, but the child's env is
+// fixed for its lifetime, so it's effectively read once.
 static HttpClient CreateHttpClient()
 {
-    var client = new HttpClient();
+    var client = Environment.GetEnvironmentVariable("AUTOMATEX_EGRESS_BLOCK_PRIVATE") is "true"
+        ? new HttpClient(new SocketsHttpHandler { ConnectCallback = EgressGuard.FilteringConnectCallback })
+        : new HttpClient();
     client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
     return client;
 }

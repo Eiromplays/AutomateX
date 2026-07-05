@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json.Nodes;
 using AutomateX.Plugin.Protocol;
 using Xunit;
@@ -91,7 +93,59 @@ public sealed class PluginHostSpikeTests(ITestOutputHelper output)
         Assert.True(host.WaitForExit(5000));
     }
 
-    private Process? StartHostProcess()
+    // v4.7: out-of-proc plugin HTTP obeys the egress guard. Same loopback URL, same server — only the
+    // AUTOMATEX_EGRESS_BLOCK_PRIVATE env differs — so a 200 with the guard off and an error with it on
+    // proves it's the guard doing the blocking, not an unreachable target.
+    [Fact]
+    public void Plugin_http_egress_guard_blocks_loopback_only_when_on()
+    {
+        using var listener = new HttpListener();
+        var url = $"http://127.0.0.1:{FreeTcpPort()}/";
+        listener.Prefixes.Add(url);
+        try
+        {
+            listener.Start();
+        }
+        catch (HttpListenerException ex)
+        {
+            output.WriteLine($"Skipped — cannot bind a loopback listener here: {ex.Message}");
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (listener.IsListening)
+                {
+                    var context = await listener.GetContextAsync();
+                    context.Response.StatusCode = 200;
+                    context.Response.Close();
+                }
+            }
+            catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException)
+            {
+                // listener disposed at test end
+            }
+        });
+
+        // Guard off: the child reaches the loopback server.
+        var off = RunHttpGet(blockPrivateEgress: false, url);
+        if (off is null)
+        {
+            return; // OOP binaries not built — StartHostProcess already handled the skip
+        }
+
+        Assert.Null((string?)off["error"]);
+        Assert.Contains("\"statusCode\":200", (string?)off["result"]!["resultJson"]);
+
+        // Guard on: EgressGuard refuses the loopback address before connecting, so the action errors.
+        var on = RunHttpGet(blockPrivateEgress: true, url)!;
+        output.WriteLine($"guarded error: {(string?)on["error"]}");
+        Assert.NotNull((string?)on["error"]);
+    }
+
+    private Process? StartHostProcess(bool blockPrivateEgress = false)
     {
         var repoRoot = FindRepoRoot();
         var config = AppContext.BaseDirectory.Contains(
@@ -112,13 +166,63 @@ public sealed class PluginHostSpikeTests(ITestOutputHelper output)
             return null;
         }
 
-        return Process.Start(new ProcessStartInfo("dotnet")
+        var startInfo = new ProcessStartInfo("dotnet")
         {
             ArgumentList = { "exec", hostDll, pluginDll },
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
+        };
+        if (blockPrivateEgress)
+        {
+            startInfo.Environment["AUTOMATEX_EGRESS_BLOCK_PRIVATE"] = "true";
+        }
+
+        return Process.Start(startInfo);
+    }
+
+    // Runs one sample.httpget out-of-process against url and returns the host's response frame (result
+    // or error), or null if the OOP binaries aren't built. Each call is its own host process, so the
+    // egress env is fixed per run.
+    private JsonObject? RunHttpGet(bool blockPrivateEgress, string url)
+    {
+        using var host = StartHostProcess(blockPrivateEgress);
+        if (host is null)
+        {
+            return null;
+        }
+
+        var stdin = host.StandardInput.BaseStream;
+        var stdout = host.StandardOutput.BaseStream;
+
+        PluginFrames.Write(stdin, new JsonObject
+        {
+            ["id"] = "g",
+            ["method"] = "action.execute",
+            ["params"] = new JsonObject
+            {
+                ["type"] = "sample.httpget",
+                ["configJson"] = new JsonObject { ["url"] = url }.ToJsonString(),
+            },
         });
+        var response = ReadResponse(stdout, "g");
+        stdin.Close();
+        host.WaitForExit(5000);
+        return response;
+    }
+
+    private static int FreeTcpPort()
+    {
+        var probe = new TcpListener(IPAddress.Loopback, 0);
+        probe.Start();
+        try
+        {
+            return ((IPEndPoint)probe.LocalEndpoint).Port;
+        }
+        finally
+        {
+            probe.Stop();
+        }
     }
 
     private static JsonObject ReadResponse(Stream stream, string id)
