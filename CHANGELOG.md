@@ -3,6 +3,20 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.7.0
+
+- **The egress guard now covers out-of-process plugin HTTP.** `Engine:BlockPrivateNetworkRequests`
+  previously guarded only the engine's own `http.request`/`webhook.send`; a plugin's HTTP — an action,
+  a trigger listener, or a connection test — runs in its own process (v4.0) and used an unguarded
+  `HttpClient`, so it could still reach loopback / private (RFC1918, ULA) / link-local addresses,
+  including the cloud metadata endpoint `169.254.169.254`. The same guard now applies on both sides of
+  the plugin boundary: the shared address classifier moves into `AutomateX.Plugin.Protocol` (one
+  implementation, no drift between engine and host), and the engine hands each plugin host the policy at
+  launch via `AUTOMATEX_EGRESS_BLOCK_PRIVATE`. Same block rule, same Tailscale/CGNAT (`100.64.0.0/10`)
+  carve-out, and still **off by default** so LAN/Tailscale targets keep working — turn it on for
+  internet-exposed instances. No new config key, no migration. See
+  [docs/plugin-egress-guard-design.md](docs/plugin-egress-guard-design.md).
+
 ## v4.6.0
 
 - **Dynamic, scoped API keys.** The single shared key is replaced by DB-stored, individually revocable
@@ -38,8 +52,8 @@ Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 - **`http.poll` logs non-2xx responses.** A poll that gets a 401/403/etc. is still ignored (never
   fires, never moves the baseline) but now logs `http.poll <url> returned <status>` to the plugin's log
   ring — a persistent auth failure is no longer indistinguishable from "nothing changed".
-- *Known follow-ups:* out-of-process plugin HTTP clients still bypass the in-process SSRF/egress guard
-  (`GuardedHandler`); and the trigger editor can't yet edit `http.poll` headers from the UI.
+- *Known follow-ups:* the trigger editor can't yet edit `http.poll` headers from the UI. (The
+  out-of-process plugin HTTP SSRF/egress bypass noted here is closed in v4.7.0.)
 
 ## v4.5.1
 
