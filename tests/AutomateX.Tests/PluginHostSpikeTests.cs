@@ -95,7 +95,8 @@ public sealed class PluginHostSpikeTests(ITestOutputHelper output)
 
     // v4.7: out-of-proc plugin HTTP obeys the egress guard. Same loopback URL, same server — only the
     // AUTOMATEX_EGRESS_BLOCK_PRIVATE env differs — so a 200 with the guard off and an error with it on
-    // proves it's the guard doing the blocking, not an unreachable target.
+    // proves it's the guard doing the blocking, not an unreachable target. v4.8: with the guard on *and*
+    // the loopback host on AUTOMATEX_EGRESS_ALLOWLIST, the child reaches it again — the allowlist widens.
     [Fact]
     public void Plugin_http_egress_guard_blocks_loopback_only_when_on()
     {
@@ -143,9 +144,15 @@ public sealed class PluginHostSpikeTests(ITestOutputHelper output)
         var on = RunHttpGet(blockPrivateEgress: true, url)!;
         output.WriteLine($"guarded error: {(string?)on["error"]}");
         Assert.NotNull((string?)on["error"]);
+
+        // Guard on but the loopback host is allowlisted: the widened policy lets the child through again.
+        var allowlisted = RunHttpGet(blockPrivateEgress: true, url, allowlist: "127.0.0.1")!;
+        output.WriteLine($"allowlisted result: {(string?)allowlisted["result"]?["resultJson"]}");
+        Assert.Null((string?)allowlisted["error"]);
+        Assert.Contains("\"statusCode\":200", (string?)allowlisted["result"]!["resultJson"]);
     }
 
-    private Process? StartHostProcess(bool blockPrivateEgress = false)
+    private Process? StartHostProcess(bool blockPrivateEgress = false, string? allowlist = null)
     {
         var repoRoot = FindRepoRoot();
         var config = AppContext.BaseDirectory.Contains(
@@ -178,15 +185,20 @@ public sealed class PluginHostSpikeTests(ITestOutputHelper output)
             startInfo.Environment["AUTOMATEX_EGRESS_BLOCK_PRIVATE"] = "true";
         }
 
+        if (allowlist is not null)
+        {
+            startInfo.Environment["AUTOMATEX_EGRESS_ALLOWLIST"] = allowlist;
+        }
+
         return Process.Start(startInfo);
     }
 
     // Runs one sample.httpget out-of-process against url and returns the host's response frame (result
     // or error), or null if the OOP binaries aren't built. Each call is its own host process, so the
     // egress env is fixed per run.
-    private JsonObject? RunHttpGet(bool blockPrivateEgress, string url)
+    private JsonObject? RunHttpGet(bool blockPrivateEgress, string url, string? allowlist = null)
     {
-        using var host = StartHostProcess(blockPrivateEgress);
+        using var host = StartHostProcess(blockPrivateEgress, allowlist);
         if (host is null)
         {
             return null;

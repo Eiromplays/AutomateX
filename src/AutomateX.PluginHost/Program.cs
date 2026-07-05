@@ -325,14 +325,19 @@ static IConnectionType FindConnectionType(Assembly assembly, string connectionTy
 // clients (a missing UA gets a 403 from some APIs, e.g. GitHub). And when the engine sets
 // AUTOMATEX_EGRESS_BLOCK_PRIVATE, it applies the same EgressGuard as the in-proc clients — the
 // cross-process half of Engine:BlockPrivateNetworkRequests, so out-of-proc plugin HTTP can't reach
-// loopback/private/link-local addresses either. The var is read per-client, but the child's env is
-// fixed for its lifetime, so it's effectively read once.
+// loopback/private/link-local addresses either. AUTOMATEX_EGRESS_ALLOWLIST (comma-separated hostnames
+// /CIDRs) widens it exactly like the in-proc policy. Both vars are read per-client, but the child's env
+// is fixed for its lifetime, so they're effectively read once.
 static HttpClient CreateHttpClient()
 {
-    var client = Environment.GetEnvironmentVariable("AUTOMATEX_EGRESS_BLOCK_PRIVATE") is "true"
+    var blockPrivate = Environment.GetEnvironmentVariable("AUTOMATEX_EGRESS_BLOCK_PRIVATE") is "true";
+    var client = blockPrivate
         ? new HttpClient(new SocketsHttpHandler
         {
-            ConnectCallback = EgressGuard.MakeConnectCallback(new EgressPolicy(blockPrivate: true, allowlist: null)),
+            ConnectCallback = EgressGuard.MakeConnectCallback(new EgressPolicy(
+                blockPrivate,
+                Environment.GetEnvironmentVariable("AUTOMATEX_EGRESS_ALLOWLIST")
+                    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))),
         })
         : new HttpClient();
     client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
