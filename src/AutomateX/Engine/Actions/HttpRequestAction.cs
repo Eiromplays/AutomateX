@@ -1,4 +1,5 @@
 using System.Text;
+using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 using Microsoft.Extensions.Options;
 
@@ -29,7 +30,7 @@ public sealed class HttpRequestAction(IOptions<EngineOptions> options) : IAction
     {
         if (options.Value.BlockPrivateNetworkRequests)
         {
-            await SsrfGuard.GuardAsync(config.Url, cancellationToken);
+            await EgressGuard.GuardAsync(config.Url, cancellationToken);
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Parse(config.Method), config.Url);

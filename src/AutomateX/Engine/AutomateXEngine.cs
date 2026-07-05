@@ -3,6 +3,7 @@ using AutomateX.Engine.Actions;
 using AutomateX.Engine.Events;
 using AutomateX.Engine.Plugins;
 using AutomateX.Engine.Security;
+using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -127,7 +128,7 @@ public static class AutomateXEngine
         var handler = new SocketsHttpHandler();
         if (services.GetRequiredService<IOptions<EngineOptions>>().Value.BlockPrivateNetworkRequests)
         {
-            handler.ConnectCallback = SsrfGuard.FilteringConnectCallback;
+            handler.ConnectCallback = EgressGuard.FilteringConnectCallback;
         }
 
         return handler;

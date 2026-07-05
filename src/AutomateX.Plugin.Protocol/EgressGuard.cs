@@ -2,14 +2,15 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 
-namespace AutomateX.Engine.Actions;
+namespace AutomateX.Plugin.Protocol;
 
-// Opt-in SSRF guard for http.request (Engine:BlockPrivateNetworkRequests). Resolves the target
-// host and blocks if any address is loopback / private (RFC1918, ULA) / link-local — which covers
-// the cloud metadata endpoint 169.254.169.254. Off by default so internal targets (a local LLM,
-// LAN services) keep working. Pre-connect resolution: a determined DNS-rebinding attacker could
-// still bind late; a SocketsHttpHandler ConnectCallback would close that (a later hardening).
-public static class SsrfGuard
+// The shared SSRF/egress guard, used by both the in-proc engine actions and the out-of-proc plugin
+// host so HTTP behaviour is identical on both sides of the boundary. When Engine:BlockPrivateNetworkRequests
+// is on it resolves the target host and blocks if any address is loopback / private (RFC1918, ULA) /
+// link-local — which covers the cloud metadata endpoint 169.254.169.254. Off by default so internal
+// targets (a local LLM, LAN services) keep working. Pre-connect resolution: a determined DNS-rebinding
+// attacker could still bind late; the ConnectCallback below closes that by gating the IP actually dialed.
+public static class EgressGuard
 {
     public static async Task GuardAsync(string url, CancellationToken cancellationToken)
     {

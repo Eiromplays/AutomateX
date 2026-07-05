@@ -1,10 +1,10 @@
 using System.Net;
-using AutomateX.Engine.Actions;
+using AutomateX.Plugin.Protocol;
 using Xunit;
 
 namespace AutomateX.Tests;
 
-public sealed class SsrfGuardTests
+public sealed class EgressGuardTests
 {
     [Theory]
     [InlineData("127.0.0.1", true)]      // loopback
@@ -24,5 +24,5 @@ public sealed class SsrfGuardTests
     [InlineData("1.1.1.1", false)]       // public
     [InlineData("2606:4700:4700::1111", false)] // public v6
     public void IsBlockedAddress_classifies(string ip, bool blocked) =>
-        Assert.Equal(blocked, SsrfGuard.IsBlockedAddress(IPAddress.Parse(ip)));
+        Assert.Equal(blocked, EgressGuard.IsBlockedAddress(IPAddress.Parse(ip)));
 }
