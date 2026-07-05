@@ -40,17 +40,25 @@ public sealed class PluginClient : IAsyncDisposable
     private readonly Task _readLoop;
     private int _callCounter;
 
-    public PluginClient(string hostDll, string pluginDll, IPluginHostCallbacks callbacks, ILogger logger)
+    public PluginClient(
+        string hostDll, string pluginDll, IPluginHostCallbacks callbacks, ILogger logger, bool blockPrivateEgress = false)
     {
         _callbacks = callbacks;
         _logger = logger;
-        _process = Process.Start(new ProcessStartInfo("dotnet")
+        var startInfo = new ProcessStartInfo("dotnet")
         {
             ArgumentList = { "exec", hostDll, pluginDll },
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
-        }) ?? throw new InvalidOperationException($"Failed to start plugin host for {pluginDll}.");
+        };
+        if (blockPrivateEgress)
+        {
+            startInfo.Environment["AUTOMATEX_EGRESS_BLOCK_PRIVATE"] = "true";
+        }
+
+        _process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException($"Failed to start plugin host for {pluginDll}.");
 
         _stdin = _process.StandardInput.BaseStream;
         _stdout = _process.StandardOutput.BaseStream;

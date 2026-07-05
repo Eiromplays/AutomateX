@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Sockets;
+using System.Text.Json.Nodes;
 using AutomateX.Database;
 using AutomateX.Engine.Plugins;
 using AutomateX.Modules.Triggers;
@@ -90,6 +93,80 @@ public sealed class PluginSupervisorTests(EngineFixture fixture, ITestOutputHelp
             // The next call relaunches a fresh host and still describes correctly.
             var after = await supervisor.DescribeAsync(pluginDll);
             Assert.NotNull(after["result"]?["actions"]);
+        }
+    }
+
+    // v4.7: Engine:BlockPrivateNetworkRequests flows through the supervisor to the child's env, so an
+    // out-of-proc plugin's HTTP obeys the egress guard. Same loopback URL for both supervisors — only
+    // the option differs — so the 200-vs-throw contrast isolates the guard as the cause.
+    [Fact]
+    public async Task Egress_guard_blocks_plugin_http_when_the_option_is_on()
+    {
+        var (hostDll, pluginDll) = Locate();
+        if (!OutOfProcGate.Ready(hostDll, pluginDll, output))
+        {
+            return;
+        }
+
+        using var listener = new HttpListener();
+        var url = $"http://127.0.0.1:{FreeTcpPort()}/";
+        listener.Prefixes.Add(url);
+        try
+        {
+            listener.Start();
+        }
+        catch (HttpListenerException ex)
+        {
+            output.WriteLine($"Skipped — cannot bind a loopback listener here: {ex.Message}");
+            return;
+        }
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (listener.IsListening)
+                {
+                    var context = await listener.GetContextAsync();
+                    context.Response.StatusCode = 200;
+                    context.Response.Close();
+                }
+            }
+            catch (Exception ex) when (ex is HttpListenerException or ObjectDisposedException)
+            {
+                // listener disposed at test end
+            }
+        });
+
+        var config = new JsonObject { ["url"] = url }.ToJsonString();
+        var scopeFactory = fixture.Host.Services.GetRequiredService<IServiceScopeFactory>();
+        var loggerFactory = fixture.Host.Services.GetRequiredService<ILoggerFactory>();
+
+        await using (var permitted = new PluginProcessSupervisor(scopeFactory, loggerFactory, hostDll))
+        {
+            var result = await permitted.ExecuteActionAsync(pluginDll, "sample.httpget", config);
+            Assert.Contains("\"statusCode\":200", result);
+        }
+
+        await using (var blocked = new PluginProcessSupervisor(
+            scopeFactory, loggerFactory, hostDll, blockPrivateEgress: true))
+        {
+            await Assert.ThrowsAsync<PluginHostException>(
+                () => blocked.ExecuteActionAsync(pluginDll, "sample.httpget", config));
+        }
+    }
+
+    private static int FreeTcpPort()
+    {
+        var probe = new TcpListener(IPAddress.Loopback, 0);
+        probe.Start();
+        try
+        {
+            return ((IPEndPoint)probe.LocalEndpoint).Port;
+        }
+        finally
+        {
+            probe.Stop();
         }
     }
 

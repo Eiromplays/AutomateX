@@ -101,7 +101,8 @@ public static class AutomateXEngine
             var hostDll = options.PluginHostPath
                 ?? Path.Combine(AppContext.BaseDirectory, "pluginhost", "AutomateX.PluginHost.dll");
             return new Plugins.PluginProcessSupervisor(
-                sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILoggerFactory>(), hostDll, options.PluginLimits);
+                sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILoggerFactory>(), hostDll,
+                options.PluginLimits, options.BlockPrivateNetworkRequests);
         });
         builder.Services.AddHostedService<Plugins.PluginMemoryWatchdog>();
 

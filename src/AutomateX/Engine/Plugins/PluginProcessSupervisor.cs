@@ -12,7 +12,8 @@ namespace AutomateX.Engine.Plugins;
 // trigger.state.* with the durable WorkflowState store — the same semantics the engine gives its own
 // (built-in) triggers. Also the ops seam: per-plugin status, log tail, restart, and memory limits.
 public sealed class PluginProcessSupervisor(
-    IServiceScopeFactory scopeFactory, ILoggerFactory loggerFactory, string pluginHostDll, PluginLimits? limits = null)
+    IServiceScopeFactory scopeFactory, ILoggerFactory loggerFactory, string pluginHostDll,
+    PluginLimits? limits = null, bool blockPrivateEgress = false)
     : IPluginHostCallbacks, IAsyncDisposable
 {
     private sealed record TriggerInfo(Guid TriggerId, Guid WorkflowId, string Type, int? EntryStepOrder);
@@ -185,7 +186,7 @@ public sealed class PluginProcessSupervisor(
                 _logger.LogWarning("Plugin host for {Plugin} had exited; relaunching", pluginDll);
             }
 
-            var client = new PluginClient(pluginHostDll, pluginDll, this, _logger);
+            var client = new PluginClient(pluginHostDll, pluginDll, this, _logger, blockPrivateEgress);
             _clients[pluginDll] = client;
             return client;
         }
