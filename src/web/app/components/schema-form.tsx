@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type ComponentProps, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../lib/api";
 import { ConnectionAutocompleteField } from "./connection-autocomplete-field";
@@ -794,6 +794,110 @@ function ForEachEditor({
   );
 }
 
+// Key/value editor for a string-map config field (Dictionary<string,string> — e.g. http.poll,
+// http.request and webhook.send headers). Replaces the raw-JSON textarea for these fields: add/remove
+// rows, each a key input + a value input that reuses the reference inserter so {{connections.*}} and
+// step refs still work. Collapses to a Record<string,string> (empty-key rows dropped), or undefined
+// when empty so the field clears instead of serializing {}.
+type KvRow = { key: string; value: string };
+
+function toRows(value: unknown): KvRow[] {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  return Object.entries(value as Record<string, unknown>).map(([key, v]) => ({
+    key,
+    value: v == null ? "" : String(v),
+  }));
+}
+
+function KeyValueEditor({
+  value,
+  onChange,
+  connections,
+  steps,
+  stepOrder,
+  vars,
+}: {
+  value: unknown;
+  onChange: (map: Record<string, string> | undefined) => void;
+  connections: ComponentProps<typeof ConnectionAutocompleteField>["connections"];
+  steps?: StepOutput[];
+  stepOrder?: number;
+  vars: string[];
+}) {
+  const [rows, setRows] = useState<KvRow[]>(() => toRows(value));
+  // Our own edits write this exact ref back to the parent; anything else (e.g. selecting a different
+  // step, which reuses this editor instance in the canvas) is an external change → reseed.
+  const lastEmitted = useRef<unknown>(value);
+  useEffect(() => {
+    if (value !== lastEmitted.current) {
+      setRows(toRows(value));
+      lastEmitted.current = value;
+    }
+  }, [value]);
+
+  const emit = (next: KvRow[]) => {
+    setRows(next);
+    const map: Record<string, string> = {};
+    for (const row of next) {
+      if (row.key.trim() !== "") map[row.key] = row.value;
+    }
+    const out = Object.keys(map).length > 0 ? map : undefined;
+    lastEmitted.current = out;
+    onChange(out);
+  };
+
+  const update = (index: number, patch: Partial<KvRow>) =>
+    emit(rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+
+  return (
+    <div className="space-y-2">
+      {rows.map((row, index) => (
+        <div key={index} className="flex items-start gap-1.5">
+          <input
+            className={`${inputClass} w-1/3`}
+            placeholder="Header"
+            value={row.key}
+            onChange={(e) => update(index, { key: e.target.value })}
+          />
+          <div className="relative flex-1">
+            <ConnectionAutocompleteField
+              className={`${inputClass} pr-10`}
+              value={row.value}
+              onChange={(v) => update(index, { value: v })}
+              connections={connections}
+              steps={steps}
+              stepOrder={stepOrder}
+              vars={vars}
+            />
+            <div className="absolute inset-y-0 right-1.5 flex items-center">
+              <ReferenceInserter
+                onInsert={(token) => update(index, { value: `${row.value}${token}` })}
+                steps={steps}
+                stepOrder={stepOrder}
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => emit(rows.filter((_, i) => i !== index))}
+            className="px-1 py-1.5 text-zinc-500 hover:text-red-400"
+            title="Remove"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={() => setRows([...rows, { key: "", value: "" }])}
+        className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+      >
+        + Add
+      </button>
+    </div>
+  );
+}
+
 export function SchemaForm({ schema, value, onChange, actionType, stepRefs, stepOrder }: SchemaFormProps) {
   // For validating {{connections.…}} refs in field values. undefined while loading → neutral chip.
   const { data: connections } = useQuery({
@@ -932,6 +1036,15 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
                 className={inputClass}
                 value={value[key] === undefined ? "" : String(value[key])}
                 onChange={(e) => set(key, e.target.value === "" ? undefined : Number(e.target.value))}
+              />
+            ) : kind === "map" ? (
+              <KeyValueEditor
+                value={value[key]}
+                onChange={(map) => set(key, map)}
+                connections={connections ?? []}
+                steps={stepRefs}
+                stepOrder={stepOrder}
+                vars={varNames}
               />
             ) : kind === "json" ? (
               <textarea

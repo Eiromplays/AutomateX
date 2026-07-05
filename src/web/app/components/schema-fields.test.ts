@@ -29,4 +29,32 @@ describe("fieldKind", () => {
   it("ignores format on non-string types", () => {
     expect(fieldKind({ type: "integer", format: "multiline" })).toBe("number");
   });
+
+  it("maps a string→string object with no properties to the key/value editor", () => {
+    // The exporter emits this shape for a Dictionary<string,string> (e.g. http.poll headers).
+    expect(fieldKind({ type: "object", additionalProperties: { type: "string" } })).toBe("map");
+  });
+
+  it("treats a nullable string-map (union type) as a map", () => {
+    // A nullable Dictionary<string,string> exports as ["object","null"] with additionalProperties.
+    expect(fieldKind({ type: ["object", "null"], additionalProperties: { type: "string" } })).toBe(
+      "map",
+    );
+  });
+
+  it("keeps a shaped object (named properties) on the raw JSON editor", () => {
+    expect(
+      fieldKind({
+        type: "object",
+        properties: { a: { type: "string" } },
+        additionalProperties: { type: "string" },
+      }),
+    ).toBe("json");
+  });
+
+  it("falls back to JSON for non-string maps, boolean and absent additionalProperties", () => {
+    expect(fieldKind({ type: "object", additionalProperties: { type: "integer" } })).toBe("json");
+    expect(fieldKind({ type: "object", additionalProperties: true })).toBe("json");
+    expect(fieldKind({ type: "object" })).toBe("json");
+  });
 });
