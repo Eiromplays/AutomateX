@@ -97,8 +97,10 @@ public sealed class PluginSupervisorTests(EngineFixture fixture, ITestOutputHelp
     }
 
     // v4.7: Engine:BlockPrivateNetworkRequests flows through the supervisor to the child's env, so an
-    // out-of-proc plugin's HTTP obeys the egress guard. Same loopback URL for both supervisors — only
-    // the option differs — so the 200-vs-throw contrast isolates the guard as the cause.
+    // out-of-proc plugin's HTTP obeys the egress guard. Same loopback URL for all supervisors — only the
+    // option differs — so the 200-vs-throw contrast isolates the guard as the cause. v4.8: a supervisor
+    // with the guard on but the loopback host on EgressAllowlist reaches it again — the allowlist widens
+    // end-to-end through the same supervisor → client → child-env path.
     [Fact]
     public async Task Egress_guard_blocks_plugin_http_when_the_option_is_on()
     {
@@ -153,6 +155,13 @@ public sealed class PluginSupervisorTests(EngineFixture fixture, ITestOutputHelp
         {
             await Assert.ThrowsAsync<PluginHostException>(
                 () => blocked.ExecuteActionAsync(pluginDll, "sample.httpget", config));
+        }
+
+        await using (var allowlisted = new PluginProcessSupervisor(
+            scopeFactory, loggerFactory, hostDll, blockPrivateEgress: true, egressAllowlist: ["127.0.0.1"]))
+        {
+            var result = await allowlisted.ExecuteActionAsync(pluginDll, "sample.httpget", config);
+            Assert.Contains("\"statusCode\":200", result);
         }
     }
 

@@ -120,7 +120,7 @@ public static class AutomateXEngine
                 ?? Path.Combine(AppContext.BaseDirectory, "pluginhost", "AutomateX.PluginHost.dll");
             return new Plugins.PluginProcessSupervisor(
                 sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILoggerFactory>(), hostDll,
-                options.PluginLimits, options.BlockPrivateNetworkRequests);
+                options.PluginLimits, options.BlockPrivateNetworkRequests, options.EgressAllowlist);
         });
         builder.Services.AddHostedService<Plugins.PluginMemoryWatchdog>();
 

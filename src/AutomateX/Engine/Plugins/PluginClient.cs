@@ -41,7 +41,8 @@ public sealed class PluginClient : IAsyncDisposable
     private int _callCounter;
 
     public PluginClient(
-        string hostDll, string pluginDll, IPluginHostCallbacks callbacks, ILogger logger, bool blockPrivateEgress = false)
+        string hostDll, string pluginDll, IPluginHostCallbacks callbacks, ILogger logger,
+        bool blockPrivateEgress = false, string[]? egressAllowlist = null)
     {
         _callbacks = callbacks;
         _logger = logger;
@@ -55,6 +56,11 @@ public sealed class PluginClient : IAsyncDisposable
         if (blockPrivateEgress)
         {
             startInfo.Environment["AUTOMATEX_EGRESS_BLOCK_PRIVATE"] = "true";
+        }
+
+        if (egressAllowlist is { Length: > 0 } allowlist)
+        {
+            startInfo.Environment["AUTOMATEX_EGRESS_ALLOWLIST"] = string.Join(',', allowlist);
         }
 
         _process = Process.Start(startInfo)
