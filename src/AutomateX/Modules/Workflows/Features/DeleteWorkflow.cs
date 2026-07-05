@@ -16,13 +16,13 @@ public static class DeleteWorkflow
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
 
-            var id = Route<Guid>("id");
             if (!await WorkflowDeletion.DeleteAsync(dbContext, id, ws, ct))
             {
                 await Send.NotFoundAsync(ct);

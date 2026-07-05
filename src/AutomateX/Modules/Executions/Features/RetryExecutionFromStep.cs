@@ -31,10 +31,11 @@ public static class RetryExecutionFromStep
 
             var id = Route<Guid>("id");
             var order = Route<int>("order");
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
 
             var source = await dbContext.Executions
                 .AsNoTracking()
-                .Where(x => x.Id == id && x.WorkspaceId == ws)
+                .Where(x => x.Id == id && x.WorkspaceId == ws && (only == null || x.WorkflowId == only))
                 .Select(x => new { x.Status, x.WorkflowVersionId })
                 .FirstOrDefaultAsync(ct);
 

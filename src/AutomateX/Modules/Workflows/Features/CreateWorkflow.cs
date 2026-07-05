@@ -19,7 +19,9 @@ public static class CreateWorkflow
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            // Creating a workflow is out of reach for a key scoped to a single existing one.
+            if (WorkspaceAccess.ScopedWorkflowId(HttpContext) is not null
+                || await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;

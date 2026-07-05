@@ -32,9 +32,10 @@ public static class ResumeWaitingExecution
             }
 
             var id = Route<Guid>("id");
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
             var execution = await dbContext.Executions
                 .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Id == id && x.WorkspaceId == ws, ct);
+                .FirstOrDefaultAsync(x => x.Id == id && x.WorkspaceId == ws && (only == null || x.WorkflowId == only), ct);
 
             if (execution is null)
             {

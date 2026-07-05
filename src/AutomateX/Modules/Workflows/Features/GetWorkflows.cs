@@ -26,9 +26,12 @@ public static class GetWorkflows
                 return;
             }
 
+            // A Workflow-scoped key sees only its own workflow.
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
+
             var workflows = await dbContext.Workflows
                 .AsNoTracking()
-                .Where(x => x.WorkspaceId == ws)
+                .Where(x => x.WorkspaceId == ws && (only == null || x.Id == only))
                 .OrderBy(x => x.Name)
                 .Select(x => new
                 {

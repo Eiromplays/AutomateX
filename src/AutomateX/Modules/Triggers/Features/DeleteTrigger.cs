@@ -24,9 +24,11 @@ public static class DeleteTrigger
             }
 
             var id = Route<Guid>("id");
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
 
             var deleted = await dbContext.Triggers
                 .Where(x => x.Id == id
+                    && (only == null || x.WorkflowId == only)
                     && dbContext.Workflows.Any(w => w.Id == x.WorkflowId && w.WorkspaceId == ws))
                 .ExecuteDeleteAsync(ct);
 

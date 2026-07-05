@@ -76,6 +76,11 @@ public sealed class WorkspaceAccess(AutomateXDbContext dbContext, IOptions<AuthO
     private static WorkspaceRole RoleForKey(ApiKeyContext key) =>
         key.Scope == ApiKeyScope.Instance ? WorkspaceRole.Owner : key.Role;
 
+    // The single workflow a Workflow-scoped key is confined to; null for any other caller. Fold this into
+    // the WorkspaceId filter of list/entity queries so a workflow key can't see or touch other workflows.
+    public static Guid? ScopedWorkflowId(HttpContext context) =>
+        ApiKeyContext.From(context) is { Scope: ApiKeyScope.Workflow } key ? key.WorkflowId : null;
+
     // The workspace a key may act on: an Instance key acts on whatever is addressed; a scoped key is
     // pinned to its own, and an X-Workspace-Id header naming a different workspace returns null (403).
     private static Guid? EffectiveWorkspaceForKey(ApiKeyContext key, HttpContext context)
@@ -167,5 +172,18 @@ public sealed class WorkspaceAccess(AutomateXDbContext dbContext, IOptions<AuthO
         var workspaceId = WorkspaceHttp.GetWorkspaceId(context);
         var role = await GetRoleAsync(workspaceId, context.User, cancellationToken);
         return role is { } r && r >= required ? workspaceId : null;
+    }
+
+    // Workflow-addressed endpoints: the workspace role check plus, for a Workflow-scoped key, a hard gate
+    // that the addressed workflow is the key's one. Returns the effective workspace, or null (403).
+    public async Task<Guid?> AuthorizeWorkflowAsync(
+        HttpContext context, Guid workflowId, WorkspaceRole required, CancellationToken cancellationToken)
+    {
+        if (await AuthorizeAsync(context, required, cancellationToken) is not { } workspaceId)
+        {
+            return null;
+        }
+
+        return ScopedWorkflowId(context) is { } only && only != workflowId ? null : workspaceId;
     }
 }

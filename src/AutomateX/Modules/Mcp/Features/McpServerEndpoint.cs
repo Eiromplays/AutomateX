@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Modules.ApiKeys;
 using AutomateX.Modules.Executions;
 using AutomateX.Modules.Workspaces;
 using AutomateX.Web;
@@ -37,9 +38,12 @@ public static class McpServer
                 return;
             }
 
-            if (string.IsNullOrEmpty(authOptions.Value.ApiKey))
+            // MCP is never exposed in open dev: it requires the instance to authenticate — a static key,
+            // OIDC, or (the headline use case) a DB key on this request. Static key drops out in v4.6 m5.
+            var auth = authOptions.Value;
+            if (!auth.OidcConfigured && string.IsNullOrEmpty(auth.ApiKey) && ApiKeyContext.From(HttpContext) is null)
             {
-                await Send.ForbiddenAsync(ct); // by design: MCP requires a configured API key
+                await Send.ForbiddenAsync(ct);
                 return;
             }
 
@@ -48,6 +52,10 @@ public static class McpServer
                 await Send.ForbiddenAsync(ct);
                 return;
             }
+
+            // A Workflow-scoped key exposes/calls exactly its one workflow; any other caller sees the
+            // whole workspace's opted-in set.
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
 
             var method = (string?)req["method"];
             var id = req["id"];
@@ -71,10 +79,10 @@ public static class McpServer
                     result = new JsonObject();
                     break;
                 case "tools/list":
-                    result = await ToolsListAsync(ws, ct);
+                    result = await ToolsListAsync(ws, only, ct);
                     break;
                 case "tools/call":
-                    (result, error) = await ToolsCallAsync(ws, req["params"] as JsonObject ?? [], ct);
+                    (result, error) = await ToolsCallAsync(ws, only, req["params"] as JsonObject ?? [], ct);
                     break;
                 default:
                     error = (-32601, $"Method not found: {method}");
@@ -101,9 +109,9 @@ public static class McpServer
             ["serverInfo"] = new JsonObject { ["name"] = "AutomateX", ["version"] = "4.5.0" },
         };
 
-        private async Task<JsonObject> ToolsListAsync(Guid ws, CancellationToken ct)
+        private async Task<JsonObject> ToolsListAsync(Guid ws, Guid? only, CancellationToken ct)
         {
-            var workflows = await ExposedAsync(ws, ct);
+            var workflows = await ExposedAsync(ws, only, ct);
             var tools = new JsonArray();
             foreach (var workflow in workflows)
             {
@@ -130,7 +138,7 @@ public static class McpServer
         }
 
         private async Task<(JsonNode? Result, (int, string)? Error)> ToolsCallAsync(
-            Guid ws, JsonObject parameters, CancellationToken ct)
+            Guid ws, Guid? only, JsonObject parameters, CancellationToken ct)
         {
             var name = (string?)parameters["name"];
             if (string.IsNullOrEmpty(name))
@@ -138,7 +146,7 @@ public static class McpServer
                 return (null, (-32602, "Missing tool name."));
             }
 
-            var workflows = await ExposedAsync(ws, ct);
+            var workflows = await ExposedAsync(ws, only, ct);
             var match = workflows.FirstOrDefault(x => McpTools.ResolveToolName(x.McpToolName, x.Name) == name);
             if (match is null)
             {
@@ -163,10 +171,10 @@ public static class McpServer
             return (ToolContent(text, isError: false), null);
         }
 
-        private Task<List<WorkflowRow>> ExposedAsync(Guid ws, CancellationToken ct) =>
+        private Task<List<WorkflowRow>> ExposedAsync(Guid ws, Guid? only, CancellationToken ct) =>
             dbContext.Workflows
                 .AsNoTracking()
-                .Where(x => x.WorkspaceId == ws && x.McpExposed && x.Enabled)
+                .Where(x => x.WorkspaceId == ws && x.McpExposed && x.Enabled && (only == null || x.Id == only))
                 .Select(x => new WorkflowRow(x.Id, x.Name, x.Description, x.McpToolName, x.McpDescription))
                 .ToListAsync(ct);
 

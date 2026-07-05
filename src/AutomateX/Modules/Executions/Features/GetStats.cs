@@ -31,10 +31,11 @@ public static class GetStats
 
             var now = DateTimeOffset.UtcNow;
             var cutoff = now.AddDays(-days);
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
 
             var rows = await dbContext.Executions
                 .AsNoTracking()
-                .Where(x => x.WorkspaceId == ws && x.StartedAt >= cutoff)
+                .Where(x => x.WorkspaceId == ws && x.StartedAt >= cutoff && (only == null || x.WorkflowId == only))
                 .Select(x => new ExecutionRow(x.Id, x.WorkflowId, x.Status, x.StartedAt, x.CompletedAt))
                 .ToListAsync(ct);
 

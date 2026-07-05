@@ -25,10 +25,11 @@ public static class GetExecution
             }
 
             var id = Route<Guid>("id");
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
 
             var execution = await dbContext.Executions
                 .AsNoTracking()
-                .Where(x => x.Id == id && x.WorkspaceId == ws)
+                .Where(x => x.Id == id && x.WorkspaceId == ws && (only == null || x.WorkflowId == only))
                 .Select(x => new Response(
                     x.Id,
                     x.WorkflowId,

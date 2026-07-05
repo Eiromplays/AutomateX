@@ -28,9 +28,12 @@ public static class GetExecutions
             // history. The UI bumps `take` for "Load more".
             var take = Math.Clamp(Query<int?>("take", isRequired: false) ?? 50, 1, 500);
 
+            // A Workflow-scoped key sees only its own workflow's executions.
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
+
             var rows = await dbContext.Executions
                 .AsNoTracking()
-                .Where(x => x.WorkspaceId == ws)
+                .Where(x => x.WorkspaceId == ws && (only == null || x.WorkflowId == only))
                 .OrderByDescending(x => x.StartedAt)
                 .Take(take)
                 .Select(x => new

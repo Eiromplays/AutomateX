@@ -17,13 +17,13 @@ public static class RestoreWorkflowVersion
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
 
-            var id = Route<Guid>("id");
             var versionNumber = Route<int>("version");
 
             var workflow = await dbContext.Workflows

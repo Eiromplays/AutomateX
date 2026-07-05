@@ -20,7 +20,7 @@ public static class UpdateWorkflow
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            if (await access.AuthorizeWorkflowAsync(HttpContext, req.Id, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;

@@ -21,13 +21,12 @@ public static class ExecuteWorkflow
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
-
-            var id = Route<Guid>("id");
 
             var workflow = await dbContext.Workflows
                 .Where(x => x.Id == id && x.WorkspaceId == ws)

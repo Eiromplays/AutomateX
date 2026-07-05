@@ -28,9 +28,11 @@ public static class RotateWebhookSecret
             }
 
             var id = Route<Guid>("id");
+            var only = WorkspaceAccess.ScopedWorkflowId(HttpContext);
 
             var trigger = await dbContext.Triggers
                 .FirstOrDefaultAsync(x => x.Id == id && x.Type == TriggerTypes.Webhook
+                    && (only == null || x.WorkflowId == only)
                     && dbContext.Workflows.Any(w => w.Id == x.WorkflowId && w.WorkspaceId == ws), ct);
 
             if (trigger is null)

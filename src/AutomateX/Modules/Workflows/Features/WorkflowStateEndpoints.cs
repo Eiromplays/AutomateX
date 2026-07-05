@@ -23,13 +23,13 @@ public static class GetWorkflowState
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Viewer, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
 
-            var id = Route<Guid>("id");
             if (!await dbContext.Workflows.AnyAsync(x => x.Id == id && x.WorkspaceId == ws, ct))
             {
                 await Send.NotFoundAsync(ct);
@@ -56,13 +56,13 @@ public static class ClearWorkflowState
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
 
-            var id = Route<Guid>("id");
             if (!await dbContext.Workflows.AnyAsync(x => x.Id == id && x.WorkspaceId == ws, ct))
             {
                 await Send.NotFoundAsync(ct);
@@ -102,13 +102,13 @@ public static class SetWorkflowStateEntry
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
 
-            var id = Route<Guid>("id");
             if (!await dbContext.Workflows.AnyAsync(x => x.Id == id && x.WorkspaceId == ws, ct))
             {
                 await Send.NotFoundAsync(ct);
@@ -143,13 +143,13 @@ public static class RemoveWorkflowStateEntry
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
 
-            var id = Route<Guid>("id");
             if (!await dbContext.Workflows.AnyAsync(x => x.Id == id && x.WorkspaceId == ws, ct))
             {
                 await Send.NotFoundAsync(ct);

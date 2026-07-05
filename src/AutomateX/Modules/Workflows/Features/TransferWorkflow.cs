@@ -22,13 +22,12 @@ public static class ExportWorkflow
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws)
+            var id = Route<Guid>("id");
+            if (await access.AuthorizeWorkflowAsync(HttpContext, id, WorkspaceRole.Viewer, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
             }
-
-            var id = Route<Guid>("id");
 
             var workflow = await dbContext.Workflows
                 .AsNoTracking()
@@ -89,7 +88,9 @@ public static class ImportWorkflow
 
         public override async Task HandleAsync(JsonObject req, CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
+            // Import mints a new workflow — out of reach for a key scoped to a single existing one.
+            if (WorkspaceAccess.ScopedWorkflowId(HttpContext) is not null
+                || await access.AuthorizeAsync(HttpContext, WorkspaceRole.Editor, ct) is not { } ws)
             {
                 await Send.ForbiddenAsync(ct);
                 return;
