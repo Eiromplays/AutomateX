@@ -1,0 +1,273 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "../components/toast";
+import { useConfirm } from "../components/ui/confirm";
+import { Dialog, DialogContent } from "../components/ui/dialog";
+import {
+  api,
+  type ApiKeyScope,
+  type ApiKeySummary,
+  type CreatedApiKey,
+  DEFAULT_WORKSPACE_ID,
+  getWorkspaceId,
+} from "../lib/api";
+import { buildCreateKeyBody, describeKeyTarget, type KeyFormState } from "../lib/api-keys-form";
+
+const inputClass =
+  "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
+  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+
+const fmtDate = (value: string | null) => (value ? new Date(value).toLocaleDateString() : "—");
+const fmtDateTime = (value: string | null) => (value ? new Date(value).toLocaleString() : "never");
+
+export default function ApiKeys() {
+  const queryClient = useQueryClient();
+  const confirm = useConfirm();
+
+  const { data: me } = useQuery({ queryKey: ["auth", "me"], queryFn: api.auth.me, staleTime: Infinity });
+  const { data: workspaces } = useQuery({ queryKey: ["workspaces"], queryFn: api.workspaces.list });
+  const { data: workflows } = useQuery({ queryKey: ["workflows"], queryFn: api.workflows.list });
+
+  const currentId = getWorkspaceId() ?? DEFAULT_WORKSPACE_ID;
+  const current = workspaces?.find((w) => w.id === currentId) ?? workspaces?.[0];
+  const isAdmin = me?.isInstanceAdmin ?? false;
+  const canManage = isAdmin || current?.role === "Owner";
+
+  const scopeOptions: ApiKeyScope[] = isAdmin ? ["Instance", "Workspace", "Workflow"] : ["Workspace", "Workflow"];
+
+  const [form, setForm] = useState<KeyFormState>({
+    name: "",
+    scope: "Workspace",
+    workspaceId: "",
+    workflowId: "",
+    role: "Viewer",
+    expiresAt: "",
+  });
+  const [created, setCreated] = useState<CreatedApiKey | null>(null);
+
+  const { data: keys, error: listError } = useQuery({
+    queryKey: ["apikeys"],
+    queryFn: api.apiKeys.list,
+    enabled: canManage,
+  });
+
+  const create = useMutation({
+    mutationFn: () => {
+      const built = buildCreateKeyBody({ ...form, workspaceId: current?.id ?? "" });
+      if ("error" in built) throw new Error(built.error);
+      return api.apiKeys.create(built);
+    },
+    onSuccess: (key) => {
+      setCreated(key);
+      setForm((f) => ({ ...f, name: "", workflowId: "", expiresAt: "" }));
+      queryClient.invalidateQueries({ queryKey: ["apikeys"] });
+    },
+    onError: (error) => toast.error(`Create failed — ${String(error)}`),
+  });
+
+  const revoke = useMutation({
+    mutationFn: (id: string) => api.apiKeys.revoke(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["apikeys"] });
+      toast.success("Key revoked.");
+    },
+    onError: (error) => toast.error(`Revoke failed — ${String(error)}`),
+  });
+
+  const workflowName = (id: string | null) => workflows?.find((w) => w.id === id)?.name ?? null;
+  const workspaceName = (id: string | null) => workspaces?.find((w) => w.id === id)?.name ?? null;
+
+  return (
+    <div className="max-w-3xl space-y-6">
+      <div>
+        <h1 className="text-lg font-semibold">API keys</h1>
+        <p className="mt-1 text-sm text-zinc-500">
+          Scoped, hashed, revocable credentials for scripts, integrations, and MCP.
+        </p>
+      </div>
+
+      <p className="rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-500">
+        The shared <code className="text-zinc-400">Auth__ApiKey</code> was removed in v4.6. API and script
+        access now uses the scoped keys below — send one as the <code className="text-zinc-400">X-Api-Key</code>{" "}
+        header, or sign in with it via the ⚿ button. The full token is shown once at creation.
+      </p>
+
+      {!canManage ? (
+        <p className="rounded-lg border border-zinc-800 px-4 py-6 text-center text-sm text-zinc-500">
+          Only workspace Owners and instance admins can manage API keys.
+        </p>
+      ) : (
+        <>
+          <section className="space-y-3 rounded-lg border border-zinc-800 p-4">
+            <h2 className="text-sm font-medium text-zinc-300">Create a key</h2>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <input
+                className={inputClass}
+                placeholder="Name (e.g. grafana-readonly)"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+              <select
+                className={inputClass}
+                value={form.scope}
+                onChange={(e) => setForm({ ...form, scope: e.target.value as ApiKeyScope })}
+              >
+                {scopeOptions.map((scope) => (
+                  <option key={scope} value={scope}>
+                    {scope}
+                  </option>
+                ))}
+              </select>
+
+              {form.scope !== "Instance" && (
+                <select
+                  className={inputClass}
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                >
+                  <option>Viewer</option>
+                  <option>Editor</option>
+                  <option>Owner</option>
+                </select>
+              )}
+
+              {form.scope === "Workflow" && (
+                <select
+                  className={inputClass}
+                  value={form.workflowId}
+                  onChange={(e) => setForm({ ...form, workflowId: e.target.value })}
+                >
+                  <option value="">Select a workflow…</option>
+                  {workflows?.map((wf) => (
+                    <option key={wf.id} value={wf.id}>
+                      {wf.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <label className="flex items-center gap-2 text-xs text-zinc-500">
+                Expires
+                <input
+                  type="date"
+                  className={`${inputClass} flex-1`}
+                  value={form.expiresAt}
+                  onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
+                />
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-zinc-600">
+                {form.scope === "Instance"
+                  ? "Instance keys are admin everywhere; role is ignored."
+                  : `Scoped to ${current?.name ?? "this workspace"}.`}
+              </p>
+              <button
+                type="button"
+                disabled={!form.name.trim() || create.isPending}
+                onClick={() => create.mutate()}
+                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {create.isPending ? "Creating…" : "Create key"}
+              </button>
+            </div>
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-sm font-medium text-zinc-300">
+              Keys {isAdmin ? "(all workspaces)" : `in ${current?.name ?? "this workspace"}`}
+            </h2>
+            {listError && <p className="text-sm text-red-400">{String(listError)}</p>}
+            <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+              {keys?.map((key: ApiKeySummary) => {
+                const revoked = key.revokedAt !== null;
+                const expired = key.expiresAt !== null && new Date(key.expiresAt) < new Date();
+                return (
+                  <li key={key.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className={revoked ? "text-zinc-500 line-through" : ""}>{key.name}</span>
+                        <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">{key.role}</span>
+                        {revoked && <span className="text-xs text-zinc-500">revoked</span>}
+                        {!revoked && expired && <span className="text-xs text-amber-400">expired</span>}
+                      </div>
+                      <div className="truncate text-xs text-zinc-500">
+                        {describeKeyTarget(key.scope, workflowName(key.workflowId), workspaceName(key.workspaceId))}
+                        {" · "}
+                        <code className="text-zinc-600">atx_{key.prefix}…</code>
+                      </div>
+                      <div className="text-xs text-zinc-600">
+                        last used {fmtDateTime(key.lastUsedAt)} · expires {fmtDate(key.expiresAt)} · by {key.createdBy}
+                      </div>
+                    </div>
+                    {!revoked && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (
+                            await confirm({
+                              title: `Revoke "${key.name}"?`,
+                              body: "Any client using this key stops working immediately. This can't be undone.",
+                              confirmLabel: "Revoke",
+                              destructive: true,
+                            })
+                          ) {
+                            revoke.mutate(key.id);
+                          }
+                        }}
+                        className="shrink-0 text-xs text-zinc-500 hover:text-red-400"
+                      >
+                        Revoke
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+              {keys?.length === 0 && (
+                <li className="px-4 py-6 text-center text-sm text-zinc-500">No keys yet.</li>
+              )}
+            </ul>
+          </section>
+        </>
+      )}
+
+      <Dialog open={created !== null} onOpenChange={(open) => !open && setCreated(null)}>
+        {created && (
+          <DialogContent title="Copy your API key">
+            <div className="space-y-3">
+              <p className="text-sm text-zinc-400">
+                This is the only time <span className="font-medium text-zinc-200">{created.name}</span> is shown.
+                Store it now — it can't be retrieved again.
+              </p>
+              <code className="block w-full break-all rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-emerald-300">
+                {created.token}
+              </code>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(created.token).then(
+                      () => toast.success("Copied to clipboard."),
+                      () => toast.error("Couldn't copy — select and copy manually."),
+                    );
+                  }}
+                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+                >
+                  Copy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreated(null)}
+                  className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+    </div>
+  );
+}

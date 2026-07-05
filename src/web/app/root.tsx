@@ -274,6 +274,9 @@ function Shell() {
               <NavLink to="/workspace" className={navLinkClass}>
                 Workspace
               </NavLink>
+              <NavLink to="/api-keys" className={navLinkClass}>
+                API keys
+              </NavLink>
             </>
           )}
           {me?.mode === "apikey" && <ApiKeyButton />}

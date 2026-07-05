@@ -14,4 +14,5 @@ export default [
   route("plugins", "routes/plugins.tsx"),
   route("audit", "routes/audit.tsx"),
   route("workspace", "routes/workspace.tsx"),
+  route("api-keys", "routes/api-keys.tsx"),
 ] satisfies RouteConfig;

@@ -389,6 +389,46 @@ export type AuditEntry = {
 
 export type AuditFilter = { take?: number; actor?: string; action?: string };
 
+export type ApiKeyScope = "Instance" | "Workspace" | "Workflow";
+
+// Metadata only — the secret is never returned by the list; the full token appears once at creation.
+export type ApiKeySummary = {
+  id: string;
+  name: string;
+  prefix: string;
+  scope: ApiKeyScope;
+  workspaceId: string | null;
+  workflowId: string | null;
+  role: string;
+  createdBy: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  revokedAt: string | null;
+};
+
+// The mint response: `token` is the full atx_ credential, shown once and never retrievable.
+export type CreatedApiKey = {
+  id: string;
+  name: string;
+  prefix: string;
+  scope: ApiKeyScope;
+  workspaceId: string | null;
+  workflowId: string | null;
+  role: string;
+  expiresAt: string | null;
+  token: string;
+};
+
+export type CreateApiKeyBody = {
+  name: string;
+  scope: ApiKeyScope;
+  workspaceId?: string | null;
+  workflowId?: string | null;
+  role?: string | null;
+  expiresAt?: string | null;
+};
+
 export const api = {
   workspaces: {
     list: () => request<WorkspaceSummary[]>("/workspaces"),
@@ -417,6 +457,13 @@ export const api = {
   },
   keys: {
     rewrap: () => request<{ rewrapped: number }>("/keys/rewrap", { method: "POST" }),
+  },
+  // Scoped, revocable API keys (v4.6). list/create/revoke; the full token is only in create's response.
+  apiKeys: {
+    list: () => request<ApiKeySummary[]>("/keys"),
+    create: (body: CreateApiKeyBody) =>
+      request<CreatedApiKey>("/keys", { method: "POST", body: JSON.stringify(body) }),
+    revoke: (id: string) => request<void>(`/keys/${id}`, { method: "DELETE" }),
   },
   connections: {
     list: () => request<ConnectionSummary[]>("/connections"),
