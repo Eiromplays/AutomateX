@@ -55,6 +55,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<Modules.Templates.WorkflowTemplate> WorkflowTemplates => Set<Modules.Templates.WorkflowTemplate>();
 
+    public DbSet<Modules.ApiKeys.ApiKey> ApiKeys => Set<Modules.ApiKeys.ApiKey>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
 }
