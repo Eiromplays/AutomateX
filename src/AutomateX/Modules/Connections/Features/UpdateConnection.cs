@@ -58,7 +58,7 @@ public static class UpdateConnection
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "connection.update", ws, WorkspaceAccess.GetActor(User),
+                "connection.update", ws, WorkspaceAccess.GetActor(HttpContext),
                 "connection", connection.Id.ToString(), connection.Name, ct);
 
             await Send.OkAsync(new Response(connection.Id, connection.Name, connection.Provider, [.. merged.Keys]), ct);

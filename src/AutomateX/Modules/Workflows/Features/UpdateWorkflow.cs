@@ -62,7 +62,7 @@ public static class UpdateWorkflow
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "workflow.update", ws, WorkspaceAccess.GetActor(User),
+                "workflow.update", ws, WorkspaceAccess.GetActor(HttpContext),
                 "workflow", workflow.Id.ToString(), $"v{version.Version}", ct);
 
             await Send.OkAsync(new Response(workflow.Id, version.Id, version.Version), ct);

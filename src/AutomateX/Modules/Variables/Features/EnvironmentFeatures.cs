@@ -105,7 +105,7 @@ public static class CreateEnvironment
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "environment.create", ws, WorkspaceAccess.GetActor(User), "environment", environment.Id.ToString(), environment.Name, ct);
+                "environment.create", ws, WorkspaceAccess.GetActor(HttpContext), "environment", environment.Id.ToString(), environment.Name, ct);
 
             await Send.OkAsync(new GetEnvironments.EnvironmentResponse(environment.Id, environment.Name, Active: false), ct);
         }
@@ -155,7 +155,7 @@ public static class DeleteEnvironment
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "environment.delete", ws, WorkspaceAccess.GetActor(User), "environment", id.ToString(), environment.Name, ct);
+                "environment.delete", ws, WorkspaceAccess.GetActor(HttpContext), "environment", id.ToString(), environment.Name, ct);
             await Send.NoContentAsync(ct);
         }
     }
@@ -195,7 +195,7 @@ public static class SetActiveEnvironment
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "environment.activate", ws, WorkspaceAccess.GetActor(User), "environment", environment.Id.ToString(), environment.Name, ct);
+                "environment.activate", ws, WorkspaceAccess.GetActor(HttpContext), "environment", environment.Id.ToString(), environment.Name, ct);
             await Send.NoContentAsync(ct);
         }
     }

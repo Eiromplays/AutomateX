@@ -18,7 +18,7 @@ public static class RotateWorkspaceKey
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (!access.IsInstanceAdmin(User))
+            if (!access.IsInstanceAdmin(HttpContext))
             {
                 await Send.ForbiddenAsync(ct);
                 return;
@@ -27,7 +27,7 @@ public static class RotateWorkspaceKey
             var id = Route<Guid>("id");
             var (version, reEncrypted) = await rotation.RotateWorkspaceAsync(id, ct);
             await audit.RecordAsync(
-                "key.rotate-workspace", id, WorkspaceAccess.GetActor(User),
+                "key.rotate-workspace", id, WorkspaceAccess.GetActor(HttpContext),
                 "workspace", id.ToString(), $"v{version}, {reEncrypted} re-encrypted", ct);
             await Send.OkAsync(new Response(version, reEncrypted), ct);
         }
@@ -50,7 +50,7 @@ public static class RewrapKeys
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (!access.IsInstanceAdmin(User))
+            if (!access.IsInstanceAdmin(HttpContext))
             {
                 await Send.ForbiddenAsync(ct);
                 return;
@@ -58,7 +58,7 @@ public static class RewrapKeys
 
             var count = await rotation.RewrapAllAsync(ct);
             await audit.RecordAsync(
-                "key.rewrap", null, WorkspaceAccess.GetActor(User), "instance", null, $"{count} keys re-wrapped", ct);
+                "key.rewrap", null, WorkspaceAccess.GetActor(HttpContext), "instance", null, $"{count} keys re-wrapped", ct);
             await Send.OkAsync(new Response(count), ct);
         }
     }

@@ -84,7 +84,7 @@ public static class CreateWorkspace
 
             await dbContext.SaveChangesAsync(ct);
             await audit.RecordAsync(
-                "workspace.create", workspace.Id, WorkspaceAccess.GetActor(User),
+                "workspace.create", workspace.Id, WorkspaceAccess.GetActor(HttpContext),
                 "workspace", workspace.Id.ToString(), workspace.Name, ct);
             await Send.OkAsync(new Response(workspace.Id, workspace.Name), ct);
         }
@@ -212,7 +212,7 @@ public static class UpsertMember
 
             await dbContext.SaveChangesAsync(ct);
             await audit.RecordAsync(
-                "member.upsert", id, WorkspaceAccess.GetActor(User),
+                "member.upsert", id, WorkspaceAccess.GetActor(HttpContext),
                 "member", existing.Id.ToString(), $"{existing.Email} → {existing.Role}", ct);
             await Send.OkAsync(new Response(existing.Id, existing.Email, existing.Role.ToString()), ct);
         }
@@ -268,7 +268,7 @@ public static class RemoveMember
             dbContext.WorkspaceMembers.Remove(target);
             await dbContext.SaveChangesAsync(ct);
             await audit.RecordAsync(
-                "member.remove", id, WorkspaceAccess.GetActor(User), "member", target.Id.ToString(), target.Email, ct);
+                "member.remove", id, WorkspaceAccess.GetActor(HttpContext), "member", target.Id.ToString(), target.Email, ct);
             await Send.NoContentAsync(ct);
         }
     }

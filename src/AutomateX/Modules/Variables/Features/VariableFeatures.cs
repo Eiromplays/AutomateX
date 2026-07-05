@@ -89,7 +89,7 @@ public static class CreateVariable
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "variable.create", ws, WorkspaceAccess.GetActor(User), "variable", variable.Id.ToString(), variable.Name, ct);
+                "variable.create", ws, WorkspaceAccess.GetActor(HttpContext), "variable", variable.Id.ToString(), variable.Name, ct);
             await Send.OkAsync(new Response(variable.Id, variable.Name, variable.Secret, variable.WorkflowId), ct);
         }
     }
@@ -125,7 +125,7 @@ public static class DeleteVariable
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "variable.delete", ws, WorkspaceAccess.GetActor(User), "variable", id.ToString(), variable.Name, ct);
+                "variable.delete", ws, WorkspaceAccess.GetActor(HttpContext), "variable", id.ToString(), variable.Name, ct);
             await Send.NoContentAsync(ct);
         }
     }
@@ -187,7 +187,7 @@ public static class SetVariableValue
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "variable.value.set", ws, WorkspaceAccess.GetActor(User), "variable", variable.Id.ToString(), variable.Name, ct);
+                "variable.value.set", ws, WorkspaceAccess.GetActor(HttpContext), "variable", variable.Id.ToString(), variable.Name, ct);
             await Send.NoContentAsync(ct);
         }
     }

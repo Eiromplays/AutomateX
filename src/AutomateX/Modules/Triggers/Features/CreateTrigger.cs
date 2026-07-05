@@ -81,7 +81,7 @@ public static class CreateTrigger
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "trigger.create", ws, WorkspaceAccess.GetActor(User),
+                "trigger.create", ws, WorkspaceAccess.GetActor(HttpContext),
                 "trigger", trigger.Id.ToString(), trigger.Type, ct);
 
             // The webhook secret is shown exactly once — it is not retrievable afterwards.

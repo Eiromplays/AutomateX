@@ -170,7 +170,7 @@ public static class SaveTemplate
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "template.create", ws, WorkspaceAccess.GetActor(User), "template", template.Id.ToString(), template.Name, ct);
+                "template.create", ws, WorkspaceAccess.GetActor(HttpContext), "template", template.Id.ToString(), template.Name, ct);
             await Send.OkAsync(new Response(template.Id, template.Name), ct);
         }
     }
@@ -206,7 +206,7 @@ public static class DeleteTemplate
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "template.delete", ws, WorkspaceAccess.GetActor(User), "template", id.ToString(), template.Name, ct);
+                "template.delete", ws, WorkspaceAccess.GetActor(HttpContext), "template", id.ToString(), template.Name, ct);
             await Send.NoContentAsync(ct);
         }
     }

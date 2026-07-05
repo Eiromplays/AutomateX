@@ -67,7 +67,7 @@ public static class TestStep
                 ws, id, req.ActionType, req.ConfigJson, stepKeys, req.SampleContext?.TriggerPayload, stepOutputs, ct);
 
             await audit.RecordAsync(
-                "step.test", ws, WorkspaceAccess.GetActor(User), "workflow", id.ToString(), req.ActionType, ct);
+                "step.test", ws, WorkspaceAccess.GetActor(HttpContext), "workflow", id.ToString(), req.ActionType, ct);
 
             await Send.OkAsync(new Response(result.Ok, result.Output, result.Error), ct);
         }

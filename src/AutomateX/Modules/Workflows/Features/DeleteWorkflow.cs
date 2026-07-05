@@ -29,7 +29,7 @@ public static class DeleteWorkflow
                 return;
             }
 
-            await audit.RecordAsync("workflow.delete", ws, WorkspaceAccess.GetActor(User), "workflow", id.ToString(), null, ct);
+            await audit.RecordAsync("workflow.delete", ws, WorkspaceAccess.GetActor(HttpContext), "workflow", id.ToString(), null, ct);
             await Send.NoContentAsync(ct);
         }
     }

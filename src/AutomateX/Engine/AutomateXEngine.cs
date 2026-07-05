@@ -74,6 +74,9 @@ public static class AutomateXEngine
         }
 
         builder.Services.AddScoped<Modules.Workspaces.WorkspaceAccess>();
+        builder.Services.AddScoped<Modules.ApiKeys.ApiKeyResolver>();
+        builder.Services.AddSingleton<Modules.ApiKeys.ApiKeyPresence>();
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddScoped<StepTestRunner>();
 
         builder.Services.AddScoped<Modules.Variables.VariableLoader>();

@@ -157,7 +157,7 @@ public static class InstallCatalogPlugin
             reloader.Reload();
             var fingerprint = PluginFingerprints.Find(plugins, "global", Guid.Empty, entry.Name);
             await audit.RecordAsync(
-                "plugin.install", null, WorkspaceAccess.GetActor(User),
+                "plugin.install", null, WorkspaceAccess.GetActor(HttpContext),
                 "plugin", entry.Name, $"{entry.Name} {entry.Version}", ct);
             await Send.OkAsync(new Response(entry.Name, entry.Version, previous, fingerprint), ct);
         }

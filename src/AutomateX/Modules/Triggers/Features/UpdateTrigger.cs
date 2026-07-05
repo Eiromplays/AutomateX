@@ -101,7 +101,7 @@ public static class UpdateTrigger
 
             await dbContext.SaveChangesAsync(ct);
             await audit.RecordAsync(
-                "trigger.update", ws, WorkspaceAccess.GetActor(User),
+                "trigger.update", ws, WorkspaceAccess.GetActor(HttpContext),
                 "trigger", trigger.Id.ToString(), trigger.Type, ct);
             await Send.OkAsync(new Response(trigger.Id, trigger.Type, trigger.Enabled, trigger.NextRunAt), ct);
         }

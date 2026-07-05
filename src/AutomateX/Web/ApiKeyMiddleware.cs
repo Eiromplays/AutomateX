@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using AutomateX.Modules.ApiKeys;
 using Microsoft.Extensions.Options;
 
 namespace AutomateX.Web;
@@ -36,37 +37,57 @@ public sealed class AuthOptions
         SessionLifetime is { } value && value > TimeSpan.Zero ? value : TimeSpan.FromDays(14);
 }
 
-// Tri-state gate for /api and /hubs: open (nothing configured), API key, or OIDC —
-// where an authenticated cookie principal passes and the API key remains valid for
-// machine clients. /api/auth (login) and /api/webhooks (per-trigger secrets) are exempt.
+// Gate for /api and /hubs. Order for a protected path once the instance is engaged:
+//   1. a presented atx_ token → ApiKeyResolver → on hit set ApiKeyContext + pass, on miss 401;
+//   2. the legacy static shared key (X-Api-Key / cookie) — removed in v4.6 m5;
+//   3. an authenticated OIDC cookie principal;
+//   else 401.
+// The instance stays fully open (nothing gated) until it has a key — static, OIDC, or any DB key — so
+// local dev keeps working. /api/auth (login) and /api/webhooks (per-trigger secrets) are always exempt.
 public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOptions> options)
 {
     public const string CookieName = "automatex-key";
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var auth = options.Value;
-        var hasKey = !string.IsNullOrEmpty(auth.ApiKey);
-
-        if ((!hasKey && !auth.OidcConfigured) || !IsProtected(context.Request.Path))
+        if (!IsProtected(context.Request.Path))
         {
             await next(context);
             return;
         }
 
-        if (hasKey)
-        {
-            var providedKey = context.Request.Headers["X-Api-Key"].FirstOrDefault()
-                ?? context.Request.Cookies[CookieName];
+        var auth = options.Value;
+        var hasStaticKey = !string.IsNullOrEmpty(auth.ApiKey);
+        var resolver = context.RequestServices?.GetService<ApiKeyResolver>();
 
-            if (providedKey is not null && FixedTimeEquals(providedKey, auth.ApiKey!))
+        var engaged = hasStaticKey
+            || auth.OidcConfigured
+            || (resolver is not null && await resolver.HasActiveKeysAsync(context.RequestAborted));
+        if (!engaged)
+        {
+            await next(context);
+            return;
+        }
+
+        var presented = context.Request.Headers["X-Api-Key"].FirstOrDefault()
+            ?? context.Request.Cookies[CookieName];
+
+        // A presented atx_ token is a credential claim: resolve it or reject — never fall back to another mode.
+        if (presented is not null && ApiKeyToken.LooksLikeToken(presented) && resolver is not null)
+        {
+            if (await resolver.ResolveAsync(presented, context.RequestAborted) is { } apiKey)
             {
+                ApiKeyContext.Set(context, apiKey);
                 await next(context);
                 return;
             }
         }
-
-        if (auth.OidcConfigured && context.User.Identity?.IsAuthenticated == true)
+        else if (hasStaticKey && presented is not null && FixedTimeEquals(presented, auth.ApiKey!))
+        {
+            await next(context);
+            return;
+        }
+        else if (auth.OidcConfigured && context.User.Identity?.IsAuthenticated == true)
         {
             await next(context);
             return;

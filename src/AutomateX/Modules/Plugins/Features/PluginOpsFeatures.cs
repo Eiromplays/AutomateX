@@ -21,7 +21,7 @@ public static class RestartPlugin
 
         public override async Task HandleAsync(CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws || !access.IsInstanceAdmin(User))
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws || !access.IsInstanceAdmin(HttpContext))
             {
                 await Send.ForbiddenAsync(ct);
                 return;
@@ -35,7 +35,7 @@ public static class RestartPlugin
             }
 
             supervisor.Recycle(dll);
-            await audit.RecordAsync("plugin.restart", ws, WorkspaceAccess.GetActor(User), "plugin", name, name, ct);
+            await audit.RecordAsync("plugin.restart", ws, WorkspaceAccess.GetActor(HttpContext), "plugin", name, name, ct);
             await Send.NoContentAsync(ct);
         }
     }
@@ -57,7 +57,7 @@ public static class SetPluginEnabled
 
         public override async Task HandleAsync(Request req, CancellationToken ct)
         {
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws || !access.IsInstanceAdmin(User))
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is not { } ws || !access.IsInstanceAdmin(HttpContext))
             {
                 await Send.ForbiddenAsync(ct);
                 return;
@@ -73,7 +73,7 @@ public static class SetPluginEnabled
             reloader.Reload(); // rebuild registries so the plugin's capabilities appear/disappear
             await audit.RecordAsync(
                 req.Enabled ? "plugin.enable" : "plugin.disable",
-                ws, WorkspaceAccess.GetActor(User), "plugin", name, name, ct);
+                ws, WorkspaceAccess.GetActor(HttpContext), "plugin", name, name, ct);
             await Send.NoContentAsync(ct);
         }
     }
@@ -136,7 +136,7 @@ public static class GetPluginLogs
         public override async Task HandleAsync(CancellationToken ct)
         {
             // Logs are instance-admin only — they can contain sensitive runtime data.
-            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is null || !access.IsInstanceAdmin(User))
+            if (await access.AuthorizeAsync(HttpContext, WorkspaceRole.Viewer, ct) is null || !access.IsInstanceAdmin(HttpContext))
             {
                 await Send.ForbiddenAsync(ct);
                 return;

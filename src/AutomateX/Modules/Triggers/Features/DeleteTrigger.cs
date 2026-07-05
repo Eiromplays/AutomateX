@@ -36,7 +36,7 @@ public static class DeleteTrigger
                 return;
             }
 
-            await audit.RecordAsync("trigger.delete", ws, WorkspaceAccess.GetActor(User), "trigger", id.ToString(), null, ct);
+            await audit.RecordAsync("trigger.delete", ws, WorkspaceAccess.GetActor(HttpContext), "trigger", id.ToString(), null, ct);
             await Send.NoContentAsync(ct);
         }
     }

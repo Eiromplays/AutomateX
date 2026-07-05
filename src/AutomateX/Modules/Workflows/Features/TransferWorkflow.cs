@@ -142,7 +142,7 @@ public static class ImportWorkflow
 
             await dbContext.SaveChangesAsync(ct);
             await audit.RecordAsync(
-                "workflow.import", ws, WorkspaceAccess.GetActor(User),
+                "workflow.import", ws, WorkspaceAccess.GetActor(HttpContext),
                 "workflow", workflow.Id.ToString(), workflow.Name, ct);
             await Send.OkAsync(new Response(workflow.Id, version.Id, version.Version), ct);
         }

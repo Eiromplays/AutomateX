@@ -19,7 +19,7 @@ public static class GetAudit
         public override async Task HandleAsync(CancellationToken ct)
         {
             var requestedWorkspace = WorkspaceHttp.GetWorkspaceId(HttpContext);
-            var isAdmin = access.IsInstanceAdmin(User);
+            var isAdmin = access.IsInstanceAdmin(HttpContext);
 
             // Admins read across workspaces (optionally filtered by ?workspaceId); members read only
             // their own workspace, and only with at least Viewer there.

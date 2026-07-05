@@ -44,7 +44,7 @@ public static class RotateWebhookSecret
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "trigger.rotate-secret", ws, WorkspaceAccess.GetActor(User), "trigger", trigger.Id.ToString(), null, ct);
+                "trigger.rotate-secret", ws, WorkspaceAccess.GetActor(HttpContext), "trigger", trigger.Id.ToString(), null, ct);
 
             await Send.OkAsync(new Response(
                 trigger.Id,

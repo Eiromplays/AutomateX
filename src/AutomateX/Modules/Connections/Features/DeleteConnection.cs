@@ -53,7 +53,7 @@ public static class DeleteConnection
                 .ExecuteDeleteAsync(ct);
 
             await audit.RecordAsync(
-                "connection.delete", ws, WorkspaceAccess.GetActor(User),
+                "connection.delete", ws, WorkspaceAccess.GetActor(HttpContext),
                 "connection", id.ToString(), connection.Name, ct);
             await Send.NoContentAsync(ct);
         }

@@ -54,7 +54,7 @@ public static class SetWorkflowMcp
 
             await audit.RecordAsync(
                 req.Exposed ? "workflow.mcp.expose" : "workflow.mcp.unexpose",
-                ws, WorkspaceAccess.GetActor(User), "workflow", id.ToString(), workflow.Name, ct);
+                ws, WorkspaceAccess.GetActor(HttpContext), "workflow", id.ToString(), workflow.Name, ct);
 
             await Send.OkAsync(new Response(req.Exposed, toolName ?? ""), ct);
         }

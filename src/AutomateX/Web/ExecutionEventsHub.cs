@@ -21,7 +21,10 @@ public sealed class ExecutionEventsHub(WorkspaceAccess access) : Hub
             return;
         }
 
-        if (await access.GetRoleAsync(id, Context.User!, Context.ConnectionAborted) is null)
+        // The connection's HttpContext carries the ApiKeyContext the gate set at handshake, so a scoped
+        // key can only join its own workspace's group.
+        if (Context.GetHttpContext() is not { } http
+            || await access.GetRoleAsync(id, http, Context.ConnectionAborted) is null)
         {
             return; // not a member — silently decline; no events will reach this connection
         }

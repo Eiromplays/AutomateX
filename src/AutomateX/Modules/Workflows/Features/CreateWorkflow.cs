@@ -49,7 +49,7 @@ public static class CreateWorkflow
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "workflow.create", ws, WorkspaceAccess.GetActor(User),
+                "workflow.create", ws, WorkspaceAccess.GetActor(HttpContext),
                 "workflow", workflow.Id.ToString(), workflow.Name, ct);
 
             await Send.OkAsync(new Response(workflow.Id, version.Id, version.Version), ct);

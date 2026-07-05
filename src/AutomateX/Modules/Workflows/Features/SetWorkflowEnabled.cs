@@ -37,7 +37,7 @@ public static class SetWorkflowEnabled
             workflow.SetEnabled(req.Enabled);
             await dbContext.SaveChangesAsync(ct);
             await audit.RecordAsync(
-                req.Enabled ? "workflow.enable" : "workflow.disable", ws, WorkspaceAccess.GetActor(User),
+                req.Enabled ? "workflow.enable" : "workflow.disable", ws, WorkspaceAccess.GetActor(HttpContext),
                 "workflow", workflow.Id.ToString(), workflow.Name, ct);
             await Send.NoContentAsync(ct);
         }

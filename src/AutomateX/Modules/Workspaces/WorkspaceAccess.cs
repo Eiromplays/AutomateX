@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using AutomateX.Database;
+using AutomateX.Modules.ApiKeys;
 using AutomateX.Web;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -58,6 +59,38 @@ public sealed class WorkspaceAccess(AutomateXDbContext dbContext, IOptions<AuthO
         return member.Role;
     }
 
+    // Scoped API-key awareness (v4.6): when a request authenticated via an atx_ key, its ApiKeyContext
+    // is authoritative and short-circuits the OIDC/open logic. Instance keys are Owner everywhere and
+    // instance admins; a Workspace key is its Role but only within its own workspace — an X-Workspace-Id
+    // naming another workspace is refused, so the header can never widen a scoped key.
+    public async Task<WorkspaceRole?> GetRoleAsync(Guid workspaceId, HttpContext context, CancellationToken cancellationToken)
+    {
+        if (ApiKeyContext.From(context) is { } key)
+        {
+            return key.Scope != ApiKeyScope.Instance && key.WorkspaceId != workspaceId ? null : RoleForKey(key);
+        }
+
+        return await GetRoleAsync(workspaceId, context.User, cancellationToken);
+    }
+
+    private static WorkspaceRole RoleForKey(ApiKeyContext key) =>
+        key.Scope == ApiKeyScope.Instance ? WorkspaceRole.Owner : key.Role;
+
+    // The workspace a key may act on: an Instance key acts on whatever is addressed; a scoped key is
+    // pinned to its own, and an X-Workspace-Id header naming a different workspace returns null (403).
+    private static Guid? EffectiveWorkspaceForKey(ApiKeyContext key, HttpContext context)
+    {
+        if (key.Scope == ApiKeyScope.Instance)
+        {
+            return WorkspaceHttp.GetWorkspaceId(context);
+        }
+
+        var requested = context.Request.Headers[WorkspaceHttp.HeaderName].FirstOrDefault();
+        return requested is not null && Guid.TryParse(requested, out var target) && target != key.WorkspaceId
+            ? null
+            : key.WorkspaceId;
+    }
+
     public static string? GetSubject(ClaimsPrincipal user) =>
         user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
 
@@ -65,9 +98,17 @@ public sealed class WorkspaceAccess(AutomateXDbContext dbContext, IOptions<AuthO
         (user.FindFirst("preferred_username") ?? user.FindFirst(ClaimTypes.Email) ?? user.FindFirst("email"))
             ?.Value.ToLowerInvariant();
 
-    // The audit/actor identity: the OIDC subject, then email, else a machine/open-instance caller.
+    // The audit/actor identity: a scoped key ("key:<name>") when present, else the OIDC subject/email,
+    // else a machine/open-instance caller.
+    public static string GetActor(HttpContext context) =>
+        ApiKeyContext.From(context)?.Actor ?? GetActor(context.User);
+
     public static string GetActor(ClaimsPrincipal user) =>
         GetSubject(user) ?? GetEmail(user) ?? "api-key";
+
+    // A scoped key is an instance admin only when its Scope is Instance; otherwise defer to the principal.
+    public bool IsInstanceAdmin(HttpContext context) =>
+        ApiKeyContext.From(context) is { } key ? key.Scope == ApiKeyScope.Instance : IsInstanceAdmin(context.User);
 
     // Instance operator: above workspace-owner, sees across workspaces. In open/api-key mode the
     // caller through the gate is the operator; in OIDC mode they must be listed in Auth__InstanceAdmins
@@ -112,9 +153,17 @@ public sealed class WorkspaceAccess(AutomateXDbContext dbContext, IOptions<AuthO
         return email is not null && member.Email == email;
     }
 
-    // Convenience for endpoints: resolves the header workspace and checks the minimum role.
+    // Convenience for endpoints: resolves the effective workspace and checks the minimum role. A key
+    // context is authoritative (and never touches the DB); otherwise the header workspace + OIDC/open path.
     public async Task<Guid?> AuthorizeAsync(HttpContext context, WorkspaceRole required, CancellationToken cancellationToken)
     {
+        if (ApiKeyContext.From(context) is { } key)
+        {
+            return EffectiveWorkspaceForKey(key, context) is { } keyWorkspace && RoleForKey(key) >= required
+                ? keyWorkspace
+                : null;
+        }
+
         var workspaceId = WorkspaceHttp.GetWorkspaceId(context);
         var role = await GetRoleAsync(workspaceId, context.User, cancellationToken);
         return role is { } r && r >= required ? workspaceId : null;

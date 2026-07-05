@@ -60,7 +60,7 @@ public static partial class CreateConnection
             await dbContext.SaveChangesAsync(ct);
 
             await audit.RecordAsync(
-                "connection.create", ws, WorkspaceAccess.GetActor(User),
+                "connection.create", ws, WorkspaceAccess.GetActor(HttpContext),
                 "connection", connection.Id.ToString(), connection.Name, ct);
 
             // Key names only — secret values never leave the server.
