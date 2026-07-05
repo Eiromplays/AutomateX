@@ -3,6 +3,34 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.8.0
+
+A loose-ends release closing the two follow-ups from the v4.5.2 / v4.7 arc — an egress allowlist and a
+first-class headers editor. Independent subsystems, no migration.
+
+- **The egress guard gains an allowlist.** `Engine:BlockPrivateNetworkRequests` was all-or-nothing: on
+  meant *every* private/loopback/link-local target was blocked, so an internet-exposed instance that
+  legitimately calls one internal host (a LAN webhook, a self-hosted API) couldn't turn the guard on
+  without losing that call. `Engine:EgressAllowlist` is the escape hatch — a list of hostnames and/or
+  CIDRs (e.g. `metrics.lan`, `10.8.0.0/24`, `fd00::/8`) that stay reachable while the guard is on. It
+  **widens only**: it can permit an otherwise-blocked target but never blocks one the base rule allows,
+  so an empty allowlist is exactly the v4.7 behaviour — no regression risk. A hostname is matched against
+  the request host (so an internal name works even though it resolves private); a CIDR is matched against
+  the IP actually dialed (rebinding-proof, same as the block path). The single `EgressPolicy` in
+  `AutomateX.Plugin.Protocol` backs both the in-process engine and the out-of-process plugin hosts, which
+  receive it at launch via `AUTOMATEX_EGRESS_ALLOWLIST` alongside the existing block flag. Malformed
+  entries are dropped with a logged warning, never fatal. Set it with the comma-separated `EGRESS_ALLOWLIST`
+  env (expanded into the array by the app) or an `Engine:EgressAllowlist` array in appsettings. Read at
+  child launch, not hot-reloaded — restart to change. No migration.
+- **A first-class headers editor in the builder.** `http.poll`, `http.request`, and `webhook.send` all
+  carry a `headers` string-map, but the builder only surfaced it through the generic raw-JSON textarea —
+  you hand-typed `{"Authorization":"Bearer …"}` and any invalid-JSON keystroke was silently dropped. This
+  was the v4.5.2 "trigger editor can't edit `http.poll` headers" follow-up. Headers now render as
+  add/remove key/value rows, and the value input keeps the reference inserter so `{{connections.*}}` and
+  step references still work in a header value. It's schema-driven, not `http.poll`-specific: any config
+  field the exporter emits as a string→string map (`Dictionary<string,string>`) gets the editor, so
+  plugins get it for free. Frontend only — no server change.
+
 ## v4.7.0
 
 - **The egress guard now covers out-of-process plugin HTTP.** `Engine:BlockPrivateNetworkRequests`
@@ -52,8 +80,9 @@ Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 - **`http.poll` logs non-2xx responses.** A poll that gets a 401/403/etc. is still ignored (never
   fires, never moves the baseline) but now logs `http.poll <url> returned <status>` to the plugin's log
   ring — a persistent auth failure is no longer indistinguishable from "nothing changed".
-- *Known follow-ups:* the trigger editor can't yet edit `http.poll` headers from the UI. (The
-  out-of-process plugin HTTP SSRF/egress bypass noted here is closed in v4.7.0.)
+- *Known follow-ups (now closed):* the trigger editor couldn't edit `http.poll` headers from the UI — a
+  first-class key/value headers editor lands in v4.8.0. (The out-of-process plugin HTTP SSRF/egress
+  bypass noted here was closed in v4.7.0.)
 
 ## v4.5.1
 

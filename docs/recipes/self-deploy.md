@@ -180,7 +180,8 @@ If releases stop deploying and the workflow shows no recent executions:
   out-of-process plugin `HttpClient` sent none. Symptom: the listener runs, no errors, but no
   `trigger:<id>:hash` state is ever written (every poll is a silently-ignored 403). Fixed in v4.5.2
   (the plugin host defaults `User-Agent: AutomateX/2.0`). On older builds, add a `User-Agent` to the
-  trigger's `headers`. As of v4.5.2 non-2xx polls are logged to the plugin's Logs console.
+  trigger's `headers` — as of v4.8 these are edited as key/value rows in the trigger editor (no raw
+  JSON). As of v4.5.2 non-2xx polls are logged to the plugin's Logs console.
 
 ## Security posture
 

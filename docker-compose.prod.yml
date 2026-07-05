@@ -55,6 +55,9 @@ services:
       # SSRF guard: block http.request to private/loopback/link-local targets. Off by default so a
       # local LLM / LAN services work; turn on for internet-exposed instances with no internal targets.
       Engine__BlockPrivateNetworkRequests: ${BLOCK_PRIVATE_NETWORK_REQUESTS:-false}
+      # Allowlist for the guard above: comma-separated hostnames/CIDRs that stay reachable while it's on
+      # (widens only). Expanded into Engine__EgressAllowlist__N by the app. Empty = all-or-nothing.
+      EGRESS_ALLOWLIST: ${EGRESS_ALLOWLIST:-}
     volumes:
       - automatex-plugins:/app/plugins
     depends_on:

@@ -40,7 +40,7 @@ A malformed query fails the step immediately (it's an authoring error, not a tra
 | --- | --- |
 | `url` | Where to POST. |
 | `body` | The payload (templated). Defaults to `application/json` — override with `contentType`. |
-| `headers` | Optional extra request headers. |
+| `headers` | Optional extra request headers — edited as key/value rows in the builder (v4.8), with `{{connections.*}}` still insertable in a value. |
 | `signingSecret` | Optional. When set, the raw body is HMAC-SHA256 signed. |
 | `signatureHeader` | Header to carry the signature (default `X-Webhook-Signature`). |
 
