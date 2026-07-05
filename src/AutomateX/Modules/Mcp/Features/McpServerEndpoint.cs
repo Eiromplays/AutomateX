@@ -38,10 +38,9 @@ public static class McpServer
                 return;
             }
 
-            // MCP is never exposed in open dev: it requires the instance to authenticate — a static key,
-            // OIDC, or (the headline use case) a DB key on this request. Static key drops out in v4.6 m5.
-            var auth = authOptions.Value;
-            if (!auth.OidcConfigured && string.IsNullOrEmpty(auth.ApiKey) && ApiKeyContext.From(HttpContext) is null)
+            // MCP is never exposed in open dev: it requires the instance to authenticate — OIDC, or (the
+            // headline use case) a DB key on this request.
+            if (!authOptions.Value.OidcConfigured && ApiKeyContext.From(HttpContext) is null)
             {
                 await Send.ForbiddenAsync(ct);
                 return;

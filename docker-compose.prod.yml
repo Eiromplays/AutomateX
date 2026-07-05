@@ -45,7 +45,8 @@ services:
       Encryption__Key: "${ENCRYPTION_KEY:?set ENCRYPTION_KEY in .env}"
       # Public https origin (Tailscale ts.net host) used for webhook URLs + OIDC redirects.
       Engine__PublicBaseUrl: ${PUBLIC_BASE_URL}
-      # OIDC browser login (an API key, if also set, still works for scripts).
+      # OIDC browser login. Dynamic API keys (Settings → API keys) work alongside it for scripts.
+      # No IdP? Drop these three and set Auth__Bootstrap=true once to mint a first instance admin key.
       Auth__Authority: ${OIDC_AUTHORITY}
       Auth__ClientId: ${OIDC_CLIENT_ID}
       Auth__ClientSecret: ${OIDC_CLIENT_SECRET}

@@ -9,7 +9,8 @@ the model calls the tool, your workflow does the work, and the result comes back
 Two things are required (by design — exposing workflows to a model should never be accidental):
 
 - `Engine__AllowMcpServer=true`
-- an API key set (`Auth__ApiKey`) — the server refuses if the instance runs open.
+- the instance authenticating — OIDC, or a dynamic API key (ideally a `Workflow`-scoped key for the one
+  workflow you're exposing). The server refuses if the instance runs open.
 
 ## 2. Expose a workflow
 

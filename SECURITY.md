@@ -27,8 +27,9 @@ than running unpinned `latest` in production.
   unrecoverable. Secrets are write-only through the API (never returned), and **masked** (`***`) in
   step outputs, errors, and live events. Masking is best-effort: a secret an action transforms
   (re-encodes, splits) can't be recognized, so don't deliberately echo secrets.
-- **Authentication** is a tri-state: open (local default, trusted network only), API key
-  (`Auth__ApiKey`), or OIDC. **Do not expose an open-mode instance to the internet.** With OIDC,
+- **Authentication** is a tri-state: open (local default, trusted network only), dynamic API keys
+  (scoped, hashed, DB-stored — see `docs/auth-keys-design.md`), or OIDC. **Do not expose an open-mode
+  instance to the internet.** With OIDC,
   the browser holds only an HttpOnly cookie; refresh-token sessions track the IdP so a revoked user
   is signed out at the next refresh boundary.
 - **Workspaces** isolate workflows, connections, and execution data; connection resolution is

@@ -103,7 +103,7 @@ Serve HTTPS, OIDC, updates, backups) is in [docs/deploy-homelab.md](docs/deploy-
 
 - **Plugins**: drop `<Name>/<Name>.dll` into the volume-mounted `./plugins` and restart the api, or
   install from the in-app catalog. See `plugins/README.md`.
-- **Auth**: set `Auth__ApiKey` (or OIDC) to gate `/api` + `/hubs`.
+- **Auth**: configure OIDC, or set `Auth__Bootstrap=true` once to mint a first instance API key, to gate `/api` + `/hubs`. Manage scoped, revocable keys in-app under Settings → API keys.
 - **Encryption**: `Encryption__Key` decrypts connection secrets and is never stored — back it up.
 - **Database**: migrations apply on startup; the `automatex-postgres-data` volume holds state.
 

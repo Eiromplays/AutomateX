@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using AutomateX.Modules.ApiKeys;
 using Microsoft.Extensions.Options;
 
@@ -9,12 +7,12 @@ public sealed class AuthOptions
 {
     public const string SectionName = "Auth";
 
-    // Machine-client credential (X-Api-Key header) and the no-IdP browser fallback
-    // (exchanged for an HttpOnly cookie via POST /api/auth/session).
-    public string? ApiKey { get; set; }
+    // Opt-in no-IdP first run: when true and OIDC is not configured, startup mints a single Instance
+    // admin key (if none exist) and logs it once. Grants nothing itself — see ApiKeyBootstrap.
+    public bool Bootstrap { get; set; }
 
     // OIDC (Entra ID or any compliant provider). When set, browsers authenticate via
-    // the OpenIdConnect challenge + auth cookie; the API key keeps working for scripts.
+    // the OpenIdConnect challenge + auth cookie. Dynamic API keys (atx_…) work alongside it.
     // e.g. https://login.microsoftonline.com/<tenant-id>/v2.0
     public string? Authority { get; set; }
 
@@ -38,12 +36,12 @@ public sealed class AuthOptions
 }
 
 // Gate for /api and /hubs. Order for a protected path once the instance is engaged:
-//   1. a presented atx_ token → ApiKeyResolver → on hit set ApiKeyContext + pass, on miss 401;
-//   2. the legacy static shared key (X-Api-Key / cookie) — removed in v4.6 m5;
-//   3. an authenticated OIDC cookie principal;
+//   1. a presented atx_ token (X-Api-Key header or the HttpOnly cookie) → ApiKeyResolver → on hit set
+//      ApiKeyContext + pass, on miss 401;
+//   2. an authenticated OIDC cookie principal;
 //   else 401.
-// The instance stays fully open (nothing gated) until it has a key — static, OIDC, or any DB key — so
-// local dev keeps working. /api/auth (login) and /api/webhooks (per-trigger secrets) are always exempt.
+// The instance stays fully open (nothing gated) until it has a credential — OIDC configured or any DB
+// key — so local dev keeps working. /api/auth (login) and /api/webhooks (per-trigger secrets) are exempt.
 public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOptions> options)
 {
     public const string CookieName = "automatex-key";
@@ -57,11 +55,9 @@ public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOption
         }
 
         var auth = options.Value;
-        var hasStaticKey = !string.IsNullOrEmpty(auth.ApiKey);
         var resolver = context.RequestServices?.GetService<ApiKeyResolver>();
 
-        var engaged = hasStaticKey
-            || auth.OidcConfigured
+        var engaged = auth.OidcConfigured
             || (resolver is not null && await resolver.HasActiveKeysAsync(context.RequestAborted));
         if (!engaged)
         {
@@ -72,7 +68,7 @@ public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOption
         var presented = context.Request.Headers["X-Api-Key"].FirstOrDefault()
             ?? context.Request.Cookies[CookieName];
 
-        // A presented atx_ token is a credential claim: resolve it or reject — never fall back to another mode.
+        // A presented atx_ token is a credential claim: resolve it or reject — never fall back to OIDC.
         if (presented is not null && ApiKeyToken.LooksLikeToken(presented) && resolver is not null)
         {
             if (await resolver.ResolveAsync(presented, context.RequestAborted) is { } apiKey)
@@ -81,11 +77,6 @@ public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOption
                 await next(context);
                 return;
             }
-        }
-        else if (hasStaticKey && presented is not null && FixedTimeEquals(presented, auth.ApiKey!))
-        {
-            await next(context);
-            return;
         }
         else if (auth.OidcConfigured && context.User.Identity?.IsAuthenticated == true)
         {
@@ -103,9 +94,4 @@ public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOption
             && !path.StartsWithSegments("/api/webhooks")
             && !path.StartsWithSegments("/api/version"))
         || path.StartsWithSegments("/hubs");
-
-    internal static bool FixedTimeEquals(string provided, string configured) =>
-        CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(provided),
-            Encoding.UTF8.GetBytes(configured));
 }

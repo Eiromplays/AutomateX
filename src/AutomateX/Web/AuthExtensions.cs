@@ -1,5 +1,6 @@
 using System.Net;
 using AutomateX.Database;
+using AutomateX.Modules.ApiKeys;
 using AutomateX.Modules.Workspaces;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -150,7 +151,8 @@ public static class AuthExtensions
 
         app.UseMiddleware<AuthGateMiddleware>();
 
-        app.MapGet("/api/auth/me", (HttpContext context, IOptions<AuthOptions> options, WorkspaceAccess access) =>
+        app.MapGet("/api/auth/me", async (
+            HttpContext context, IOptions<AuthOptions> options, WorkspaceAccess access, ApiKeyResolver resolver) =>
         {
             var current = options.Value;
             if (current.OidcConfigured)
@@ -164,14 +166,20 @@ public static class AuthExtensions
                     access.IsInstanceAdmin(user)));
             }
 
-            if (!string.IsNullOrEmpty(current.ApiKey))
+            // Non-OIDC: a presented key (X-Api-Key or the HttpOnly cookie) decides auth + admin tier.
+            // This endpoint is gate-exempt, so it resolves the key itself.
+            var presented = context.Request.Headers["X-Api-Key"].FirstOrDefault()
+                ?? context.Request.Cookies[AuthGateMiddleware.CookieName];
+            if (presented is not null && ApiKeyToken.LooksLikeToken(presented)
+                && await resolver.ResolveAsync(presented, context.RequestAborted) is { } key)
             {
-                var cookie = context.Request.Cookies[AuthGateMiddleware.CookieName];
-                var authenticated = cookie is not null && AuthGateMiddleware.FixedTimeEquals(cookie, current.ApiKey);
-                return Results.Ok(new AuthMe("apikey", authenticated, null, null, authenticated));
+                return Results.Ok(new AuthMe("apikey", true, null, null, key.Scope == ApiKeyScope.Instance));
             }
 
-            return Results.Ok(new AuthMe("open", true, null, null, true));
+            // No valid key: key-protected (has keys) vs fully open.
+            return await resolver.HasActiveKeysAsync(context.RequestAborted)
+                ? Results.Ok(new AuthMe("apikey", false, null, null, false))
+                : Results.Ok(new AuthMe("open", true, null, null, true));
         });
 
         return app;

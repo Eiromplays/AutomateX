@@ -25,9 +25,10 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__automatex: Host=postgres;Database=automatex;Username=automatex;Password=automatex
-      # Uncomment to require an API key on /api and /hubs:
-      # Auth__ApiKey: change-me
-      # OIDC (Entra ID or any compliant provider) — browser auth; API key stays valid for scripts:
+      # No IdP? Set this once on first run to mint + log a one-time instance admin key; sign in with it,
+      # then mint scoped keys from Settings → API keys. Gates /api + /hubs thereafter.
+      # Auth__Bootstrap: "true"
+      # OIDC (Entra ID or any compliant provider) — browser auth; dynamic API keys work alongside it:
       # Auth__Authority: https://login.microsoftonline.com/<tenant-id>/v2.0
       # Auth__ClientId: <application-client-id>
       # Auth__ClientSecret: <client-secret>

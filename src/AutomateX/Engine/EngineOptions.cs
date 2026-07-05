@@ -73,8 +73,8 @@ public sealed class EngineOptions
     public string? PublicBaseUrl { get; set; }
 
     // Expose opted-in workflows as MCP tools over POST /api/mcp. Off by default and — by design —
-    // additionally requires a configured API key (Auth__ApiKey): exposing workflows to a model must be
-    // deliberate, never accidental in open mode.
+    // additionally requires the instance to authenticate (OIDC or a dynamic API key): exposing workflows
+    // to a model must be deliberate, never accidental in open mode.
     public bool AllowMcpServer { get; set; }
 
     // How long an MCP tools/call waits for a workflow to settle before returning the execution id.

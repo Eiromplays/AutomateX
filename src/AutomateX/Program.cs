@@ -1,9 +1,11 @@
 using AutomateX.Database;
 using AutomateX.Engine;
+using AutomateX.Modules.ApiKeys;
 using AutomateX.Plugin.Sdk;
 using AutomateX.Web;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +38,9 @@ await using (var scope = app.Services.CreateAsyncScope())
     }
 
     await WorkspaceBootstrap.EnsureDefaultAsync(dbContext);
+
+    var authOptions = scope.ServiceProvider.GetRequiredService<IOptions<AuthOptions>>().Value;
+    await ApiKeyBootstrap.EnsureAsync(dbContext, authOptions, app.Logger);
 
     if (app.Environment.IsDevelopment())
     {

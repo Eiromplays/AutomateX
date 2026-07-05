@@ -83,8 +83,8 @@ At your provider (Entra ID / Authentik / Keycloak / Auth0 / …), for this clien
 - Redirect URI: `https://<host>.<tailnet>.ts.net/signin-oidc`
 - Post-logout URI: `https://<host>.<tailnet>.ts.net/signout-callback-oidc`
 
-Then open the UI and sign in. (An optional `Auth__ApiKey` still works for scripts/API clients via
-the `X-Api-Key` header even with OIDC on.)
+Then open the UI and sign in. (Scripts/API clients authenticate with a dynamic API key via the
+`X-Api-Key` header — mint one under Settings → API keys — and this works even with OIDC on.)
 
 ## Updating
 
