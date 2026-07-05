@@ -12,8 +12,16 @@ namespace AutomateX.Plugin.Protocol;
 // attacker could still bind late; the ConnectCallback below closes that by gating the IP actually dialed.
 public static class EgressGuard
 {
-    public static async Task GuardAsync(string url, CancellationToken cancellationToken)
+    // Pre-flight check for the in-proc actions. The policy widens the base block rule: a target is
+    // rejected only if it's private *and* the policy doesn't allow it. An empty allowlist reproduces
+    // v4.7 exactly, and a guard-off policy is a no-op.
+    public static async Task GuardAsync(string url, EgressPolicy policy, CancellationToken cancellationToken)
     {
+        if (!policy.BlockPrivate)
+        {
+            return;
+        }
+
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
         {
             throw new InvalidOperationException($"http.request: invalid URL '{url}'.");
@@ -36,7 +44,7 @@ public static class EgressGuard
             }
         }
 
-        if (Array.Exists(addresses, IsBlockedAddress))
+        if (Array.Exists(addresses, address => !policy.IsConnectionAllowed(uri.Host, address)))
         {
             throw new InvalidOperationException(
                 $"http.request: '{uri.Host}' resolves to a private/loopback/link-local address, blocked by "
@@ -44,19 +52,20 @@ public static class EgressGuard
         }
     }
 
-    // A SocketsHttpHandler.ConnectCallback that resolves the host and only connects to a non-blocked
-    // address — the rebinding-proof check, since it gates the IP the socket actually dials (not a
-    // pre-resolved one a late DNS flip could bypass). Wire it onto the action/trigger HTTP clients
-    // when Engine:BlockPrivateNetworkRequests is on.
-    public static async ValueTask<Stream> FilteringConnectCallback(
-        SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+    // Builds a SocketsHttpHandler.ConnectCallback that closes over the policy and only connects to a
+    // permitted address — the rebinding-proof check, since it gates the IP the socket actually dials
+    // (not a pre-resolved one a late DNS flip could bypass). Wire it onto the action/trigger HTTP
+    // clients when Engine:BlockPrivateNetworkRequests is on. Empty allowlist = the v4.7 filter.
+    public static Func<SocketsHttpConnectionContext, CancellationToken, ValueTask<Stream>> MakeConnectCallback(
+        EgressPolicy policy) => async (context, cancellationToken) =>
     {
-        var resolved = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, cancellationToken);
-        var allowed = Array.FindAll(resolved, address => !IsBlockedAddress(address));
+        var host = context.DnsEndPoint.Host;
+        var resolved = await Dns.GetHostAddressesAsync(host, cancellationToken);
+        var allowed = Array.FindAll(resolved, address => policy.IsConnectionAllowed(host, address));
         if (allowed.Length == 0)
         {
             throw new IOException(
-                $"http: '{context.DnsEndPoint.Host}' resolves only to private/loopback/link-local addresses, "
+                $"http: '{host}' resolves only to private/loopback/link-local addresses, "
                 + "blocked by Engine:BlockPrivateNetworkRequests.");
         }
 
@@ -71,7 +80,7 @@ public static class EgressGuard
             socket.Dispose();
             throw;
         }
-    }
+    };
 
     public static bool IsBlockedAddress(IPAddress address)
     {

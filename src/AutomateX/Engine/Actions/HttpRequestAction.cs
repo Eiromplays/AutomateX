@@ -1,7 +1,6 @@
 using System.Text;
 using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
-using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Actions;
 
@@ -21,17 +20,18 @@ public sealed record HttpRequestResult(int StatusCode, string Body, Dictionary<s
     Description = "Send an HTTP request and capture status, body and response headers. Bodies default to "
         + "application/json (override with contentType). Set failOnErrorStatus to fail the step — and trigger "
         + "retries — on non-2xx responses.")]
-public sealed class HttpRequestAction(IOptions<EngineOptions> options) : IAction<HttpRequestConfig, HttpRequestResult>
+// egressPolicy is optional so the action still constructs under schema-discovery (ActivatorUtilities
+// fills the default when the singleton isn't registered); the engine always injects the real one.
+public sealed class HttpRequestAction(EgressPolicy? egressPolicy = null) : IAction<HttpRequestConfig, HttpRequestResult>
 {
+    private readonly EgressPolicy _egressPolicy = egressPolicy ?? EgressPolicy.Off;
+
     public async Task<HttpRequestResult> ExecuteAsync(
         HttpRequestConfig config,
         ActionContext context,
         CancellationToken cancellationToken = default)
     {
-        if (options.Value.BlockPrivateNetworkRequests)
-        {
-            await EgressGuard.GuardAsync(config.Url, cancellationToken);
-        }
+        await EgressGuard.GuardAsync(config.Url, _egressPolicy, cancellationToken);
 
         using var request = new HttpRequestMessage(HttpMethod.Parse(config.Method), config.Url);
         if (config.Body is not null)

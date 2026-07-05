@@ -64,6 +64,24 @@ public static class AutomateXEngine
 
         builder.Services.AddOptions<EngineOptions>().BindConfiguration(EngineOptions.SectionName);
         builder.Services.AddOptions<EncryptionOptions>().BindConfiguration(EncryptionOptions.SectionName);
+
+        // The egress policy is parsed once from the guard flag + allowlist and shared by the guarded HTTP
+        // clients and the in-proc actions. Malformed allowlist entries are logged here, not fatal.
+        builder.Services.AddSingleton(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<EngineOptions>>().Value;
+            var policy = new EgressPolicy(options.BlockPrivateNetworkRequests, options.EgressAllowlist);
+            if (policy.InvalidEntries.Count > 0)
+            {
+                sp.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("AutomateX.Engine.Egress")
+                    .LogWarning(
+                        "Ignored malformed Engine:EgressAllowlist entries: {Entries}",
+                        string.Join(", ", policy.InvalidEntries));
+            }
+
+            return policy;
+        });
         builder.Services.AddSingleton<SecretCipher>();
         builder.Services.AddSingleton<DataKeyCache>();
         builder.Services.AddSingleton<DataKeyService>();
@@ -127,9 +145,10 @@ public static class AutomateXEngine
     private static HttpMessageHandler GuardedHandler(IServiceProvider services)
     {
         var handler = new SocketsHttpHandler();
-        if (services.GetRequiredService<IOptions<EngineOptions>>().Value.BlockPrivateNetworkRequests)
+        var policy = services.GetRequiredService<EgressPolicy>();
+        if (policy.BlockPrivate)
         {
-            handler.ConnectCallback = EgressGuard.FilteringConnectCallback;
+            handler.ConnectCallback = EgressGuard.MakeConnectCallback(policy);
         }
 
         return handler;

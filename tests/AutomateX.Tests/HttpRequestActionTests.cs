@@ -1,10 +1,9 @@
 using System.Net;
 using System.Text;
-using AutomateX.Engine;
 using AutomateX.Engine.Actions;
+using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace AutomateX.Tests;
@@ -41,7 +40,7 @@ public sealed class HttpRequestActionTests
 
     // SSRF guard off by default (legitimate internal targets keep working).
     private static HttpRequestAction Action(bool blockPrivate = false) =>
-        new(Options.Create(new EngineOptions { BlockPrivateNetworkRequests = blockPrivate }));
+        new(new EgressPolicy(blockPrivate, allowlist: null));
 
     [Fact]
     public async Task Sends_method_url_headers_and_json_body_by_default()

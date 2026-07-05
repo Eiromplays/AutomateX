@@ -1,12 +1,11 @@
 using System.Net;
 using System.Text;
-using AutomateX.Engine;
 using AutomateX.Engine.Actions;
 using AutomateX.Modules.Triggers;
+using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace AutomateX.Tests;
@@ -30,7 +29,7 @@ public sealed class WebhookSendActionTests
 
     private static HttpResponseMessage Ok() => new(HttpStatusCode.OK) { Content = new StringContent("received") };
 
-    private static WebhookSendAction Action() => new(Options.Create(new EngineOptions()));
+    private static WebhookSendAction Action() => new(EgressPolicy.Off);
 
     private static ActionContext Context(FakeHandler handler, string? idempotencyKey = null) => new()
     {

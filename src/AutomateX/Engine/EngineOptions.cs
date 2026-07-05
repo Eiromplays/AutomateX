@@ -84,6 +84,12 @@ public sealed class EngineOptions
     // private / link-local (incl. cloud metadata) address are blocked. Off by default so internal
     // targets (a local LLM, LAN services) keep working — turn it on for internet-exposed instances.
     public bool BlockPrivateNetworkRequests { get; set; }
+
+    // Escape hatch for the guard above: hostnames and/or CIDRs that stay reachable even while the guard
+    // is on (e.g. ["metrics.lan", "10.8.0.0/24", "fd00::/8"]). Widens only — it can permit an otherwise
+    // private target but never blocks one the guard would allow. Empty (default) = exactly the guard's
+    // all-or-nothing behaviour. Malformed entries are ignored with a warning, never fatal.
+    public string[] EgressAllowlist { get; set; } = [];
 }
 
 public sealed class PluginLimits

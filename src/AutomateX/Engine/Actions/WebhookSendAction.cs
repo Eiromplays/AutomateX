@@ -2,7 +2,6 @@ using System.Text;
 using AutomateX.Modules.Triggers;
 using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
-using Microsoft.Extensions.Options;
 
 namespace AutomateX.Engine.Actions;
 
@@ -20,8 +19,12 @@ public sealed record WebhookSendResult(int StatusCode, string Body);
     Description = "POST a payload to a URL. Optionally sign the body with an HMAC-SHA256 secret — the "
         + "signature (sha256=<hex>) goes in X-Webhook-Signature (override with signatureHeader), matching "
         + "AutomateX's own webhook verification. Fails the step on a non-2xx response.")]
-public sealed class WebhookSendAction(IOptions<EngineOptions> options) : IAction<WebhookSendConfig, WebhookSendResult>
+// egressPolicy is optional so the action still constructs under schema-discovery (ActivatorUtilities
+// fills the default when the singleton isn't registered); the engine always injects the real one.
+public sealed class WebhookSendAction(EgressPolicy? egressPolicy = null) : IAction<WebhookSendConfig, WebhookSendResult>
 {
+    private readonly EgressPolicy _egressPolicy = egressPolicy ?? EgressPolicy.Off;
+
     public async Task<WebhookSendResult> ExecuteAsync(
         WebhookSendConfig config,
         ActionContext context,
@@ -29,10 +32,7 @@ public sealed class WebhookSendAction(IOptions<EngineOptions> options) : IAction
     {
         Validate(config);
 
-        if (options.Value.BlockPrivateNetworkRequests)
-        {
-            await EgressGuard.GuardAsync(config.Url, cancellationToken);
-        }
+        await EgressGuard.GuardAsync(config.Url, _egressPolicy, cancellationToken);
 
         using var request = new HttpRequestMessage(HttpMethod.Post, config.Url)
         {
