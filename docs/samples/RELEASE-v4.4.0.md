@@ -26,5 +26,5 @@ See the [plugin operations recipe](docs/recipes/plugin-operations.md) and
 
 ---
 
-*A live SignalR log stream (complementing the polled console) and an app-wide icon pass are tracked as
-follow-ups. Next major theme: AutomateX-as-MCP-server.*
+*A live SignalR log stream (complementing the polled console) and an app-wide icon pass were tracked as
+follow-ups — both closed in v4.9.0. Next major theme: AutomateX-as-MCP-server.*

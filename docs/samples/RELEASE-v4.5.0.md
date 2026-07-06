@@ -28,4 +28,5 @@ See the [MCP server recipe](docs/recipes/mcp-server.md) and
 ---
 
 *Follow-ups tracked: finer per-workspace/per-workflow API keys (the current shared key is coarse), a
-SignalR live-log stream for plugin ops, and an app-wide icon pass.*
+SignalR live-log stream for plugin ops, and an app-wide icon pass. All since closed — scoped API keys in
+v4.6.0, the live-log stream and the icon pass in v4.9.0.*

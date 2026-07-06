@@ -10,17 +10,19 @@ plus memory and a restart count when relevant. This is visible to any workspace 
 
 ## Read logs
 
-Expand a plugin's **Logs** to tail its output — a rolling buffer, refreshed every couple of seconds.
+Expand a plugin's **Logs** to tail its output. The console loads a snapshot, then **tails live** over
+SignalR — new lines appear as the plugin emits them, no poll-interval lag. If the socket drops it falls
+back to the couple-of-seconds poll and reconciles on reconnect, so you never miss or double a line.
 Logs are **instance-admin only** (they can carry sensitive runtime data); other members see a note.
 
 ## Restart
 
-**↻ Restart** kills the plugin's host process; the next call relaunches it fresh. Use it after
+**Restart** kills the plugin's host process; the next call relaunches it fresh. Use it after
 updating a plugin, or to clear a wedged process. Instance-admin only.
 
 ## Disable / enable
 
-**⏻ Disable** quarantines a misbehaving plugin: its actions, triggers, and connection types disappear
+**Disable** quarantines a misbehaving plugin: its actions, triggers, and connection types disappear
 from the builder and running workflows until you **Enable** it again. It's a filesystem marker, so it
 survives restarts. Workflows that used the plugin's actions will fail while it's disabled — the intent
 is to stop a bad plugin fast. Instance-admin only.

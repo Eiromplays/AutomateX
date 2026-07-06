@@ -3,6 +3,33 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.9.0
+
+A loose-ends release clearing the two follow-ups that have ridden along since v4.4/v4.5 — a live
+plugin-log stream and an app-wide icon pass. Unrelated subsystems, no migration.
+
+- **Plugin logs now tail live over SignalR.** The plugin **Logs** console read its output only through
+  the `GET /plugins/{name}/logs?since=` poll, so a burst of output showed up a poll-interval late and a
+  live tail flickered. Lines are now pushed to the console as they're appended, over a **dedicated
+  `PluginLogsHub`** (`/hubs/plugin-logs`) — separate from the workspace execution hub because the auth
+  boundary differs: `JoinPlugin` requires **instance-admin** (mirroring the logs endpoint; logs can carry
+  sensitive runtime data), not workspace membership. The engine gains a name-agnostic `IPluginLogSink`
+  seam (keyed by plugin dll path, a no-op by default so the engine keeps no SignalR dependency); the Web
+  layer's `SignalRPluginLogSink` resolves the dll to the global plugin name and broadcasts to
+  `plugin:{name}`. The stream is **additive**: the console snapshots via the existing poll, then tails by
+  `Seq`, and the poll stays on as the reconnect backstop — the 500-line ring guarantees a dropped
+  best-effort line reappears on the next snapshot, so the socket never has to be reliable. No new config,
+  no migration. See [docs/recipes/plugin-operations.md](docs/recipes/plugin-operations.md) and
+  [docs/plugin-log-stream-and-icons-design.md](docs/plugin-log-stream-and-icons-design.md).
+- **An app-wide icon pass.** The UI leaned on ad-hoc emoji and text glyphs (🔗 ⛓ ✕, status dots, text-only
+  nav) that render inconsistently across platforms and don't theme or scale. They're replaced by
+  [`lucide-react`](https://lucide.dev) — a tree-shakeable, MIT icon set that pairs with the React +
+  Tailwind + Radix stack — applied across the nav, the execution and plugin **status chips**, the
+  executions **relationship badges** (chained / retry), and `schema-form`'s inline builder controls
+  (reference inserter, add / remove rows, connection/step ref chips). Purely presentational: sizes and
+  colours come from the Tailwind classes already in use, no layout change, and icon-only controls keep an
+  accessible label. Frontend only — no server change.
+
 ## v4.8.0
 
 A loose-ends release closing the two follow-ups from the v4.5.2 / v4.7 arc — an egress allowlist and a
