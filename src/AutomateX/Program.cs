@@ -32,6 +32,8 @@ builder.Services.AddFastEndpoints();
 builder.Services.AddAutomateXRateLimiting();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IEngineEventListener, SignalRExecutionEventListener>();
+// Overrides the engine's NullPluginLogSink: fan plugin log lines out over SignalR for the live tail.
+builder.Services.AddSingleton<AutomateX.Engine.Plugins.IPluginLogSink, SignalRPluginLogSink>();
 
 var app = builder.Build();
 
@@ -40,6 +42,7 @@ app.MapDefaultEndpoints();
 app.UseRateLimiter();
 app.UseFastEndpoints(config => config.Endpoints.RoutePrefix = "api");
 app.MapHub<ExecutionEventsHub>("/hubs/executions");
+app.MapHub<PluginLogsHub>("/hubs/plugin-logs");
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
