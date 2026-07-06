@@ -45,7 +45,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   });
   if (response.status === 401) {
-    throw new Error("401: API key required — sign in via the ⚿ button in the header.");
+    throw new Error("401: API key required — sign in via the key button in the header.");
   }
   if (!response.ok) {
     throw new Error(extractErrorMessage(await response.text()));

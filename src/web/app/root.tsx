@@ -1,4 +1,15 @@
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import {
+  Activity,
+  Boxes,
+  KeyRound,
+  LayoutDashboard,
+  Plug,
+  Puzzle,
+  ScrollText,
+  Variable,
+  Workflow,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
@@ -28,7 +39,9 @@ export function Layout({ children }: { children: ReactNode }) {
 }
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  isActive ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100";
+  `inline-flex items-center gap-1.5 ${isActive ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100"}`;
+
+const navIconClass = "h-4 w-4";
 
 function ApiKeyButton() {
   const prompt = usePrompt();
@@ -36,6 +49,7 @@ function ApiKeyButton() {
     <button
       type="button"
       title="Sign in with API key"
+      aria-label="Sign in with API key"
       className="text-zinc-600 hover:text-zinc-100"
       onClick={async () => {
         const key = await prompt({
@@ -58,7 +72,7 @@ function ApiKeyButton() {
         }
       }}
     >
-      ⚿
+      <KeyRound className="h-4 w-4" aria-hidden="true" />
     </button>
   );
 }
@@ -251,30 +265,39 @@ function Shell() {
             <>
               <WorkspaceSwitcher />
               <NavLink to="/" end className={navLinkClass}>
+                <LayoutDashboard className={navIconClass} aria-hidden="true" />
                 Dashboard
               </NavLink>
               <NavLink to="/workflows" className={navLinkClass}>
+                <Workflow className={navIconClass} aria-hidden="true" />
                 Workflows
               </NavLink>
               <NavLink to="/executions" className={navLinkClass}>
+                <Activity className={navIconClass} aria-hidden="true" />
                 Executions
               </NavLink>
               <NavLink to="/connections" className={navLinkClass}>
+                <Plug className={navIconClass} aria-hidden="true" />
                 Connections
               </NavLink>
               <NavLink to="/variables" className={navLinkClass}>
+                <Variable className={navIconClass} aria-hidden="true" />
                 Variables
               </NavLink>
               <NavLink to="/plugins" className={navLinkClass}>
+                <Puzzle className={navIconClass} aria-hidden="true" />
                 Plugins
               </NavLink>
               <NavLink to="/audit" className={navLinkClass}>
+                <ScrollText className={navIconClass} aria-hidden="true" />
                 Audit
               </NavLink>
               <NavLink to="/workspace" className={navLinkClass}>
+                <Boxes className={navIconClass} aria-hidden="true" />
                 Workspace
               </NavLink>
               <NavLink to="/api-keys" className={navLinkClass}>
+                <KeyRound className={navIconClass} aria-hidden="true" />
                 API keys
               </NavLink>
             </>

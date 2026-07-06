@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { CornerDownRight, Link2, RotateCw, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
 import { StatusBadge } from "../components/status-badge";
@@ -101,7 +102,11 @@ export default function Executions() {
                   execution.triggeredBy.startsWith("retry:") ? "text-emerald-400/70" : "text-violet-400/70"
                 }
               >
-                {execution.triggeredBy.startsWith("retry:") ? "↻" : "↳"}
+                {execution.triggeredBy.startsWith("retry:") ? (
+                  <RotateCw className="h-3.5 w-3.5" aria-label="retry" />
+                ) : (
+                  <CornerDownRight className="h-3.5 w-3.5" aria-label="child run" />
+                )}
               </span>
             )}
             <StatusBadge status={execution.status} />
@@ -109,19 +114,19 @@ export default function Executions() {
             {execution.triggeredBy === "workflow" ? (
               depth === 0 && (
                 <span
-                  className="rounded-full border border-violet-500/40 bg-violet-500/10 px-1.5 py-0.5 text-[10px] text-violet-400"
+                  className="inline-flex items-center gap-1 rounded-full border border-violet-500/40 bg-violet-500/10 px-1.5 py-0.5 text-[10px] text-violet-400"
                   title="Started by another workflow (parent outside this page)"
                 >
-                  ⛓ chained
+                  <Link2 className="h-3 w-3" aria-hidden="true" /> chained
                 </span>
               )
             ) : execution.triggeredBy.startsWith("retry:") ? (
               depth === 0 && (
                 <span
-                  className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400"
+                  className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400"
                   title="Retry (original outside this page)"
                 >
-                  ↻ retry
+                  <RotateCw className="h-3 w-3" aria-hidden="true" /> retry
                 </span>
               )
             ) : (
@@ -147,8 +152,9 @@ export default function Executions() {
               }
             }}
             className="px-3 py-3 text-xs text-zinc-600 hover:text-red-400"
+            aria-label="Delete execution"
           >
-            ✕
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         )}
       </div>

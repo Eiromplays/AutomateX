@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Braces, Link2, Plus, Waypoints, X } from "lucide-react";
 import { type ComponentProps, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../lib/api";
@@ -136,15 +137,16 @@ function ReferenceInserter({
 
   return (
     <>
-      {/* Bare 🔗 trigger, no border/arrow — sits inside the input's right edge. */}
+      {/* Bare trigger, no border/arrow — sits inside the input's right edge. */}
       <button
         ref={triggerRef}
         type="button"
         title="Insert a step output or connection reference"
+        aria-label="Insert a step output or connection reference"
         onClick={toggle}
-        className="w-6 text-center text-sm text-zinc-500 hover:text-emerald-400 focus:outline-none"
+        className="flex w-6 items-center justify-center text-zinc-500 hover:text-emerald-400 focus:outline-none"
       >
-        🔗
+        <Braces className="h-4 w-4" aria-hidden="true" />
       </button>
 
       {open &&
@@ -167,9 +169,17 @@ function ReferenceInserter({
                     key={t}
                     type="button"
                     onClick={() => setTab(t)}
-                    className={`flex-1 px-2 py-1 ${tab === t ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+                    className={`flex flex-1 items-center justify-center gap-1 px-2 py-1 ${tab === t ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
                   >
-                    {t === "steps" ? "⛓ Steps" : "🔗 Connections"}
+                    {t === "steps" ? (
+                      <>
+                        <Waypoints className="h-3 w-3" aria-hidden="true" /> Steps
+                      </>
+                    ) : (
+                      <>
+                        <Link2 className="h-3 w-3" aria-hidden="true" /> Connections
+                      </>
+                    )}
                   </button>
                 ))}
               </div>
@@ -195,8 +205,8 @@ function ReferenceInserter({
                   )}
                   {stepGroups.map((group) => (
                     <div key={group.key} className="mb-1">
-                      <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                        ⛓ {group.name || group.key}
+                      <div className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                        <Waypoints className="h-3 w-3" aria-hidden="true" /> {group.name || group.key}
                       </div>
                       {group.items.map((item) => (
                         <button
@@ -371,8 +381,9 @@ function SwitchCasesEditor({
                 onClick={() => remove(index)}
                 className="px-1 text-zinc-500 hover:text-red-400"
                 title="Remove case"
+                aria-label="Remove case"
               >
-                ✕
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
               </button>
             </div>
             <select
@@ -400,9 +411,9 @@ function SwitchCasesEditor({
       <button
         type="button"
         onClick={add}
-        className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+        className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
       >
-        + Add case
+        <Plus className="h-3 w-3" aria-hidden="true" /> Add case
       </button>
       <p className="text-[11px] text-zinc-600">
         Tried top to bottom; first match wins. No match falls through to{" "}
@@ -882,17 +893,18 @@ function KeyValueEditor({
             onClick={() => emit(rows.filter((_, i) => i !== index))}
             className="px-1 py-1.5 text-zinc-500 hover:text-red-400"
             title="Remove"
+            aria-label="Remove"
           >
-            ✕
+            <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </div>
       ))}
       <button
         type="button"
         onClick={() => setRows([...rows, { key: "", value: "" }])}
-        className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+        className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
       >
-        + Add
+        <Plus className="h-3 w-3" aria-hidden="true" /> Add
       </button>
     </div>
   );
@@ -984,42 +996,51 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
               {required.has(key) && <span className="text-emerald-400">*</span>}
               {isEmptyRequired && <span className="text-[10px] text-amber-400">required</span>}
               {connections == null && hasConnectionRef(value[key]) && (
-                <span className="text-[10px] text-sky-400" title="Uses a connection reference">
-                  🔗 connection
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] text-sky-400"
+                  title="Uses a connection reference"
+                >
+                  <Link2 className="h-3 w-3" aria-hidden="true" /> connection
                 </span>
               )}
               {refCheck?.status === "ok" && (
-                <span className="text-[10px] text-emerald-400" title="Connection reference resolves">
-                  🔗 connection
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] text-emerald-400"
+                  title="Connection reference resolves"
+                >
+                  <Link2 className="h-3 w-3" aria-hidden="true" /> connection
                 </span>
               )}
               {refCheck?.status === "unknown" && (
                 <span
-                  className="text-[10px] text-amber-400"
+                  className="inline-flex items-center gap-1 text-[10px] text-amber-400"
                   title={`Unknown connection or key: ${refCheck.unknown.join(", ")}`}
                 >
-                  🔗 unknown: {refCheck.unknown.join(", ")}
+                  <Link2 className="h-3 w-3" aria-hidden="true" /> unknown: {refCheck.unknown.join(", ")}
                 </span>
               )}
               {stepCheck?.status === "ok" && (
-                <span className="text-[10px] text-emerald-400" title="Step reference resolves">
-                  ⛓ step
+                <span
+                  className="inline-flex items-center gap-1 text-[10px] text-emerald-400"
+                  title="Step reference resolves"
+                >
+                  <Waypoints className="h-3 w-3" aria-hidden="true" /> step
                 </span>
               )}
               {stepCheck?.status === "fragile" && (
                 <span
-                  className="text-[10px] text-amber-400"
+                  className="inline-flex items-center gap-1 text-[10px] text-amber-400"
                   title={`Index-based step reference (#${stepCheck.fragile.join(", #")}) — breaks on reorder. Convert to names.`}
                 >
-                  ⛓ index — convert to name
+                  <Waypoints className="h-3 w-3" aria-hidden="true" /> index — convert to name
                 </span>
               )}
               {stepCheck?.status === "unknown" && (
                 <span
-                  className="text-[10px] text-red-400"
+                  className="inline-flex items-center gap-1 text-[10px] text-red-400"
                   title={`Unknown step: ${stepCheck.unknown.join(", ")}`}
                 >
-                  ⛓ unknown step: {stepCheck.unknown.join(", ")}
+                  <Waypoints className="h-3 w-3" aria-hidden="true" /> unknown step: {stepCheck.unknown.join(", ")}
                 </span>
               )}
             </span>

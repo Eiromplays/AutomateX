@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Power, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type PluginInfo, type PluginLogLine } from "../lib/api";
 import { mergeLogLines } from "../lib/plugin-logs";
 import { usePluginLogs } from "../lib/use-plugin-logs";
+import { pluginStateIcon } from "./icons";
 import { toast } from "./toast";
 
 function stateStyle(state: string): { label: string; className: string } {
@@ -29,6 +31,7 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
   const [lines, setLines] = useState<PluginLogLine[]>([]);
   const cursor = useRef(0);
   const state = stateStyle(plugin.state);
+  const StateIcon = pluginStateIcon[plugin.state] ?? pluginStateIcon.idle;
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["plugins"] });
 
@@ -72,7 +75,9 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
   return (
     <div className="mt-2 space-y-2">
       <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-        <span className={`rounded-full border px-1.5 py-0.5 ${state.className}`}>● {state.label}</span>
+        <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${state.className}`}>
+          <StateIcon className="h-3 w-3" aria-hidden="true" /> {state.label}
+        </span>
         {plugin.state === "running" && <span>{mb(plugin.memoryBytes)}</span>}
         {plugin.restarts > 0 && <span>{plugin.restarts} restart{plugin.restarts === 1 ? "" : "s"}</span>}
         <button type="button" onClick={() => setOpen((o) => !o)} className="text-zinc-500 hover:text-zinc-300">
@@ -83,18 +88,18 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
             type="button"
             disabled={restart.isPending}
             onClick={() => restart.mutate()}
-            className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
           >
-            ↻ Restart
+            <RotateCw className="h-3 w-3" aria-hidden="true" /> Restart
           </button>
         )}
         <button
           type="button"
           disabled={setEnabled.isPending}
           onClick={() => setEnabled.mutate(plugin.disabled)}
-          className="text-zinc-500 hover:text-amber-300 disabled:opacity-50"
+          className="inline-flex items-center gap-1 text-zinc-500 hover:text-amber-300 disabled:opacity-50"
         >
-          {plugin.disabled ? "⏻ Enable" : "⏻ Disable"}
+          <Power className="h-3 w-3" aria-hidden="true" /> {plugin.disabled ? "Enable" : "Disable"}
         </button>
       </div>
 
