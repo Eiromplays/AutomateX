@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { api, type PluginInfo, type PluginLogLine } from "../lib/api";
+import { mergeLogLines } from "../lib/plugin-logs";
+import { usePluginLogs } from "../lib/use-plugin-logs";
 import { toast } from "./toast";
 
 function stateStyle(state: string): { label: string; className: string } {
@@ -18,8 +20,9 @@ function stateStyle(state: string): { label: string; className: string } {
 
 const mb = (bytes: number) => `${Math.round(bytes / (1024 * 1024))} MB`;
 
-// Per-plugin ops: a live status badge (state, memory, restarts) plus an expandable console that polls
-// the log tail every 2s. Logs are instance-admin only; a 403 just shows a note.
+// Per-plugin ops: a live status badge (state, memory, restarts) plus an expandable console. The console
+// snapshots the log tail via a 2s poll, then tails live over SignalR; both paths reconcile by Seq, and
+// the poll doubles as the reconnect backstop. Logs are instance-admin only; a 403 just shows a note.
 export function PluginOps({ plugin }: { plugin: PluginInfo }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -54,12 +57,17 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
     refetchInterval: open ? 2000 : false,
   });
 
+  // Poll snapshot/backstop: advance the poll cursor (kept independent of the stream so a re-poll can heal
+  // any line the stream dropped) and reconcile by Seq.
   useEffect(() => {
     if (data && data.lines.length > 0) {
       cursor.current = data.cursor;
-      setLines((prev) => [...prev, ...data.lines].slice(-500));
+      setLines((prev) => mergeLogLines(prev, data.lines));
     }
   }, [data]);
+
+  // Live tail: stream lines while the console is open, reconciled by Seq against the polled snapshot.
+  usePluginLogs(plugin.name, open, (line) => setLines((prev) => mergeLogLines(prev, [line])));
 
   return (
     <div className="mt-2 space-y-2">
