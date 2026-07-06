@@ -9,7 +9,8 @@ namespace AutomateX.Engine.Plugins;
 // The host's callbacks for a running plugin process: the child invokes these over the pipe.
 public interface IPluginHostCallbacks
 {
-    void OnLog(string? source, string level, string message);
+    // Carries the plugin dll + the appended PluginLogLine (so Seq ships) for live fan-out.
+    void OnLog(string pluginDll, PluginLogLine line);
 
     Task OnFireAsync(string triggerId, string? payloadJson);
 
@@ -34,6 +35,7 @@ public sealed class PluginClient : IAsyncDisposable
     private readonly Stream _stdin;
     private readonly Stream _stdout;
     private readonly IPluginHostCallbacks _callbacks;
+    private readonly string _pluginDll;
     private readonly ILogger _logger;
     private readonly Lock _writeLock = new();
     private readonly ConcurrentDictionary<string, TaskCompletionSource<JsonObject>> _pending = new();
@@ -45,6 +47,7 @@ public sealed class PluginClient : IAsyncDisposable
         bool blockPrivateEgress = false, string[]? egressAllowlist = null)
     {
         _callbacks = callbacks;
+        _pluginDll = pluginDll;
         _logger = logger;
         var startInfo = new ProcessStartInfo("dotnet")
         {
@@ -209,8 +212,7 @@ public sealed class PluginClient : IAsyncDisposable
                     var source = (string?)parameters["callId"];
                     var level = (string?)parameters["level"] ?? "Information";
                     var message = (string?)parameters["message"] ?? "";
-                    Logs.Add(level, source, message);
-                    _callbacks.OnLog(source, level, message);
+                    _callbacks.OnLog(_pluginDll, Logs.Add(level, source, message));
                     return; // notification — no reply
                 }
 
@@ -218,8 +220,7 @@ public sealed class PluginClient : IAsyncDisposable
                 {
                     var source = (string?)parameters["triggerId"];
                     var message = (string?)parameters["message"] ?? "";
-                    Logs.Add("Error", source, message);
-                    _callbacks.OnLog(source, "Error", message);
+                    _callbacks.OnLog(_pluginDll, Logs.Add("Error", source, message));
                     if (source is not null)
                     {
                         await _callbacks.OnTriggerErrorAsync(source, message);

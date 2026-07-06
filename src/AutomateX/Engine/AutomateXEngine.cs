@@ -113,6 +113,8 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<Connections.ConnectionResolver>();
         builder.Services.AddSingleton<EngineEventBus>();
         builder.Services.AddSingleton<PluginReloader>();
+        // No-op by default; the Web layer overrides this with the SignalR fan-out (v4.9 m2).
+        builder.Services.AddSingleton<Plugins.IPluginLogSink, Plugins.NullPluginLogSink>();
         builder.Services.AddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<EngineOptions>>().Value;
@@ -120,7 +122,8 @@ public static class AutomateXEngine
                 ?? Path.Combine(AppContext.BaseDirectory, "pluginhost", "AutomateX.PluginHost.dll");
             return new Plugins.PluginProcessSupervisor(
                 sp.GetRequiredService<IServiceScopeFactory>(), sp.GetRequiredService<ILoggerFactory>(), hostDll,
-                options.PluginLimits, options.BlockPrivateNetworkRequests, options.EgressAllowlist);
+                options.PluginLimits, options.BlockPrivateNetworkRequests, options.EgressAllowlist,
+                sp.GetRequiredService<Plugins.IPluginLogSink>());
         });
         builder.Services.AddHostedService<Plugins.PluginMemoryWatchdog>();
 

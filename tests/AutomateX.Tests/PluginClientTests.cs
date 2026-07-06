@@ -18,7 +18,7 @@ public sealed class PluginClientTests(ITestOutputHelper output)
 
         private readonly ConcurrentDictionary<string, string> _state = new();
 
-        public void OnLog(string? source, string level, string message) { }
+        public void OnLog(string pluginDll, PluginLogLine line) { }
 
         public Task OnFireAsync(string triggerId, string? payloadJson)
         {

@@ -13,12 +13,14 @@ namespace AutomateX.Engine.Plugins;
 // (built-in) triggers. Also the ops seam: per-plugin status, log tail, restart, and memory limits.
 public sealed class PluginProcessSupervisor(
     IServiceScopeFactory scopeFactory, ILoggerFactory loggerFactory, string pluginHostDll,
-    PluginLimits? limits = null, bool blockPrivateEgress = false, string[]? egressAllowlist = null)
+    PluginLimits? limits = null, bool blockPrivateEgress = false, string[]? egressAllowlist = null,
+    IPluginLogSink? logSink = null)
     : IPluginHostCallbacks, IAsyncDisposable
 {
     private sealed record TriggerInfo(Guid TriggerId, Guid WorkflowId, string Type, int? EntryStepOrder);
 
     private readonly ILogger _logger = loggerFactory.CreateLogger<PluginProcessSupervisor>();
+    private readonly IPluginLogSink _logSink = logSink ?? NullPluginLogSink.Instance;
     private readonly Dictionary<string, PluginClient> _clients = [];
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _gates = new();
     private readonly Dictionary<string, TriggerInfo> _triggers = new();
@@ -201,9 +203,14 @@ public sealed class PluginProcessSupervisor(
         }
     }
 
-    public void OnLog(string? source, string level, string message) =>
-        _logger.Log(Enum.TryParse<LogLevel>(level, out var parsed) ? parsed : LogLevel.Information,
-            "plugin[{Source}]: {Message}", source, message);
+    // Ops seam: log to the host logger, then fan the line out to the sink (null = no-op) for live tail.
+    // The ring append already happened in the client, so the poll path is unaffected.
+    public void OnLog(string pluginDll, PluginLogLine line)
+    {
+        _logger.Log(Enum.TryParse<LogLevel>(line.Level, out var parsed) ? parsed : LogLevel.Information,
+            "plugin[{Source}]: {Message}", line.Source, line.Message);
+        _logSink.Publish(pluginDll, line);
+    }
 
     public async Task OnFireAsync(string triggerId, string? payloadJson)
     {
