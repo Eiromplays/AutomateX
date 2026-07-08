@@ -10,23 +10,32 @@ namespace AutomateX.Modules.ApiKeys;
 public readonly struct ClientIpAllowlist
 {
     private readonly IPNetwork[]? _networks;
+    private readonly bool _denyAll;
 
-    private ClientIpAllowlist(IPNetwork[] networks) => _networks = networks;
+    private ClientIpAllowlist(IPNetwork[] networks, bool denyAll)
+    {
+        _networks = networks;
+        _denyAll = denyAll;
+    }
 
-    public bool IsEmpty => _networks is null || _networks.Length == 0;
+    public bool IsEmpty => !_denyAll && (_networks is null || _networks.Length == 0);
 
     public static ClientIpAllowlist Parse(IReadOnlyList<string> entries)
     {
         List<IPNetwork> networks = [];
         foreach (var entry in entries)
         {
-            if (TryParseEntry(entry, out var network))
+            if (!TryParseEntry(entry, out var network))
             {
-                networks.Add(network);
+                // Fail closed: a stored entry that won't parse (mint validates, so this shouldn't happen)
+                // fences the key entirely rather than silently dropping the entry and widening access.
+                return new ClientIpAllowlist([], denyAll: true);
             }
+
+            networks.Add(network);
         }
 
-        return new ClientIpAllowlist([.. networks]);
+        return new ClientIpAllowlist([.. networks], denyAll: false);
     }
 
     public static IReadOnlyList<string> FindInvalid(IReadOnlyList<string> entries) =>
@@ -34,6 +43,11 @@ public readonly struct ClientIpAllowlist
 
     public bool Allows(IPAddress address)
     {
+        if (_denyAll)
+        {
+            return false;
+        }
+
         if (_networks is null || _networks.Length == 0)
         {
             return true;

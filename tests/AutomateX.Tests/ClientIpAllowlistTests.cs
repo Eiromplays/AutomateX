@@ -49,10 +49,12 @@ public sealed class ClientIpAllowlistTests
     }
 
     [Fact]
-    public void Parse_ignores_entries_FindInvalid_would_reject()
+    public void Parse_fails_closed_on_a_malformed_stored_entry()
     {
-        // Stored entries are validated at mint, but Parse stays defensive.
+        // Mint rejects malformed entries, so this shouldn't happen — but if a bad one ever reached
+        // storage, the key denies all rather than silently dropping it and opening up.
         var allow = ClientIpAllowlist.Parse(["garbage", "203.0.113.0/24"]);
-        Assert.True(allow.Allows(IPAddress.Parse("203.0.113.9")));
+        Assert.False(allow.IsEmpty);
+        Assert.False(allow.Allows(IPAddress.Parse("203.0.113.9")));
     }
 }

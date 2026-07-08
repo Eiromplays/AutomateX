@@ -1,3 +1,4 @@
+using System.Net;
 using System.Security.Claims;
 using AutomateX.Database;
 using AutomateX.Modules.ApiKeys;
@@ -19,10 +20,11 @@ public sealed class ScopedApiKeyGateTests(EngineFixture fixture) : IClassFixture
     private static readonly AuthOptions OidcOnly = new() { Authority = "https://login.example.com/v2.0", ClientId = "c" };
 
     private static (string Token, ApiKey Key) NewKey(
-        string name, ApiKeyScope scope, Guid? workspaceId = null, WorkspaceRole role = WorkspaceRole.Editor)
+        string name, ApiKeyScope scope, Guid? workspaceId = null, WorkspaceRole role = WorkspaceRole.Editor,
+        string[]? ipAllowlist = null)
     {
         var (token, prefix, hash) = ApiKeyToken.Mint();
-        return (token, ApiKey.Create(name, prefix, hash, scope, workspaceId, null, role, "test", null));
+        return (token, ApiKey.Create(name, prefix, hash, scope, workspaceId, null, role, "test", null, null, ipAllowlist));
     }
 
     private static async Task<(int Status, bool NextCalled, HttpContext Context)> RunAsync(
@@ -32,7 +34,8 @@ public sealed class ScopedApiKeyGateTests(EngineFixture fixture) : IClassFixture
         string? headerKey = null,
         string? cookieKey = null,
         bool authenticatedUser = false,
-        Action<ApiKeyPresence>? seedPresence = null)
+        Action<ApiKeyPresence>? seedPresence = null,
+        string? clientIp = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(db);
@@ -53,6 +56,11 @@ public sealed class ScopedApiKeyGateTests(EngineFixture fixture) : IClassFixture
 
         var context = new DefaultHttpContext { RequestServices = provider };
         context.Request.Path = path;
+        if (clientIp is not null)
+        {
+            context.Connection.RemoteIpAddress = IPAddress.Parse(clientIp);
+        }
+
         if (headerKey is not null)
         {
             context.Request.Headers["X-Api-Key"] = headerKey;
@@ -159,6 +167,55 @@ public sealed class ScopedApiKeyGateTests(EngineFixture fixture) : IClassFixture
 
         Assert.False(next);
         Assert.Equal(StatusCodes.Status401Unauthorized, status);
+    }
+
+    [Fact]
+    public async Task Key_ip_allowlist_permits_a_listed_client()
+    {
+        var (db, scope) = Db();
+        using var _ = scope;
+        var (token, key) = NewKey(
+            "fenced", ApiKeyScope.Instance, role: WorkspaceRole.Owner, ipAllowlist: ["203.0.113.0/24"]);
+        db.ApiKeys.Add(key);
+        await db.SaveChangesAsync();
+
+        var (status, next, context) = await RunAsync(db, Open, "/api/workflows", headerKey: token, clientIp: "203.0.113.9");
+
+        Assert.True(next);
+        Assert.Equal(StatusCodes.Status200OK, status);
+        Assert.NotNull(ApiKeyContext.From(context));
+    }
+
+    [Fact]
+    public async Task Key_ip_allowlist_forbids_an_unlisted_client()
+    {
+        var (db, scope) = Db();
+        using var _ = scope;
+        var (token, key) = NewKey(
+            "fenced", ApiKeyScope.Instance, role: WorkspaceRole.Owner, ipAllowlist: ["203.0.113.0/24"]);
+        db.ApiKeys.Add(key);
+        await db.SaveChangesAsync();
+
+        var (status, next, context) = await RunAsync(db, Open, "/api/workflows", headerKey: token, clientIp: "198.51.100.1");
+
+        Assert.False(next);
+        Assert.Equal(StatusCodes.Status403Forbidden, status);
+        Assert.Null(ApiKeyContext.From(context)); // rejected before the context is attached
+    }
+
+    [Fact]
+    public async Task Key_without_an_allowlist_is_unrestricted()
+    {
+        var (db, scope) = Db();
+        using var _ = scope;
+        var (token, key) = NewKey("open-key", ApiKeyScope.Instance, role: WorkspaceRole.Owner);
+        db.ApiKeys.Add(key);
+        await db.SaveChangesAsync();
+
+        var (status, next, _) = await RunAsync(db, Open, "/api/workflows", headerKey: token, clientIp: "198.51.100.1");
+
+        Assert.True(next);
+        Assert.Equal(StatusCodes.Status200OK, status);
     }
 
     [Fact]

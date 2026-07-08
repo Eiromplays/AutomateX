@@ -170,8 +170,12 @@ public static class AuthExtensions
             // This endpoint is gate-exempt, so it resolves the key itself.
             var presented = context.Request.Headers["X-Api-Key"].FirstOrDefault()
                 ?? context.Request.Cookies[AuthGateMiddleware.CookieName];
+            // A key fenced to other IPs must not report itself authenticated here either (the gate would
+            // 403 it on any real endpoint) — otherwise this exempt endpoint leaks that it's valid.
             if (presented is not null && ApiKeyToken.LooksLikeToken(presented)
-                && await resolver.ResolveAsync(presented, context.RequestAborted) is { } key)
+                && await resolver.ResolveAsync(presented, context.RequestAborted) is { } key
+                && (key.IpAllowlist.IsEmpty
+                    || (context.Connection.RemoteIpAddress is { } clientIp && key.IpAllowlist.Allows(clientIp))))
             {
                 return Results.Ok(new AuthMe("apikey", true, null, null, key.Scope == ApiKeyScope.Instance));
             }

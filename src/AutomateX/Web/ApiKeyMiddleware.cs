@@ -73,6 +73,16 @@ public sealed class AuthGateMiddleware(RequestDelegate next, IOptions<AuthOption
         {
             if (await resolver.ResolveAsync(presented, context.RequestAborted) is { } apiKey)
             {
+                // Per-key IP allowlist: an empty list is unrestricted; otherwise the (forwarded) client IP
+                // must be in it — an unknown IP is refused. Enforced here so it covers /api and /hubs alike.
+                if (!apiKey.IpAllowlist.IsEmpty
+                    && (context.Connection.RemoteIpAddress is not { } clientIp || !apiKey.IpAllowlist.Allows(clientIp)))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsync("This API key is not allowed from this address.");
+                    return;
+                }
+
                 ApiKeyContext.Set(context, apiKey);
                 await next(context);
                 return;
