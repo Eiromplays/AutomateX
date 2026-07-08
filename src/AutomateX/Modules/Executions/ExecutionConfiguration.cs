@@ -35,8 +35,23 @@ internal sealed class ForEachStateConfiguration : IEntityTypeConfiguration<ForEa
     public void Configure(EntityTypeBuilder<ForEachState> builder)
     {
         builder.Property(x => x.ItemsJson).HasColumnType("jsonb");
-        builder.Property(x => x.ResultsJson).HasColumnType("jsonb");
         builder.HasIndex(x => new { x.ExecutionId, x.StepOrder }).IsUnique();
+
+        builder.HasOne<Execution>()
+            .WithMany()
+            .HasForeignKey(x => x.ExecutionId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
+internal sealed class ForEachItemResultConfiguration : IEntityTypeConfiguration<ForEachItemResult>
+{
+    public void Configure(EntityTypeBuilder<ForEachItemResult> builder)
+    {
+        builder.Property(x => x.ResultJson).HasColumnType("jsonb");
+        // The uniqueness that makes a redelivered child-resume a no-op (ON CONFLICT DO NOTHING) and lets
+        // parallel completions write their own slot without contending.
+        builder.HasIndex(x => new { x.ExecutionId, x.StepOrder, x.ItemIndex }).IsUnique();
 
         builder.HasOne<Execution>()
             .WithMany()

@@ -462,14 +462,15 @@ public static class ExecuteStepHandler
                 $"forEach exceeded the maximum nesting depth ({options.MaxChainDepth}).", dbContext, eventBus, options, logger, cancellationToken);
         }
 
-        var state = ForEachState.Create(execution.Id, stepOrder, config.WorkflowId, config.Items.GetRawText(), total);
+        // m1: concurrency is fixed at 1 (sequential launch); the config field + batch launch land in m2.
+        var state = ForEachState.Create(
+            execution.Id, stepOrder, config.WorkflowId, config.Items.GetRawText(), total, concurrency: 1);
         dbContext.ForEachStates.Add(state);
 
         stepExecution.Suspend();
         execution.Suspend();
 
         var firstPayload = state.ItemPayload(0);
-        state.TakeNext();
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation(
             "Execution {ExecutionId} forEach over {Total} item(s) at step {StepOrder}", execution.Id, total, stepOrder);

@@ -7,8 +7,10 @@ using Xunit;
 
 namespace AutomateX.Tests;
 
-// forEach maps a child workflow over an array (sequential v1): one child run per item, results
-// collected in order as the step output, the parent resuming once all items are done.
+// forEach maps a child workflow over an array: one child run per item, results collected in item order
+// as the step output, the parent resuming once all items are done. v4.10 rebuilt the accumulator on
+// per-item rows + atomic counters; these end-to-end cases pin the sequential behaviour across that
+// rewrite (concurrency-specific cases live in the parallel slice).
 public sealed class ForEachEngineTests(EngineFixture fixture) : IClassFixture<EngineFixture>
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
@@ -46,6 +48,33 @@ public sealed class ForEachEngineTests(EngineFixture fixture) : IClassFixture<En
         Assert.All(
             results.RootElement.EnumerateArray(),
             item => Assert.Equal("Succeeded", item.GetProperty("status").GetString()));
+    }
+
+    [Fact]
+    public async Task Gathers_every_item_result_in_order()
+    {
+        fixture.ProbeAction.Reset();
+        // The child echoes its item (the item is the child's trigger payload) so the ordered results
+        // array is observable — the finisher gathers the per-item rows ORDER BY ItemIndex.
+        var childId = await SeedAsync(new StepDefinition("test.probe", "c", """{"v":"{{trigger.payload}}"}"""));
+        var parentId = await SeedAsync(
+            new StepDefinition("forEach", "loop", $$"""{"items":["a","b","c","d"],"workflowId":"{{childId}}"}"""));
+
+        var parent = await TestData.WaitForCompletedAsync(
+            fixture.Host, await TestData.ExecuteAsync(fixture.Host, parentId), Timeout);
+
+        Assert.Equal(ExecutionStatus.Succeeded, parent.Status);
+        Assert.Equal(4, fixture.ProbeAction.Calls);
+
+        using var results = JsonDocument.Parse(parent.Steps.Single(s => s.StepOrder == 0).Output!);
+        var items = results.RootElement.EnumerateArray()
+            .Select(r => r.GetProperty("output").GetString() ?? "")
+            .ToList();
+        Assert.Equal(4, items.Count);
+        Assert.Contains("a", items[0]);
+        Assert.Contains("b", items[1]);
+        Assert.Contains("c", items[2]);
+        Assert.Contains("d", items[3]);
     }
 
     [Fact]

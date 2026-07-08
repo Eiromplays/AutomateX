@@ -41,6 +41,8 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<ForEachState> ForEachStates => Set<ForEachState>();
 
+    public DbSet<ForEachItemResult> ForEachItemResults => Set<ForEachItemResult>();
+
     public DbSet<Modules.Idempotency.IdempotencyRecord> IdempotencyRecords => Set<Modules.Idempotency.IdempotencyRecord>();
 
     public DbSet<Modules.Audit.AuditEntry> AuditEntries => Set<Modules.Audit.AuditEntry>();

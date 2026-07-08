@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using AutomateX.Database;
 using AutomateX.Engine.Actions;
 using AutomateX.Engine.Events;
@@ -75,8 +76,11 @@ public static class ResumeExecutionHandler
             dbContext, eventBus, engineOptions.Value, logger, cancellationToken);
     }
 
-    // A forEach child finished: record its result, then either launch the next item (sequential) or,
-    // once all items are in, complete the forEach step with the ordered results and advance.
+    // A forEach child finished. Record its result in its own row (contention-free, idempotent via the
+    // unique key), bump the counters atomically, launch the next item in this index's chain, and — for
+    // the one child that brings the count to Total — complete the loop with the ordered results. Safe
+    // under concurrent completions: the counter UPDATEs serialize on the row's write lock, and the
+    // parent-status claim elects a single finisher.
     private static async Task<object?> AccumulateForEachAsync(
         Execution execution,
         StepExecution step,
@@ -89,46 +93,76 @@ public static class ResumeExecutionHandler
         ILogger logger,
         CancellationToken cancellationToken)
     {
-        if (state.IsFilled(itemIndex))
-        {
-            return null; // redelivered child-resume — already counted
-        }
-
         var result = payload ?? "null";
-        state.Record(itemIndex, result, ForEachState.ResultFailed(result));
+        var failed = ForEachState.ResultFailed(result);
 
-        if (!state.IsComplete)
+        // Idempotent write of this item's slot. A redelivered resume conflicts on the unique key, affects
+        // no row, and stops here — nothing double-counts.
+        var inserted = await dbContext.Database.ExecuteSqlAsync(
+            $"""
+             INSERT INTO "ForEachItemResults" ("Id", "ExecutionId", "StepOrder", "ItemIndex", "ResultJson", "Failed")
+             VALUES ({Guid.CreateVersion7()}, {execution.Id}, {state.StepOrder}, {itemIndex}, {result}::jsonb, {failed})
+             ON CONFLICT ("ExecutionId", "StepOrder", "ItemIndex") DO NOTHING
+             """,
+            cancellationToken);
+        if (inserted == 0)
         {
-            if (state.NextIndex < state.Total)
-            {
-                var nextIndex = state.NextIndex;
-                var nextPayload = state.ItemPayload(nextIndex);
-                state.TakeNext();
-                await dbContext.SaveChangesAsync(cancellationToken);
-                return new RunWorkflow(
-                    Guid.CreateVersion7(), state.ChildWorkflowId, $"foreach:{execution.Id}", nextPayload,
-                    EntryOrder: null, ParentExecutionId: execution.Id, ParentStepOrder: state.StepOrder,
-                    Depth: execution.Depth + 1, ParentItemIndex: nextIndex);
-            }
-
-            await dbContext.SaveChangesAsync(cancellationToken);
             return null;
         }
 
-        // All items done — claim the parent and complete the loop with the ordered results.
+        await dbContext.ForEachStates
+            .Where(x => x.Id == state.Id)
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(x => x.CompletedCount, x => x.CompletedCount + 1)
+                    .SetProperty(x => x.AnyFailed, x => x.AnyFailed || failed),
+                cancellationToken);
+
+        // This child's own post-increment count (its row lock is held to commit, so it reads its own
+        // ordinal); exactly one child sees Total.
+        var completed = await dbContext.ForEachStates
+            .Where(x => x.Id == state.Id)
+            .Select(x => x.CompletedCount)
+            .SingleAsync(cancellationToken);
+
+        if (completed < state.Total)
+        {
+            // Hold the cap: launch the next item in this index's chain, if any remain.
+            var next = itemIndex + state.Concurrency;
+            return next < state.Total
+                ? new RunWorkflow(
+                    Guid.CreateVersion7(), state.ChildWorkflowId, $"foreach:{execution.Id}", state.ItemPayload(next),
+                    EntryOrder: null, ParentExecutionId: execution.Id, ParentStepOrder: state.StepOrder,
+                    Depth: execution.Depth + 1, ParentItemIndex: next)
+                : null;
+        }
+
+        // All items in — elect a single finisher via the parent-status claim, then complete the loop.
         var claimed = await dbContext.Executions
             .Where(x => x.Id == execution.Id && x.Status == ExecutionStatus.Waiting)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.Status, ExecutionStatus.Running), cancellationToken);
-
         if (claimed == 0)
         {
-            await dbContext.SaveChangesAsync(cancellationToken);
             return null;
         }
 
-        var results = state.ResultsJson;
+        var slots = await dbContext.ForEachItemResults
+            .Where(x => x.ExecutionId == execution.Id && x.StepOrder == state.StepOrder)
+            .OrderBy(x => x.ItemIndex)
+            .Select(x => x.ResultJson)
+            .ToListAsync(cancellationToken);
+        var array = new JsonArray();
+        foreach (var slot in slots)
+        {
+            array.Add(JsonNode.Parse(slot));
+        }
+
+        var results = array.ToJsonString();
         step.Complete(results);
         dbContext.ForEachStates.Remove(state);
+        await dbContext.ForEachItemResults
+            .Where(x => x.ExecutionId == execution.Id && x.StepOrder == state.StepOrder)
+            .ExecuteDeleteAsync(cancellationToken);
         await dbContext.SaveChangesAsync(cancellationToken);
 
         await eventBus.PublishAsync(new StepCompleted(execution.Id, step.StepOrder, ForEach.ActionType, results), cancellationToken);
