@@ -754,7 +754,7 @@ function WorkflowCallEditor({
 }
 
 // forEach: an items array (usually a template that resolves to an array) and the workflow to run
-// per item. Runs sequentially; the step output is the array of child results.
+// per item. Concurrency runs several items at once (default 1); the step output is the array of results.
 function ForEachEditor({
   value,
   onChange,
@@ -797,9 +797,21 @@ function ForEachEditor({
           ))}
         </select>
       </label>
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium text-zinc-400">Concurrency</span>
+        <input
+          type="number"
+          min={1}
+          className={inputClass}
+          placeholder="1"
+          value={typeof value.concurrency === "number" ? value.concurrency : ""}
+          onChange={(e) => set({ concurrency: e.target.value === "" ? undefined : Number(e.target.value) })}
+        />
+      </label>
       <p className="text-[11px] text-zinc-600">
-        Runs the workflow once per array item (sequentially); each item is the child's
-        <code> {"{{trigger.payload}}"}</code>. The step output is the array of results.
+        Runs the workflow once per array item; each item is the child's
+        <code> {"{{trigger.payload}}"}</code>. The step output is the array of results. Concurrency runs
+        several items at once (default 1).
       </p>
     </div>
   );
