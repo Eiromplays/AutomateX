@@ -1,7 +1,15 @@
 # forEach (loops)
 
-**Status:** proposed (v3.4) · builds on `workflow.call` (`docs/sub-workflows-design.md`) and the
-durable suspend/resume keystone.
+**Status:** shipped (v3.4 sequential) · **capped-parallel shipped v4.10** · builds on `workflow.call`
+(`docs/sub-workflows-design.md`) and the durable suspend/resume keystone.
+
+> **v4.10 update.** The capped-parallel follow-up sketched below landed, but the accumulator was
+> rebuilt rather than lock-wrapped: the single `ResultsJson` blob + `NextIndex` cursor described in
+> "State" are replaced by **per-item `ForEachItemResult` rows + atomic counter `UPDATE`s** (each child
+> writes only its own row; a lock-free parent-status claim elects the finisher). This removed the
+> O(N²) blob re-serialization and the single-row hotspot, so no row lock or optimistic-retry was
+> needed. `concurrency` is a config field clamped to `[1, min(total, Engine:ForEachMaxConcurrency)]`
+> (ceiling default 20). See `docs/foreach-concurrency-design.md`.
 
 ## Problem
 
@@ -21,8 +29,8 @@ Config: `{ items, workflowId, concurrency? }`
 - `items` — a template resolving to a JSON array (e.g. `{{steps.fetch.output.rows}}`). Each element
   becomes a child's `{{trigger.payload}}`.
 - `workflowId` — the child workflow (same workspace).
-- `concurrency` — max children in flight. **v1 ships sequential (`concurrency = 1`)**; capped-parallel
-  is a follow-up (see below).
+- `concurrency` — max children in flight. v1 shipped sequential (`concurrency = 1`); capped-parallel
+  shipped in v4.10 (see the update note at the top).
 
 The step's output is `[<child result>, …]` in item order — each child result is the same
 `{status, executionId, output}` shape as `workflow.call`.
@@ -65,10 +73,10 @@ The accumulator mutation in step 3 must be atomic against concurrently-finishing
 
 - **v1 (sequential, `concurrency = 1`):** only one child is ever in flight, so there is no concurrent
   mutation — the accumulator updates one at a time, no locking needed. Correct and simple.
-- **v1.x (capped parallel):** wrap the `ForEachState` read-modify-write in a row lock
-  (`SELECT … FOR UPDATE` / serializable tx) or an optimistic concurrency token with retry, so two
-  children finishing at once can't lose an update or double-launch. This is the only reason parallel
-  is deferred — the launch side is trivial; the join is what needs the lock.
+- **v1.x (capped parallel) — shipped v4.10, differently.** Rather than lock the blob's read-modify-write,
+  the accumulator moved to per-item rows + atomic counter `UPDATE`s (see the v4.10 update note at the
+  top), which is contention-free and needs no row lock or optimistic-retry. The launch side stayed
+  trivial (a stateless `i + concurrency` chain rule); the join became lock-free instead of locked.
 
 Idempotency: a redelivered child-resume must not double-count. Guard on the slot — only the first
 write to `Results[ItemIndex]` increments `CompletedCount` (slot already filled → no-op).

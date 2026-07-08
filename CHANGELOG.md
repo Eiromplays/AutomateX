@@ -3,6 +3,26 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.10.0
+
+A focused minor closing the long-standing `forEach` follow-up: loop children can now run in bounded
+parallel. One migration (a per-item results table).
+
+- **`forEach` runs items in parallel, capped.** A `forEach` step took its array strictly one item at a
+  time. A new **`concurrency`** (default `1` = unchanged) runs up to N children at once, clamped to
+  `[1, min(itemCount, Engine:ForEachMaxConcurrency)]` (ceiling default `20` so a large array can't fan
+  out unbounded). Set it in the builder's forEach editor. Results still come back **in item order** and
+  per-item failures still land in their own slot — only the number in flight changes. Under the hood the
+  accumulator was rebuilt: instead of one serialized results blob (which re-serialized the whole array on
+  every completion — O(N²) — and was a single row every parallel child contended on), each item now has
+  its own row in a new `ForEachItemResults` table. A child writes only its own row (contention-free,
+  idempotent via the unique `(ExecutionId, StepOrder, ItemIndex)` key); counters advance with atomic
+  `UPDATE`s and a single finisher is elected lock-free, so completions never lose a result or double-run.
+  Adds the `ForEachItemResults` table and drops the old `ForEachState.ResultsJson`/`NextIndex` columns;
+  `concurrency = 1` is byte-for-byte the previous behaviour. See
+  [docs/foreach-concurrency-design.md](docs/foreach-concurrency-design.md) and
+  [docs/recipes/sub-workflows-and-loops.md](docs/recipes/sub-workflows-and-loops.md).
+
 ## v4.9.0
 
 A loose-ends release clearing the two follow-ups that have ridden along since v4.4/v4.5 — a live

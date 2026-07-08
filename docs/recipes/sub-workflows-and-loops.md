@@ -37,8 +37,9 @@ switch         value = {{steps.fulfil.output.status}}
 Run a workflow once per array item and collect the results:
 
 ```
-forEach   items      = {{steps.fetch.output.rows}}   # an array
-          workflowId = <pick a workflow>
+forEach   items       = {{steps.fetch.output.rows}}   # an array
+          workflowId  = <pick a workflow>
+          concurrency = 5                              # optional, default 1
 ```
 
 Each item becomes that run's `{{trigger.payload}}`. The step output is the array of child results, in
@@ -48,10 +49,11 @@ item order:
 [ { "status": "Succeeded", "output": … }, { "status": "Succeeded", "output": … } ]
 ```
 
-- Runs **sequentially** in this release (one item at a time); an empty array completes instantly.
+- **Concurrency** runs up to N items at once (default 1 = one at a time); an empty array completes
+  instantly. It's capped at `Engine:ForEachMaxConcurrency` (default 20) so a large array can't fan out
+  unbounded child runs. Results are always collected in item order regardless of concurrency.
 - Per-item failures land as `status: "Failed"` in that slot — inspect the results array downstream
   (e.g. `transform` to filter failures).
-- A concurrency cap (run N at once) is planned.
 
 ## Putting it together
 
