@@ -42,6 +42,8 @@ export default function ApiKeys() {
     workflowId: "",
     role: "Viewer",
     expiresAt: "",
+    rateLimitPerMinute: "",
+    ipAllowlist: "",
   });
   const [created, setCreated] = useState<CreatedApiKey | null>(null);
 
@@ -59,7 +61,7 @@ export default function ApiKeys() {
     },
     onSuccess: (key) => {
       setCreated(key);
-      setForm((f) => ({ ...f, name: "", workflowId: "", expiresAt: "" }));
+      setForm((f) => ({ ...f, name: "", workflowId: "", expiresAt: "", rateLimitPerMinute: "", ipAllowlist: "" }));
       queryClient.invalidateQueries({ queryKey: ["apikeys"] });
     },
     onError: (error) => toast.error(`Create failed — ${String(error)}`),
@@ -155,7 +157,29 @@ export default function ApiKeys() {
                   onChange={(e) => setForm({ ...form, expiresAt: e.target.value })}
                 />
               </label>
+
+              <label className="flex items-center gap-2 text-xs text-zinc-500">
+                Rate limit
+                <input
+                  type="number"
+                  min={1}
+                  className={`${inputClass} flex-1`}
+                  placeholder="req/min (blank = unlimited)"
+                  value={form.rateLimitPerMinute}
+                  onChange={(e) => setForm({ ...form, rateLimitPerMinute: e.target.value })}
+                />
+              </label>
             </div>
+
+            <label className="block text-xs text-zinc-500">
+              IP allowlist <span className="text-zinc-600">— one CIDR or IP per line; blank = any address</span>
+              <textarea
+                className={`${inputClass} mt-1 h-16 w-full font-mono`}
+                placeholder={"203.0.113.0/24\n198.51.100.7"}
+                value={form.ipAllowlist}
+                onChange={(e) => setForm({ ...form, ipAllowlist: e.target.value })}
+              />
+            </label>
 
             <div className="flex items-center justify-between">
               <p className="text-xs text-zinc-600">
@@ -200,6 +224,17 @@ export default function ApiKeys() {
                       <div className="text-xs text-zinc-600">
                         last used {fmtDateTime(key.lastUsedAt)} · expires {fmtDate(key.expiresAt)} · by {key.createdBy}
                       </div>
+                      {(key.rateLimitPerMinute !== null || key.ipAllowlist.length > 0) && (
+                        <div className="text-xs text-zinc-600">
+                          {key.rateLimitPerMinute !== null && <span>{key.rateLimitPerMinute} req/min</span>}
+                          {key.rateLimitPerMinute !== null && key.ipAllowlist.length > 0 && " · "}
+                          {key.ipAllowlist.length > 0 && (
+                            <span>
+                              IPs <code className="text-zinc-500">{key.ipAllowlist.join(", ")}</code>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {!revoked && (
                       <button

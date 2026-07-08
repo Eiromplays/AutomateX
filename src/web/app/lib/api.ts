@@ -405,6 +405,8 @@ export type ApiKeySummary = {
   lastUsedAt: string | null;
   expiresAt: string | null;
   revokedAt: string | null;
+  rateLimitPerMinute: number | null;
+  ipAllowlist: string[];
 };
 
 // The mint response: `token` is the full atx_ credential, shown once and never retrievable.
@@ -417,6 +419,8 @@ export type CreatedApiKey = {
   workflowId: string | null;
   role: string;
   expiresAt: string | null;
+  rateLimitPerMinute: number | null;
+  ipAllowlist: string[];
   token: string;
 };
 
@@ -427,6 +431,8 @@ export type CreateApiKeyBody = {
   workflowId?: string | null;
   role?: string | null;
   expiresAt?: string | null;
+  rateLimitPerMinute?: number | null;
+  ipAllowlist?: string[];
 };
 
 export const api = {
