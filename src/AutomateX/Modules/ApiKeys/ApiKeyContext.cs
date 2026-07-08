@@ -12,7 +12,9 @@ public sealed record ApiKeyContext(
     WorkspaceRole Role,
     string Actor,
     int? RateLimitPerMinute = null,
-    ClientIpAllowlist IpAllowlist = default)
+    ClientIpAllowlist IpAllowlist = default,
+    // The key's stable unique id — the rate limiter partitions on this (Name/Actor isn't unique).
+    Guid KeyId = default)
 {
     private const string ItemKey = "atx.apikey-context";
 

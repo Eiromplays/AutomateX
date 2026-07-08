@@ -39,7 +39,7 @@ public sealed class ApiKeyResolver(AutomateXDbContext dbContext, ApiKeyPresence 
 
         return new ApiKeyContext(
             key.Scope, key.WorkspaceId, key.WorkflowId, key.Role, $"key:{key.Name}",
-            key.RateLimitPerMinute, ClientIpAllowlist.Parse(key.IpAllowlist));
+            key.RateLimitPerMinute, ClientIpAllowlist.Parse(key.IpAllowlist), key.Id);
     }
 
     // Whether the instance has any usable key — the gate's signal to engage in DB-key-only mode.
