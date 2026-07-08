@@ -3,6 +3,29 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v4.11.0
+
+A focused minor hardening dynamic API keys: each key can now carry a **requests-per-minute cap** and a
+**client-IP allowlist**, both enforced at the auth boundary. One migration (two nullable/empty columns);
+opt-in, so existing keys are unchanged.
+
+- **Per-key rate limit.** A key can set `rateLimitPerMinute`; requests presenting it are fixed-windowed
+  (1 minute) and return **429** over the cap. A global limiter reads the authenticated key from the
+  request — no per-endpoint wiring — bucketed by the key's **id** (not its name, which isn't unique), so
+  two keys never share an allowance. Any request with no key or no limit passes through untouched, so the
+  existing per-IP webhook/auth limiters are unaffected.
+- **Per-key IP allowlist.** A key can set `ipAllowlist` — CIDRs and/or bare IPs; a request presenting it
+  from any other client IP is refused (**403**) at the gate, covering both `/api` and `/hubs`. The match
+  uses the real client IP recovered from the trusted proxy (the v4.6 forwarded-headers pipeline), so it
+  can't be spoofed via a raw `X-Forwarded-For`. Malformed entries are rejected when the key is minted
+  (400), and parsing fails **closed** — a stored entry that won't parse fences the key rather than
+  silently opening it. Behind a proxy, pin `ForwardedHeaders:KnownProxies` to your proxy's IP(s) so the
+  client IP can be trusted.
+- Both default off (null limit / empty allowlist = today's behaviour). Set them in **Settings → API
+  keys** or via `POST /api/keys`. Adds two `ApiKeys` columns; no other schema change. See
+  [docs/recipes/api-keys.md](docs/recipes/api-keys.md) and
+  [docs/api-key-hardening-design.md](docs/api-key-hardening-design.md).
+
 ## v4.10.0
 
 A focused minor closing the long-standing `forEach` follow-up: loop children can now run in bounded

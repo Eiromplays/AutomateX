@@ -148,4 +148,5 @@ Each slice stays green (`dotnet test`; web `pnpm test/typecheck/lint/build`); mi
 - **Instance keys are always admin** (`Role` ignored for `Scope=Instance`). A read-only-across-all-
   workspaces variant is deferred; the `Role` column already exists, so it's a no-migration add later.
 - **Per-key rate limits / IP allowlists:** out of scope for v4.6; the entity has room to add later.
+  *(Shipped in v4.11 — see `docs/api-key-hardening-design.md`.)*
 ```

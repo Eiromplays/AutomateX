@@ -33,7 +33,7 @@ the key. It's ignored for `Instance` keys (they're always admin).
 ## Mint a key
 
 **UI:** **Settings → API keys → Create a key.** Give it a name, choose a scope (and a role/workflow), and
-optionally an expiry. Copy the token from the one-time dialog.
+optionally an expiry, a rate limit, and an IP allowlist. Copy the token from the one-time dialog.
 
 **API:** `POST /api/keys`
 
@@ -43,12 +43,32 @@ optionally an expiry. Copy the token from the one-time dialog.
   "scope": "Workspace",         // Instance | Workspace | Workflow
   "role": "Viewer",             // ignored for Instance
   "workflowId": null,           // required for Workflow scope
-  "expiresAt": "2026-12-31T23:59:59Z"  // optional; null = never
+  "expiresAt": "2026-12-31T23:59:59Z", // optional; null = never
+  "rateLimitPerMinute": 120,    // optional; null = unlimited (see Guardrails)
+  "ipAllowlist": ["203.0.113.0/24"] // optional; [] = any address (see Guardrails)
 }
 ```
 
 The response includes `token` — the only time you'll see it. `workspaceId` is taken from the
 `X-Workspace-Id` header (the workspace you're minting in); `Instance` keys ignore it.
+
+## Guardrails: rate limit & IP allowlist
+
+Two optional per-key limits (v4.11), both **off by default** — a null limit and an empty allowlist behave
+exactly as before. Set them at mint time (UI fields or the JSON above).
+
+- **`rateLimitPerMinute`** — the most requests this key may make per minute. Over the cap, requests get
+  **429**. The window is fixed (1 minute) and each key has its own bucket, so one key's traffic never eats
+  another's allowance. Leave it null for no limit.
+- **`ipAllowlist`** — CIDRs and/or bare IPs the key may be used from (e.g. `["203.0.113.0/24",
+  "198.51.100.7"]`). A request presenting the key from any other client IP is refused with **403**, on
+  both the API and the live hubs. Malformed entries are rejected when you mint the key. Leave it empty for
+  any address.
+
+> **Behind a reverse proxy, pin your proxy's IP(s)** with `ForwardedHeaders:KnownProxies` (a CSV of the
+> proxy addresses). The allowlist matches the real client IP recovered from the proxy's forwarded headers;
+> if the trusted-proxy set is too broad, a host that can reach the app directly could forge that header.
+> Pinning the proxy makes the client IP trustworthy. See [self-deploy](./self-deploy.md).
 
 **Who can mint:** instance admins mint any scope. A workspace **`Owner`** mints `Workspace`/`Workflow`
 keys within their own workspace, at a role no higher than their own. Editors and Viewers can't mint.
