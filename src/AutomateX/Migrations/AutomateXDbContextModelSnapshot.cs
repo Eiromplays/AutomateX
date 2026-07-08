@@ -39,6 +39,12 @@ namespace AutomateX.Migrations
                     b.Property<DateTimeOffset?>("ExpiresAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.PrimitiveCollection<string[]>("IpAllowlist")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text[]")
+                        .HasDefaultValueSql("'{}'");
+
                     b.Property<DateTimeOffset?>("LastUsedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -51,6 +57,9 @@ namespace AutomateX.Migrations
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
+
+                    b.Property<int?>("RateLimitPerMinute")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
@@ -220,6 +229,36 @@ namespace AutomateX.Migrations
                     b.ToTable("Executions");
                 });
 
+            modelBuilder.Entity("AutomateX.Modules.Executions.ForEachItemResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ExecutionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Failed")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("ItemIndex")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<int>("StepOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExecutionId", "StepOrder", "ItemIndex")
+                        .IsUnique();
+
+                    b.ToTable("ForEachItemResults");
+                });
+
             modelBuilder.Entity("AutomateX.Modules.Executions.ForEachState", b =>
                 {
                     b.Property<Guid>("Id")
@@ -235,17 +274,13 @@ namespace AutomateX.Migrations
                     b.Property<int>("CompletedCount")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Concurrency")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("ExecutionId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("ItemsJson")
-                        .IsRequired()
-                        .HasColumnType("jsonb");
-
-                    b.Property<int>("NextIndex")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ResultsJson")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
@@ -775,6 +810,15 @@ namespace AutomateX.Migrations
                     b.HasOne("AutomateX.Modules.Workspaces.Workspace", null)
                         .WithMany()
                         .HasForeignKey("WorkspaceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AutomateX.Modules.Executions.ForEachItemResult", b =>
+                {
+                    b.HasOne("AutomateX.Modules.Executions.Execution", null)
+                        .WithMany()
+                        .HasForeignKey("ExecutionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

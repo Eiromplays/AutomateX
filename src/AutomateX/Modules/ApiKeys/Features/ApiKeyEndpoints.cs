@@ -54,6 +54,19 @@ public static class CreateApiKey
                 return;
             }
 
+            if (req.RateLimitPerMinute is { } rateLimit && rateLimit < 1)
+            {
+                ThrowError("rateLimitPerMinute must be a positive number.");
+                return;
+            }
+
+            var ipAllowlist = req.IpAllowlist ?? [];
+            if (ClientIpAllowlist.FindInvalid(ipAllowlist) is { Count: > 0 } invalid)
+            {
+                ThrowError($"ipAllowlist has invalid entries: {string.Join(", ", invalid)}");
+                return;
+            }
+
             var isAdmin = access.IsInstanceAdmin(HttpContext);
             var myRole = isAdmin || scope == ApiKeyScope.Instance
                 ? (WorkspaceRole?)null
@@ -89,7 +102,9 @@ public static class CreateApiKey
                 scope == ApiKeyScope.Workflow ? req.WorkflowId : null,
                 role,
                 WorkspaceAccess.GetActor(HttpContext),
-                req.ExpiresAt);
+                req.ExpiresAt,
+                req.RateLimitPerMinute,
+                ipAllowlist);
 
             dbContext.ApiKeys.Add(key);
             await dbContext.SaveChangesAsync(ct);
@@ -102,18 +117,19 @@ public static class CreateApiKey
             await Send.OkAsync(
                 new Response(
                     key.Id, key.Name, key.Prefix, key.Scope.ToString(), key.WorkspaceId, key.WorkflowId,
-                    key.Role.ToString(), key.ExpiresAt, token),
+                    key.Role.ToString(), key.ExpiresAt, key.RateLimitPerMinute, key.IpAllowlist, token),
                 ct);
         }
     }
 
     public sealed record Request(
-        string? Name, string? Scope, Guid? WorkspaceId, Guid? WorkflowId, string? Role, DateTimeOffset? ExpiresAt);
+        string? Name, string? Scope, Guid? WorkspaceId, Guid? WorkflowId, string? Role, DateTimeOffset? ExpiresAt,
+        int? RateLimitPerMinute = null, string[]? IpAllowlist = null);
 
     // Token is the full one-time credential; every other field is safe to keep.
     public sealed record Response(
         Guid Id, string Name, string Prefix, string Scope, Guid? WorkspaceId, Guid? WorkflowId,
-        string Role, DateTimeOffset? ExpiresAt, string Token);
+        string Role, DateTimeOffset? ExpiresAt, int? RateLimitPerMinute, string[] IpAllowlist, string Token);
 }
 
 // List keys (metadata only — never a secret or hash). Instance admins see every key; a workspace Owner
@@ -149,7 +165,7 @@ public static class GetApiKeys
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new Response(
                     x.Id, x.Name, x.Prefix, x.Scope.ToString(), x.WorkspaceId, x.WorkflowId, x.Role.ToString(),
-                    x.CreatedBy, x.CreatedAt, x.LastUsedAt, x.ExpiresAt, x.RevokedAt))
+                    x.CreatedBy, x.CreatedAt, x.LastUsedAt, x.ExpiresAt, x.RevokedAt, x.RateLimitPerMinute, x.IpAllowlist))
                 .ToListAsync(ct);
 
             await Send.OkAsync(keys, ct);
@@ -159,7 +175,7 @@ public static class GetApiKeys
     public sealed record Response(
         Guid Id, string Name, string Prefix, string Scope, Guid? WorkspaceId, Guid? WorkflowId, string Role,
         string CreatedBy, DateTimeOffset CreatedAt, DateTimeOffset? LastUsedAt, DateTimeOffset? ExpiresAt,
-        DateTimeOffset? RevokedAt);
+        DateTimeOffset? RevokedAt, int? RateLimitPerMinute, string[] IpAllowlist);
 }
 
 // Soft-revoke a key (the row survives for audit). Same authz as minting; idempotent.

@@ -51,6 +51,42 @@ public sealed class ApiKeyResolverTests(EngineFixture fixture) : IClassFixture<E
     }
 
     [Fact]
+    public async Task Resolves_per_key_rate_limit_and_ip_allowlist_into_the_context()
+    {
+        var (resolver, _, db, scope) = Create();
+        using var _ = scope;
+        var (token, prefix, hash) = ApiKeyToken.Mint();
+        db.ApiKeys.Add(ApiKey.Create(
+            "guarded", prefix, hash, ApiKeyScope.Instance, null, null, WorkspaceRole.Owner, "test",
+            expiresAt: null, rateLimitPerMinute: 120, ipAllowlist: ["203.0.113.0/24"]));
+        await db.SaveChangesAsync();
+
+        var context = await resolver.ResolveAsync(token, CancellationToken.None);
+
+        Assert.NotNull(context);
+        Assert.Equal(120, context!.RateLimitPerMinute);
+        Assert.False(context.IpAllowlist.IsEmpty);
+        Assert.True(context.IpAllowlist.Allows(System.Net.IPAddress.Parse("203.0.113.9")));
+        Assert.False(context.IpAllowlist.Allows(System.Net.IPAddress.Parse("198.51.100.1")));
+    }
+
+    [Fact]
+    public async Task Unguarded_key_resolves_to_no_limit_and_an_open_allowlist()
+    {
+        var (resolver, _, db, scope) = Create();
+        using var _ = scope;
+        var (token, key) = NewKey("plain", ApiKeyScope.Instance, role: WorkspaceRole.Owner);
+        db.ApiKeys.Add(key);
+        await db.SaveChangesAsync();
+
+        var context = await resolver.ResolveAsync(token, CancellationToken.None);
+
+        Assert.NotNull(context);
+        Assert.Null(context!.RateLimitPerMinute);
+        Assert.True(context.IpAllowlist.IsEmpty);
+    }
+
+    [Fact]
     public async Task Wrong_secret_does_not_resolve()
     {
         var (resolver, _, db, scope) = Create();

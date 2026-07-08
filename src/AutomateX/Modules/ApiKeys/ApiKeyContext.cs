@@ -10,7 +10,9 @@ public sealed record ApiKeyContext(
     Guid? WorkspaceId,
     Guid? WorkflowId,
     WorkspaceRole Role,
-    string Actor)
+    string Actor,
+    int? RateLimitPerMinute = null,
+    ClientIpAllowlist IpAllowlist = default)
 {
     private const string ItemKey = "atx.apikey-context";
 

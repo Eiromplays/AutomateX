@@ -44,6 +44,11 @@ public sealed class ApiKey
 
     public DateTimeOffset? RevokedAt { get; private set; }
 
+    // Optional per-key guards (v4.11). Null limit = unlimited; empty allowlist = any client IP.
+    public int? RateLimitPerMinute { get; private set; }
+
+    public string[] IpAllowlist { get; private set; } = [];
+
     public bool IsActive(DateTimeOffset now) => RevokedAt is null && (ExpiresAt is null || ExpiresAt > now);
 
     public static ApiKey Create(
@@ -55,7 +60,9 @@ public sealed class ApiKey
         Guid? workflowId,
         WorkspaceRole role,
         string createdBy,
-        DateTimeOffset? expiresAt) => new()
+        DateTimeOffset? expiresAt,
+        int? rateLimitPerMinute = null,
+        string[]? ipAllowlist = null) => new()
     {
         Id = Guid.CreateVersion7(),
         Name = name,
@@ -69,6 +76,8 @@ public sealed class ApiKey
         CreatedBy = createdBy,
         CreatedAt = DateTimeOffset.UtcNow,
         ExpiresAt = expiresAt,
+        RateLimitPerMinute = rateLimitPerMinute,
+        IpAllowlist = ipAllowlist ?? [],
     };
 
     public void Revoke() => RevokedAt = DateTimeOffset.UtcNow;
