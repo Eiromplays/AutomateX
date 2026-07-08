@@ -462,22 +462,30 @@ public static class ExecuteStepHandler
                 $"forEach exceeded the maximum nesting depth ({options.MaxChainDepth}).", dbContext, eventBus, options, logger, cancellationToken);
         }
 
-        // m1: concurrency is fixed at 1 (sequential launch); the config field + batch launch land in m2.
+        var concurrency = Math.Clamp(config.Concurrency, 1, Math.Min(total, options.ForEachMaxConcurrency));
         var state = ForEachState.Create(
-            execution.Id, stepOrder, config.WorkflowId, config.Items.GetRawText(), total, concurrency: 1);
+            execution.Id, stepOrder, config.WorkflowId, config.Items.GetRawText(), total, concurrency);
         dbContext.ForEachStates.Add(state);
 
         stepExecution.Suspend();
         execution.Suspend();
-
-        var firstPayload = state.ItemPayload(0);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation(
-            "Execution {ExecutionId} forEach over {Total} item(s) at step {StepOrder}", execution.Id, total, stepOrder);
+            "Execution {ExecutionId} forEach over {Total} item(s), {Concurrency} at a time, at step {StepOrder}",
+            execution.Id, total, concurrency, stepOrder);
 
-        return new RunWorkflow(
-            Guid.CreateVersion7(), config.WorkflowId, $"foreach:{execution.Id}", firstPayload,
-            EntryOrder: null, ParentExecutionId: execution.Id, ParentStepOrder: stepOrder, Depth: childDepth, ParentItemIndex: 0);
+        // Seed the first min(concurrency, total) items; each heads a chain the accumulator extends by
+        // +concurrency as items finish, so the in-flight count holds at concurrency until items run out.
+        List<object> batch = [];
+        for (var i = 0; i < concurrency; i++)
+        {
+            batch.Add(new RunWorkflow(
+                Guid.CreateVersion7(), config.WorkflowId, $"foreach:{execution.Id}", state.ItemPayload(i),
+                EntryOrder: null, ParentExecutionId: execution.Id, ParentStepOrder: stepOrder,
+                Depth: childDepth, ParentItemIndex: i));
+        }
+
+        return Cascade(batch);
     }
 
     // Deterministic step failure: fail the step + execution, fan out terminal messages, emit events.

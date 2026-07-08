@@ -3,7 +3,9 @@ using AutomateX.Plugin.Sdk;
 
 namespace AutomateX.Engine.Actions;
 
-public sealed record ForEachConfig(JsonElement Items, Guid WorkflowId);
+// Concurrency = max children in flight (default 1 = sequential); clamped to [1, min(total, ceiling)]
+// at enter, where the ceiling is Engine:ForEachMaxConcurrency.
+public sealed record ForEachConfig(JsonElement Items, Guid WorkflowId, int Concurrency = 1);
 
 public static class ForEach
 {
@@ -15,7 +17,8 @@ public static class ForEach
 [Action("forEach", "For Each",
     Description = "Run a workflow once per item of an array and collect the results in order. items is "
         + "an array (e.g. {{steps.fetch.output.rows}}); each item becomes the child's {{trigger.payload}}. "
-        + "The step output is the array of child results ({status, output} each). Runs sequentially.")]
+        + "The step output is the array of child results ({status, output} each). Set concurrency to run "
+        + "several items at once (default 1 = sequential).")]
 public sealed class ForEachAction : IAction<ForEachConfig, JsonElement>
 {
     public Task<JsonElement> ExecuteAsync(

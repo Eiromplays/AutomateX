@@ -78,6 +78,34 @@ public sealed class ForEachEngineTests(EngineFixture fixture) : IClassFixture<En
     }
 
     [Fact]
+    public async Task Runs_items_in_parallel_and_still_orders_results()
+    {
+        fixture.ProbeAction.Reset();
+        var childId = await SeedAsync(new StepDefinition("test.probe", "c", """{"v":"{{trigger.payload}}"}"""));
+        // 7 items, 3 at a time: children finish in any order, but the finisher gathers by ItemIndex.
+        var parentId = await SeedAsync(
+            new StepDefinition(
+                "forEach", "loop",
+                $$"""{"items":["a","b","c","d","e","f","g"],"workflowId":"{{childId}}","concurrency":3}"""));
+
+        var parent = await TestData.WaitForCompletedAsync(
+            fixture.Host, await TestData.ExecuteAsync(fixture.Host, parentId), Timeout);
+
+        Assert.Equal(ExecutionStatus.Succeeded, parent.Status);
+        Assert.Equal(7, fixture.ProbeAction.Calls); // every item ran exactly once
+
+        using var results = JsonDocument.Parse(parent.Steps.Single(s => s.StepOrder == 0).Output!);
+        var items = results.RootElement.EnumerateArray()
+            .Select(r => r.GetProperty("output").GetString() ?? "")
+            .ToList();
+        Assert.Equal(7, items.Count);
+        foreach (var (expected, i) in new[] { "a", "b", "c", "d", "e", "f", "g" }.Select((v, i) => (v, i)))
+        {
+            Assert.Contains(expected, items[i]);
+        }
+    }
+
+    [Fact]
     public async Task Empty_array_completes_immediately_and_continues()
     {
         fixture.ProbeAction.Reset();

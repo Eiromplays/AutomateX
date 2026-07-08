@@ -34,6 +34,10 @@ public sealed class EngineOptions
     // its depth exceeds this — then the firing is skipped (logged, not failed).
     public int MaxChainDepth { get; set; } = 5;
 
+    // Ceiling on a forEach step's concurrency, so a large array can't fan out unbounded child runs.
+    // A step's requested concurrency is clamped to [1, min(itemCount, this)].
+    public int ForEachMaxConcurrency { get; set; } = 20;
+
     // Relative paths resolve against AppContext.BaseDirectory.
     public string PluginsPath { get; set; } = "plugins";
 
