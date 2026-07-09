@@ -15,6 +15,8 @@ var api = builder.AddProject<Projects.AutomateX>("api")
     .WaitFor(db)
     // Dev convenience: `dotnet publish … -o …/plugins/<Name>` hot-reloads automatically.
     .WithEnvironment("Engine__WatchPlugins", "true")
+    // Local dev is a single node: run every agent here, skip leader election + cross-node control traffic.
+    .WithEnvironment("Engine__DurabilityMode", "Solo")
     .WithExternalHttpEndpoints();
 
 builder.AddViteApp("web", "../web")

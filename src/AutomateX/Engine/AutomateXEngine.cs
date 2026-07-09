@@ -6,6 +6,7 @@ using AutomateX.Engine.Security;
 using AutomateX.Plugin.Protocol;
 using AutomateX.Plugin.Sdk;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using Wolverine;
 using Wolverine.EntityFrameworkCore;
@@ -28,8 +29,11 @@ public static class AutomateXEngine
             // Engine handlers live in this assembly regardless of host (app or tests).
             opts.ApplicationAssembly = typeof(AutomateXEngine).Assembly;
 
-            // Single-node by design — matches the one-container hosting story (plan §10).
-            opts.Durability.Mode = DurabilityMode.Solo;
+            // v5.0: cluster mode is configurable. Balanced (default) enables Wolverine leader election +
+            // distributed durability agents so the engine runs on N nodes; Solo starts every agent on the
+            // local node (dev/test/single-node). Read from config here — it's needed while UseWolverine is
+            // configured, before EngineOptions is bound.
+            opts.Durability.Mode = ResolveDurabilityMode(builder.Configuration);
 
             opts.PersistMessagesWithPostgresql(connectionString, "wolverine");
             opts.Policies.UseDurableLocalQueues();
@@ -140,6 +144,22 @@ public static class AutomateXEngine
         builder.Services.AddHostedService<RetentionSweeper>();
 
         return builder;
+    }
+
+    // Balanced (default) = multi-node: leader election + distributed durability agents. Solo = single node.
+    // Unset falls back to Balanced; an unrecognised value fails loudly rather than silently picking a mode.
+    internal static DurabilityMode ResolveDurabilityMode(IConfiguration configuration)
+    {
+        var configured = configuration["Engine:DurabilityMode"];
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return DurabilityMode.Balanced;
+        }
+
+        return Enum.TryParse<DurabilityMode>(configured, ignoreCase: true, out var mode)
+            ? mode
+            : throw new InvalidOperationException(
+                $"Engine:DurabilityMode '{configured}' is not a valid Wolverine DurabilityMode (e.g. Balanced, Solo).");
     }
 
     // Primary handler for the action/trigger HTTP clients. When the SSRF guard is on, it only

@@ -131,6 +131,8 @@ public sealed class EngineFixture : IAsyncLifetime
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Encryption:Key"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),
+            // Single test node: run every agent locally, skip leader election + cross-node control traffic.
+            ["Engine:DurabilityMode"] = "Solo",
         });
         builder.AddAutomateXEngine(connectionString, options =>
         {
