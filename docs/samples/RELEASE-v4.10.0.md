@@ -19,10 +19,13 @@ parallel** instead of strictly one at a time. One migration (a per-item results 
 
 ## Upgrade notes
 
-- **One migration.** `AddForEachItemResult` creates the `ForEachItemResults` table (+ its unique index),
-  adds `ForEachState.Concurrency`, and drops the now-unused `ForEachState.ResultsJson`/`NextIndex`
-  columns. Applied automatically on startup (`Database:MigrateOnStartup`, default on) or via
-  `dotnet ef database update`.
+- **Schema change (its migration landed in v4.11).** The rebuild creates the `ForEachItemResults` table
+  (+ its unique index), adds `ForEachState.Concurrency`, and drops the now-unused
+  `ForEachState.ResultsJson`/`NextIndex` columns. This shipped **without its own migration** in v4.10 —
+  the test suite builds the schema straight from the model (`EnsureCreated`), so it went unnoticed — and
+  the change was captured in v4.11's combined `AddApiKeyGuards` migration. A deploy crossing v4.10 → v4.11
+  applies it there; both migrations run automatically on startup (`Database:MigrateOnStartup`, default on)
+  or via `dotnet ef database update`.
 - **`concurrency = 1` is byte-for-byte the previous behaviour.** Existing workflows are untouched; the
   cap is opt-in per step.
 - **Config:** `Engine:ForEachMaxConcurrency` (default `20`) bounds how parallel any one loop can get.

@@ -1,8 +1,8 @@
 # AutomateX v4.11.0
 
 A focused minor hardening dynamic API keys: each key can now carry a **requests-per-minute cap** and a
-**client-IP allowlist**, both enforced at the auth boundary. One migration (two nullable/empty columns);
-opt-in, so existing keys are unchanged.
+**client-IP allowlist**, both enforced at the auth boundary. One migration (`AddApiKeyGuards`); opt-in,
+so existing keys are unchanged.
 
 ## Highlights
 
@@ -21,9 +21,10 @@ opt-in, so existing keys are unchanged.
 ## Upgrade notes
 
 - **One migration.** `AddApiKeyGuards` adds `ApiKeys.RateLimitPerMinute` (nullable int) and
-  `ApiKeys.IpAllowlist` (`text[]`, defaulting to `'{}'` so existing rows backfill to "any address").
-  Applied automatically on startup (`Database:MigrateOnStartup`, default on) or via
-  `dotnet ef database update`.
+  `ApiKeys.IpAllowlist` (`text[]`, defaulting to `'{}'` so existing rows backfill to "any address"). It
+  **also carries the v4.10 forEach schema** (the `ForEachItemResults` table and the `ForEachState` column
+  changes), which shipped without its own migration in v4.10 and folded in here. Applied automatically on
+  startup (`Database:MigrateOnStartup`, default on) or via `dotnet ef database update`.
 - **Both default off.** A null limit and an empty allowlist are byte-for-byte the previous behaviour; the
   guards are opt-in per key.
 - **Behind a reverse proxy, pin `ForwardedHeaders:KnownProxies`** to your proxy's IP(s). The allowlist

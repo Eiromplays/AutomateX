@@ -6,8 +6,9 @@ Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 ## v4.11.0
 
 A focused minor hardening dynamic API keys: each key can now carry a **requests-per-minute cap** and a
-**client-IP allowlist**, both enforced at the auth boundary. One migration (two nullable/empty columns);
-opt-in, so existing keys are unchanged.
+**client-IP allowlist**, both enforced at the auth boundary. One migration (`AddApiKeyGuards` — the two
+new columns, plus the v4.10 forEach schema that shipped without its own migration); opt-in, so existing
+keys are unchanged.
 
 - **Per-key rate limit.** A key can set `rateLimitPerMinute`; requests presenting it are fixed-windowed
   (1 minute) and return **429** over the cap. A global limiter reads the authenticated key from the
@@ -22,14 +23,16 @@ opt-in, so existing keys are unchanged.
   silently opening it. Behind a proxy, pin `ForwardedHeaders:KnownProxies` to your proxy's IP(s) so the
   client IP can be trusted.
 - Both default off (null limit / empty allowlist = today's behaviour). Set them in **Settings → API
-  keys** or via `POST /api/keys`. Adds two `ApiKeys` columns; no other schema change. See
+  keys** or via `POST /api/keys`. Adds two `ApiKeys` columns (in the combined `AddApiKeyGuards`
+  migration, which also carries the v4.10 forEach schema). See
   [docs/recipes/api-keys.md](docs/recipes/api-keys.md) and
   [docs/api-key-hardening-design.md](docs/api-key-hardening-design.md).
 
 ## v4.10.0
 
 A focused minor closing the long-standing `forEach` follow-up: loop children can now run in bounded
-parallel. One migration (a per-item results table).
+parallel. One schema change (a per-item results table) — it shipped without its own migration and was
+captured in v4.11's combined `AddApiKeyGuards` migration.
 
 - **`forEach` runs items in parallel, capped.** A `forEach` step took its array strictly one item at a
   time. A new **`concurrency`** (default `1` = unchanged) runs up to N children at once, clamped to
