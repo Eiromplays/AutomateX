@@ -1,7 +1,6 @@
 using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Modules.ApiKeys;
-using AutomateX.Plugin.Sdk;
 using AutomateX.Web;
 using FastEndpoints;
 using Microsoft.EntityFrameworkCore;
@@ -30,10 +29,7 @@ builder.AddAutomateXEngine(connectionString);
 builder.AddAutomateXAuth();
 builder.Services.AddFastEndpoints();
 builder.Services.AddAutomateXRateLimiting();
-builder.Services.AddSignalR();
-builder.Services.AddSingleton<IEngineEventListener, SignalRExecutionEventListener>();
-// Overrides the engine's NullPluginLogSink: fan plugin log lines out over SignalR for the live tail.
-builder.Services.AddSingleton<AutomateX.Engine.Plugins.IPluginLogSink, SignalRPluginLogSink>();
+builder.AddAutomateXRealtime();
 
 var app = builder.Build();
 
