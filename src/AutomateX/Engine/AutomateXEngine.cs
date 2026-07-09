@@ -18,6 +18,9 @@ namespace AutomateX.Engine;
 // fixture — config drift between app and tests is impossible by construction.
 public static class AutomateXEngine
 {
+    // Shared Postgres queue that carries the execution lane across nodes in Balanced mode.
+    private const string ExecutionQueue = "executions";
+
     public static TBuilder AddAutomateXEngine<TBuilder>(
         this TBuilder builder,
         string connectionString,
@@ -33,9 +36,35 @@ public static class AutomateXEngine
             // distributed durability agents so the engine runs on N nodes; Solo starts every agent on the
             // local node (dev/test/single-node). Read from config here — it's needed while UseWolverine is
             // configured, before EngineOptions is bound.
-            opts.Durability.Mode = ResolveDurabilityMode(builder.Configuration);
+            var durabilityMode = ResolveDurabilityMode(builder.Configuration);
+            opts.Durability.Mode = durabilityMode;
 
-            opts.PersistMessagesWithPostgresql(connectionString, "wolverine");
+            if (durabilityMode == DurabilityMode.Solo)
+            {
+                // Single node: fast in-proc durable local queues, no cross-node distribution needed.
+                opts.PersistMessagesWithPostgresql(connectionString, "wolverine");
+            }
+            else
+            {
+                // Multi-node: the Postgres transport is a shared, durable queue every node pulls from
+                // competitively (FOR UPDATE SKIP LOCKED), so executions distribute across the cluster. This
+                // call also activates the durable inbox/outbox, so it replaces PersistMessagesWithPostgresql.
+                opts.UsePostgresqlPersistenceAndTransport(connectionString, "wolverine", transportSchema: "wolverine_queues")
+                    .AutoProvision();
+
+                // The whole execution lane — the initial run and every cascaded step message — rides the
+                // shared queue, so any node can claim the next hop. Everything else stays on local queues.
+                // Postgres queues are polled (no LISTEN/NOTIFY); the interval trades start latency for DB load.
+                var pollInterval = builder.Configuration.GetValue<TimeSpan?>("Engine:ExecutionQueuePollInterval")
+                    ?? TimeSpan.FromSeconds(1);
+                opts.ListenToPostgresqlQueue(ExecutionQueue).PollingInterval(pollInterval);
+                opts.PublishMessage<RunWorkflow>().ToPostgresqlQueue(ExecutionQueue);
+                opts.PublishMessage<ExecuteStep>().ToPostgresqlQueue(ExecutionQueue);
+                opts.PublishMessage<AdvanceExecution>().ToPostgresqlQueue(ExecutionQueue);
+                opts.PublishMessage<ResumeExecution>().ToPostgresqlQueue(ExecutionQueue);
+                opts.PublishMessage<RetryFromStep>().ToPostgresqlQueue(ExecutionQueue);
+            }
+
             opts.Policies.UseDurableLocalQueues();
             opts.UseEntityFrameworkCoreTransactions();
             opts.Policies.AutoApplyTransactions();
