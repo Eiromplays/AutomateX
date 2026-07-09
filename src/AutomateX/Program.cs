@@ -45,7 +45,8 @@ await using (var scope = app.Services.CreateAsyncScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AutomateXDbContext>();
     if (app.Configuration.GetValue("Database:MigrateOnStartup", defaultValue: true))
     {
-        await dbContext.Database.MigrateAsync();
+        // Advisory-locked so N nodes booting at once don't race MigrateAsync (v5.0 m6).
+        await dbContext.MigrateWithAdvisoryLockAsync(connectionString);
     }
 
     await WorkspaceBootstrap.EnsureDefaultAsync(dbContext);
