@@ -146,6 +146,12 @@ public static class AutomateXEngine
         builder.Services.AddSingleton<Connections.ConnectionResolver>();
         builder.Services.AddSingleton<EngineEventBus>();
         builder.Services.AddSingleton<PluginReloader>();
+        // Cross-node reload (v5.0): an originating reload NOTIFYs peers; every node LISTENs and reloads.
+        builder.Services.AddSingleton<PluginReloadCoordinator>();
+        builder.Services.AddHostedService(sp => new PluginReloadListener(
+            connectionString,
+            sp.GetRequiredService<PluginReloadCoordinator>(),
+            sp.GetRequiredService<ILogger<PluginReloadListener>>()));
         // No-op by default; the Web layer overrides this with the SignalR fan-out (v4.9 m2).
         builder.Services.AddSingleton<Plugins.IPluginLogSink, Plugins.NullPluginLogSink>();
         builder.Services.AddSingleton(sp =>

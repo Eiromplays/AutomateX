@@ -108,7 +108,7 @@ public static class GetPlugins
 public static class ReloadPlugins
 {
     // Instance-wide, like the action catalog itself; sits behind the auth gate.
-    public sealed class Endpoint(PluginReloader reloader) : EndpointWithoutRequest<ReloadResult>
+    public sealed class Endpoint(PluginReloadCoordinator coordinator) : EndpointWithoutRequest<ReloadResult>
     {
         public override void Configure()
         {
@@ -117,7 +117,7 @@ public static class ReloadPlugins
         }
 
         public override async Task HandleAsync(CancellationToken ct) =>
-            await Send.OkAsync(reloader.Reload(), ct);
+            await Send.OkAsync(await coordinator.ReloadAndNotifyAsync(ct), ct);
     }
 }
 
@@ -128,7 +128,7 @@ public static class UploadPlugin
     // arbitrary code: it runs out-of-process (isolated since v4.0) but still as the host user.
     public sealed class Endpoint(
         PluginAssemblies plugins,
-        PluginReloader reloader,
+        PluginReloadCoordinator coordinator,
         IOptions<EngineOptions> options,
         WorkspaceAccess access) : EndpointWithoutRequest<Response>
     {
@@ -198,7 +198,7 @@ public static class UploadPlugin
                 ThrowError(exception.Message);
             }
 
-            var result = reloader.Reload();
+            var result = await coordinator.ReloadAndNotifyAsync(ct);
             var fingerprint = PluginFingerprints.Find(plugins, scope, workspaceId, name);
             await Send.OkAsync(
                 new Response(name, scope, result.GlobalPlugins, result.WorkspacePlugins, previousFingerprint, fingerprint),
@@ -219,7 +219,7 @@ public static class DeletePlugin
 {
     public sealed class Endpoint(
         PluginAssemblies plugins,
-        PluginReloader reloader,
+        PluginReloadCoordinator coordinator,
         ActionRegistry registry,
         AutomateXDbContext dbContext,
         IOptions<EngineOptions> options,
@@ -307,7 +307,7 @@ public static class DeletePlugin
             }
 
             Directory.Delete(directory, recursive: true);
-            reloader.Reload();
+            await coordinator.ReloadAndNotifyAsync(ct);
             await Send.NoContentAsync(ct);
         }
     }

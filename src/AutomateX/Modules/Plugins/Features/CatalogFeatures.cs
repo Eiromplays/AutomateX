@@ -81,7 +81,7 @@ public static class InstallCatalogPlugin
     // The download is hash-verified against the catalog BEFORE anything touches disk.
     public sealed class Endpoint(
         PluginAssemblies plugins,
-        PluginReloader reloader,
+        PluginReloadCoordinator coordinator,
         IHttpClientFactory httpClientFactory,
         IOptions<EngineOptions> options,
         WorkspaceAccess access,
@@ -154,7 +154,7 @@ public static class InstallCatalogPlugin
                 ThrowError(exception.Message);
             }
 
-            reloader.Reload();
+            await coordinator.ReloadAndNotifyAsync(ct);
             var fingerprint = PluginFingerprints.Find(plugins, "global", Guid.Empty, entry.Name);
             await audit.RecordAsync(
                 "plugin.install", null, WorkspaceAccess.GetActor(HttpContext),

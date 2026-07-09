@@ -46,7 +46,7 @@ public static class SetPluginEnabled
     public sealed record Request(bool Enabled);
 
     public sealed class Endpoint(
-        PluginAssemblies plugins, PluginReloader reloader, WorkspaceAccess access, IAuditSink audit)
+        PluginAssemblies plugins, PluginReloadCoordinator coordinator, WorkspaceAccess access, IAuditSink audit)
         : Endpoint<Request>
     {
         public override void Configure()
@@ -70,7 +70,7 @@ public static class SetPluginEnabled
                 return;
             }
 
-            reloader.Reload(); // rebuild registries so the plugin's capabilities appear/disappear
+            await coordinator.ReloadAndNotifyAsync(ct); // rebuild registries + tell peers so capabilities appear/disappear everywhere
             await audit.RecordAsync(
                 req.Enabled ? "plugin.enable" : "plugin.disable",
                 ws, WorkspaceAccess.GetActor(HttpContext), "plugin", name, name, ct);
