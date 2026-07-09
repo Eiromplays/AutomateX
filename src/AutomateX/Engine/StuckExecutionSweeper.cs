@@ -10,9 +10,9 @@ namespace AutomateX.Engine;
 public sealed class StuckExecutionSweeper(
     IServiceProvider serviceProvider,
     IOptions<EngineOptions> engineOptions,
-    ILogger<StuckExecutionSweeper> logger) : BackgroundService
+    ILogger<StuckExecutionSweeper> logger) : SingularBackgroundAgent("automatex-stuck-sweeper")
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(engineOptions.Value.SweepInterval);
 

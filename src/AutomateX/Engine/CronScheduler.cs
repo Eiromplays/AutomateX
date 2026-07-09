@@ -11,9 +11,9 @@ namespace AutomateX.Engine;
 public sealed class CronScheduler(
     IServiceProvider serviceProvider,
     IOptions<EngineOptions> engineOptions,
-    ILogger<CronScheduler> logger) : BackgroundService
+    ILogger<CronScheduler> logger) : SingularBackgroundAgent("automatex-cron")
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         using var timer = new PeriodicTimer(engineOptions.Value.CronPollInterval);
 

@@ -21,7 +21,7 @@ public sealed class PluginTriggerHost(
     TriggerRegistry registry,
     Plugins.PluginProcessSupervisor supervisor,
     IOptions<EngineOptions> engineOptions,
-    ILogger<PluginTriggerHost> logger) : BackgroundService
+    ILogger<PluginTriggerHost> logger) : SingularBackgroundAgent("automatex-plugin-triggers")
 {
     // OutOfProcDll set => the listener runs in a plugin process (cancel via the supervisor) rather
     // than an in-host loop (cancel via Cts).
@@ -29,7 +29,7 @@ public sealed class PluginTriggerHost(
 
     private readonly Dictionary<Guid, Runner> _runners = [];
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -60,6 +60,10 @@ public sealed class PluginTriggerHost(
         {
             Stop(id, runner);
         }
+
+        // As a Wolverine agent this instance is reused across reassignments, so clear the map on exit: a
+        // re-home must rebuild every listener, not see stale (already-cancelled) entries and skip them.
+        _runners.Clear();
     }
 
     private void Stop(Guid id, Runner runner)

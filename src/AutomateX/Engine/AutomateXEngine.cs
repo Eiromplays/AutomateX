@@ -166,11 +166,30 @@ public static class AutomateXEngine
         builder.Services.AddScoped<Modules.Audit.IAuditSink, Modules.Audit.AuditSink>();
         builder.Services.AddSingleton<IEngineEventListener, Modules.Audit.AuditEventListener>();
 
-        builder.Services.AddHostedService<CronScheduler>();
-        builder.Services.AddHostedService<Triggers.PluginTriggerHost>();
+        // Cluster-singleton background work. In Balanced (multi-node) these are Wolverine agents: leader
+        // election runs each on exactly one node and re-homes it on node loss (each SingularAgent is its own
+        // IAgentFamily, resolved from DI so constructor injection works). In Solo (single node) they run as
+        // plain hosted services on the one node — the same SingularBackgroundAgent is an IHostedService, so
+        // its loop starts directly without depending on Wolverine's agent assignment. Single-node behaviour
+        // is unchanged, and there's no path where both mechanisms run (registered one way or the other).
+        if (ResolveDurabilityMode(builder.Configuration) == DurabilityMode.Solo)
+        {
+            builder.Services.AddHostedService<CronScheduler>();
+            builder.Services.AddHostedService<Triggers.PluginTriggerHost>();
+            builder.Services.AddHostedService<StuckExecutionSweeper>();
+            builder.Services.AddHostedService<RetentionSweeper>();
+        }
+        else
+        {
+            builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, CronScheduler>();
+            builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, Triggers.PluginTriggerHost>();
+            builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, StuckExecutionSweeper>();
+            builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, RetentionSweeper>();
+        }
+
+        // Node-local: PluginWatcher (and PluginMemoryWatchdog above) supervise this node's own plugin-host
+        // processes, so they must run on every node — always hosted services.
         builder.Services.AddHostedService<PluginWatcher>();
-        builder.Services.AddHostedService<StuckExecutionSweeper>();
-        builder.Services.AddHostedService<RetentionSweeper>();
 
         return builder;
     }

@@ -9,9 +9,9 @@ namespace AutomateX.Engine;
 public sealed class RetentionSweeper(
     IServiceProvider serviceProvider,
     IOptions<EngineOptions> engineOptions,
-    ILogger<RetentionSweeper> logger) : BackgroundService
+    ILogger<RetentionSweeper> logger) : SingularBackgroundAgent("automatex-retention-sweeper")
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override async Task RunAsync(CancellationToken stoppingToken)
     {
         if (engineOptions.Value is { AuditRetention: null, IdempotencyRetention: null })
         {
