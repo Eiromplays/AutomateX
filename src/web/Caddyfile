@@ -16,6 +16,19 @@
 	# WebSockets are proxied automatically.
 	handle /hubs/* {
 		reverse_proxy api:8080
+
+		# HA (multiple api replicas): SignalR's negotiate → WebSocket handshake must land on the SAME
+		# replica, so replace the single line above with dynamic upstreams + cookie stickiness. A Redis
+		# backplane still fans messages across replicas; this only pins the handshake. See the HA section
+		# in docs/deploy-homelab.md.
+		#   reverse_proxy {
+		#       dynamic a {
+		#           name api
+		#           port 8080
+		#           refresh 30s
+		#       }
+		#       lb_policy cookie
+		#   }
 	}
 
 	# OIDC flow endpoints live on the API.

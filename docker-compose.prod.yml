@@ -9,6 +9,10 @@
 # Reach it over Tailscale with automatic HTTPS (no ports exposed to the internet):
 #   tailscale serve --bg 8080
 #   → https://<host>.<tailnet>.ts.net   (use this as PUBLIC_BASE_URL + the OIDC redirect host)
+#
+# Single node by default (fast, unchanged). For high availability (multiple api replicas) see the HA
+# section in docs/deploy-homelab.md — it flips DURABILITY_MODE to Balanced, starts the redis backplane
+# (`--profile ha`), scales api, and switches Caddy to sticky sessions. All four together, or not at all.
 services:
   postgres:
     image: postgres:17-alpine
@@ -58,6 +62,15 @@ services:
       # Allowlist for the guard above: comma-separated hostnames/CIDRs that stay reachable while it's on
       # (widens only). Expanded into Engine__EgressAllowlist__N by the app. Empty = all-or-nothing.
       EGRESS_ALLOWLIST: ${EGRESS_ALLOWLIST:-}
+      # Clustering (v5.0). Single node → keep Solo: fast in-process queues, instant execution, unchanged.
+      # Running MORE THAN ONE api replica REQUIRES Balanced — it turns on leader election so the singleton
+      # workers (cron, plugin triggers, sweepers) run on exactly one node and executions distribute over a
+      # shared Postgres queue. ⚠ Solo + replicas = double-fired triggers and duplicate runs. Don't scale
+      # this service without setting DURABILITY_MODE=Balanced.
+      Engine__DurabilityMode: ${DURABILITY_MODE:-Solo}
+      # SignalR backplane for multi-node live updates (execution events + plugin logs). Empty = in-process
+      # (single node). For HA point it at the redis service below: REDIS_CONNECTION=redis:6379.
+      ConnectionStrings__redis: ${REDIS_CONNECTION:-}
     volumes:
       - automatex-plugins:/app/plugins
     depends_on:
@@ -75,6 +88,14 @@ services:
     # published port. Only this one is exposed; point Tailscale Serve at it.
     ports:
       - "8080:80"
+
+  # SignalR backplane for HA (multiple api replicas). Only started with the `ha` profile:
+  #   docker compose -f docker-compose.prod.yml --profile ha up -d --scale api=2
+  # Transient pub/sub only (no persistence needed), reachable only inside the compose network.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    profiles: ["ha"]
 
 volumes:
   automatex-postgres-data:

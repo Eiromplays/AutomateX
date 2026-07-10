@@ -3,6 +3,40 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v5.0.0
+
+The multi-node / HA release. AutomateX can now run as **several API replicas** behind a load balancer,
+with **Postgres as the only stateful backbone** — leader election, the durable execution queue, cross-node
+plugin reloads and migration locking all ride it; the sole extra piece for HA is a small Redis used purely
+as the SignalR backplane. This retires the deliberate single-node design (`DurabilityMode.Solo` +
+one-container hosting). **It's opt-in: a single-node deploy on Solo with no Redis behaves exactly as before
+v5.0.** Design: [docs/multi-node-design.md](docs/multi-node-design.md). No new EF migration — Wolverine
+self-provisions its cluster/queue schema.
+
+- **Clustered durability.** `Engine:DurabilityMode` is now configurable. **Balanced** (multi-node) turns on
+  Wolverine leader election and routes the execution lane (`RunWorkflow` + the step messages) to a shared
+  Postgres queue that every node pulls from as competing consumers, so runs distribute across the cluster.
+  **Solo** (the default in `docker-compose.prod.yml`, and in dev/test) keeps the fast in-process durable
+  local queues. Poll cadence for the shared queue is `Engine:ExecutionQueuePollInterval` (default 1s).
+- **Singleton workers run on one node.** In Balanced, the cron scheduler, plugin-trigger host, and the
+  stuck/retention sweepers become Wolverine `SingularAgent`s — leader election runs each on exactly one
+  node and re-homes it on node loss, so triggers fire once, not once-per-replica. The per-node plugin-host
+  supervisors (memory watchdog, dev file watcher) still run on every node, since they police each node's
+  own out-of-process plugin hosts.
+- **Cross-node live updates.** An opt-in SignalR **Redis backplane** (`ConnectionStrings:redis`) fans the
+  execution-events and plugin-log hubs out across nodes. Unset = in-process, single-node (unchanged).
+- **Cross-node plugin reload.** An upload / install / delete / enable-toggle on one node now propagates to
+  peers over Postgres `LISTEN/NOTIFY`, so every node recycles its plugin hosts and rebuilds its registries.
+- **Safe concurrent boot.** The startup migration takes a Postgres advisory lock, so N nodes booting at
+  once don't race `MigrateAsync` (EF Core's own lock doesn't cover a first migration on a fresh database
+  with the Npgsql provider).
+- **Deploy.** `docker-compose.prod.yml` gains an `ha` profile (the Redis backplane) plus `DURABILITY_MODE`
+  / `REDIS_CONNECTION` env, and scales via `--scale api=N`; `src/web/Caddyfile` documents the sticky-session
+  change SignalR needs behind a load balancer; [docs/deploy-homelab.md](docs/deploy-homelab.md) has a full
+  **High availability** section. Same-host replicas only for now (they share the `automatex-plugins`
+  volume); cross-host shared plugin storage is deferred. Under multi-node, set per-step **idempotency keys**
+  on side-effecting steps — delivery is at-least-once and a node dying mid-step can redeliver.
+
 ## v4.11.0
 
 A focused minor hardening dynamic API keys: each key can now carry a **requests-per-minute cap** and a

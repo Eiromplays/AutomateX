@@ -103,6 +103,50 @@ are in GHCR. Point that repo secret at an AutomateX webhook whose workflow SSHes
 and runs `docker compose -f docker-compose.prod.yml pull && up -d` — then tagging a release deploys
 itself. See [recipes/self-deploy.md](recipes/self-deploy.md).
 
+## High availability (multiple nodes)
+
+The single-node setup above is the right choice for almost everyone. If you want to survive an API
+restart with zero downtime, or spread execution load, v5.0 can run **several API replicas** against the
+same Postgres. Postgres stays the only stateful backbone — leader election, the durable execution queue,
+cross-node plugin reloads and migration locking all ride it. The only extra piece is a small **Redis**
+used purely as the SignalR backplane so live UI updates reach clients on every node.
+
+It's an all-or-nothing switch — do all four of these together:
+
+1. **Mode + backplane.** In `.env`, set `DURABILITY_MODE=Balanced` and `REDIS_CONNECTION=redis:6379`.
+   Balanced turns on leader election, so the singleton workers (cron scheduler, plugin-trigger host,
+   sweepers) run on exactly one node, and executions distribute over a shared Postgres queue that every
+   node pulls from. **Leaving this at Solo while running more than one replica double-fires triggers.**
+
+2. **Sticky sessions.** In `src/web/Caddyfile`, swap the `/hubs` block to the dynamic-upstream + cookie
+   form shown in the comment there. SignalR's negotiate → WebSocket handshake must land on the same
+   replica; the Redis backplane handles fan-out, this just pins the handshake. (Alternatively, configure
+   the web client for WebSockets-only with `skipNegotiation` and you can skip stickiness entirely.)
+
+3. **Start the backplane + scale.** Bring it up with the `ha` profile and however many replicas you want:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --profile ha up -d --scale api=2
+   ```
+
+   All replicas boot at once; the startup migration is advisory-locked, so exactly one migrates and the
+   rest wait — no race. Watch the logs and you'll see one node take leadership and the singleton workers
+   start there only.
+
+4. **Verify.** Open the UI, run a workflow, and confirm the run appears live regardless of which replica
+   your browser is pinned to. `docker compose -f docker-compose.prod.yml logs api | grep -i leader` shows
+   the elected node; cron/plugin triggers should fire once, not once-per-replica.
+
+**Same-host replicas only (for now).** All replicas share the `automatex-plugins` named volume, which
+only works when they run on one Docker host. Spreading nodes across machines needs shared plugin storage
+(NFS / object store) and is not covered here — run replicas on a single host. Plugin uploads/reloads on
+one node propagate to the others automatically over Postgres `LISTEN/NOTIFY`.
+
+**Idempotency under multi-node.** Delivery is at-least-once (as it already was on a single node), and a
+node dying mid-step can cause a redelivery. For steps with external side effects (sending a message,
+hitting an API), set a per-step **idempotency key** so a redelivery is de-duplicated rather than repeated
+— worth doing before you rely on HA. See [recipes/idempotency.md](recipes/idempotency.md).
+
 ## Troubleshooting
 
 **OIDC redirect comes back as `http://` (login bounces).** The API builds the redirect URI from the
