@@ -22,9 +22,11 @@ public sealed class EngineOptions
     // How often the plugin-trigger supervisor reconciles listeners with trigger rows.
     public TimeSpan TriggerSyncInterval { get; set; } = TimeSpan.FromSeconds(10);
 
-    // Where the install-from-catalog feature fetches its plugin list.
+    // Where the install-from-catalog feature fetches its plugin list. First-party plugins live in the
+    // AutomateX-Plugins repo (v5.2), which builds + signs its own catalog. Operators can add more sources
+    // at runtime (Plugins → Catalog sources).
     public string PluginCatalogUrl { get; set; } =
-        "https://github.com/Eiromplays/AutomateX/releases/latest/download/catalog.json";
+        "https://github.com/Eiromplays/AutomateX-Plugins/releases/latest/download/catalog.json";
 
     // Where the template gallery fetches its community catalog (inline workflow docs).
     public string TemplateCatalogUrl { get; set; } =

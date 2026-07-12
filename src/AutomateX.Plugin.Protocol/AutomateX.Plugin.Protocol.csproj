@@ -1,9 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Shared host↔plugin runtime: the stdio frame codec and JSON-Schema export, used by both the
-         engine (client) and AutomateX.PluginHost (server). Kept out of the SDK so the author-facing
-         surface stays minimal. -->
+    <!-- Shared host↔plugin runtime: the stdio frame codec, egress guard, and JSON-Schema export
+         (SchemaExport), used by both the engine (client) and AutomateX.PluginHost (server) — and handy for
+         plugin authors testing a config/result type's schema. -->
+    <IsPackable>true</IsPackable>
+    <PackageId>AutomateX.Plugin.Protocol</PackageId>
+    <Title>AutomateX Plugin Protocol</Title>
+    <Description>Host↔plugin protocol for AutomateX: stdio frame codec, egress guard, and JSON-Schema export (SchemaExport) for plugin config/result types.</Description>
+    <Authors>Eiromplays</Authors>
+    <Company>AutomateX</Company>
+    <Product>AutomateX</Product>
+    <PackageTags>automatex;plugin;protocol;json-schema</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Eiromplays/AutomateX</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Eiromplays/AutomateX</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- Version is supplied by the sdk-v* release tag (publish-sdk.yml); 0.0.0 for local packs. -->
+    <Version>0.0.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

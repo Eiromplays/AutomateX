@@ -1,8 +1,9 @@
-name: Publish plugin SDK
+name: Publish plugin packages
 
-# Independent of the API release (v*): the SDK versions on its own contract, tagged sdk-v<semver>.
-# Publishes via NuGet Trusted Publishing (OIDC) — no stored API key. Requires a matching trusted-publishing
-# policy on nuget.org (package owner Eiromplays, repo Eiromplays/AutomateX, workflow publish-sdk.yml).
+# Independent of the API release (v*): the plugin SDK + Protocol version on their own contract, tagged
+# sdk-v<semver>. Publishes via NuGet Trusted Publishing (OIDC) — no stored API key. One trusted-publishing
+# policy on nuget.org (package owner Eiromplays, repo Eiromplays/AutomateX, workflow publish-sdk.yml) covers
+# both package ids, since it's scoped to the owner.
 on:
   push:
     tags: ["sdk-v*"]
@@ -25,12 +26,11 @@ jobs:
         run: echo "VERSION=${GITHUB_REF_NAME#sdk-v}" >> "$GITHUB_ENV"
 
       - name: Pack
-        run: >
-          dotnet pack src/AutomateX.Plugin.Sdk/AutomateX.Plugin.Sdk.csproj
-          -c Release
-          -p:Version="${VERSION}"
-          -p:ContinuousIntegrationBuild=true
-          -o out
+        run: |
+          for project in AutomateX.Plugin.Sdk AutomateX.Plugin.Protocol; do
+            dotnet pack "src/$project/$project.csproj" \
+              -c Release -p:Version="${VERSION}" -p:ContinuousIntegrationBuild=true -o out
+          done
 
       - name: NuGet login (Trusted Publishing)
         uses: NuGet/login@v1
