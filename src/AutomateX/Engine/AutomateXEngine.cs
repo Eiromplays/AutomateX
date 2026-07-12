@@ -172,6 +172,9 @@ public static class AutomateXEngine
         builder.Services.AddScoped<Modules.Audit.IAuditSink, Modules.Audit.AuditSink>();
         builder.Services.AddSingleton<IEngineEventListener, Modules.Audit.AuditEventListener>();
 
+        // Shared install IO for the catalog install endpoint and the auto-updater agent.
+        builder.Services.AddScoped<Modules.Plugins.PluginInstaller>();
+
         // Cluster-singleton background work. In Balanced (multi-node) these are Wolverine agents: leader
         // election runs each on exactly one node and re-homes it on node loss (each SingularAgent is its own
         // IAgentFamily, resolved from DI so constructor injection works). In Solo (single node) they run as
@@ -184,6 +187,7 @@ public static class AutomateXEngine
             builder.Services.AddHostedService<Triggers.PluginTriggerHost>();
             builder.Services.AddHostedService<StuckExecutionSweeper>();
             builder.Services.AddHostedService<RetentionSweeper>();
+            builder.Services.AddHostedService<PluginAutoUpdater>();
         }
         else
         {
@@ -191,6 +195,7 @@ public static class AutomateXEngine
             builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, Triggers.PluginTriggerHost>();
             builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, StuckExecutionSweeper>();
             builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, RetentionSweeper>();
+            builder.Services.AddSingleton<Wolverine.Runtime.Agents.IAgentFamily, PluginAutoUpdater>();
         }
 
         // Node-local: PluginWatcher (and PluginMemoryWatchdog above) supervise this node's own plugin-host

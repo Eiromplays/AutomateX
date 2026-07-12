@@ -102,13 +102,12 @@ public static class GetPluginCatalog
 public static class InstallCatalogPlugin
 {
     public sealed class Endpoint(
-        PluginAssemblies plugins,
-        PluginReloadCoordinator coordinator,
         IHttpClientFactory httpClientFactory,
         IOptions<EngineOptions> options,
         WorkspaceAccess access,
         Audit.IAuditSink audit,
-        AutomateXDbContext dbContext) : Endpoint<Request, Response>
+        AutomateXDbContext dbContext,
+        PluginInstaller installer) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -178,55 +177,25 @@ public static class InstallCatalogPlugin
                 return;
             }
 
-            if (!PluginCatalog.Verify(content, version.Sha256))
-            {
-                ThrowError($"Checksum mismatch for '{manifest.Name}' — refusing to install.");
-            }
-
-            var previous = PluginFingerprints.Find(plugins, "global", Guid.Empty, manifest.Name);
-
+            PluginInstaller.Result result;
             try
             {
-                using var stream = new MemoryStream(content);
-                PluginArchive.Extract(stream, manifest.Name, plugins.GlobalRoot);
+                result = await installer.InstallAsync(
+                    content, manifest, version, resolved.Source.SourceId,
+                    resolved.Source.Result.Index?.Publisher?.Name, WorkspaceAccess.GetActor(HttpContext), ct);
             }
             catch (InvalidOperationException exception)
             {
                 ThrowError(exception.Message);
+                return;
             }
-
-            await coordinator.ReloadAndNotifyAsync(ct);
-            var fingerprint = PluginFingerprints.Find(plugins, "global", Guid.Empty, manifest.Name);
-
-            await RecordProvenanceAsync(manifest, version, resolved.Source, ct);
 
             await audit.RecordAsync(
                 "plugin.install", null, WorkspaceAccess.GetActor(HttpContext),
                 "plugin", manifest.Name, $"{manifest.DisplayName} {version.Version} ({trust}, {resolved.Source.Name})", ct);
 
-            await Send.OkAsync(new Response(manifest.Name, version.Version, trust.ToString(), previous, fingerprint), ct);
-        }
-
-        private async Task RecordProvenanceAsync(
-            PluginManifest manifest, CatalogVersion version, FetchedSource source, CancellationToken ct)
-        {
-            var actor = WorkspaceAccess.GetActor(HttpContext);
-            var publisher = source.Result.Index?.Publisher?.Name;
-            var existing = await dbContext.InstalledPlugins
-                .FirstOrDefaultAsync(x => x.WorkspaceId == Guid.Empty && x.Name == manifest.Name, ct);
-
-            if (existing is null)
-            {
-                dbContext.InstalledPlugins.Add(InstalledPlugin.Record(
-                    Guid.Empty, manifest.Name, manifest.Id, version.Version, version.Sha256,
-                    source.SourceId, publisher, actor));
-            }
-            else
-            {
-                existing.Refresh(manifest.Id, version.Version, version.Sha256, source.SourceId, publisher, actor);
-            }
-
-            await dbContext.SaveChangesAsync(ct);
+            await Send.OkAsync(
+                new Response(manifest.Name, version.Version, trust.ToString(), result.PreviousFingerprint, result.Fingerprint), ct);
         }
 
         private static string ConsentMessage(PluginManifest manifest, string sourceName, CatalogTrust trust)

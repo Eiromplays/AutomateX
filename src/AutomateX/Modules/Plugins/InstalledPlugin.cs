@@ -31,6 +31,10 @@ public sealed class InstalledPlugin
 
     public string InstalledBy { get; private set; } = null!;
 
+    // Opt-in: when true, the auto-updater keeps this plugin on the latest compatible, same-major, Verified
+    // version. Preserved across updates (Refresh doesn't touch it).
+    public bool AutoUpdate { get; private set; }
+
     public static InstalledPlugin Record(
         Guid workspaceId, string name, string pluginId, string version, string sha256,
         Guid? sourceId, string? publisher, string installedBy) => new()
@@ -58,4 +62,6 @@ public sealed class InstalledPlugin
         InstalledAt = DateTimeOffset.UtcNow;
         InstalledBy = installedBy;
     }
+
+    public void SetAutoUpdate(bool enabled) => AutoUpdate = enabled;
 }

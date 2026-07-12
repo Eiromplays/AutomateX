@@ -60,6 +60,11 @@ public sealed class EngineOptions
     // unless the operator explicitly opts in.
     public bool AllowPluginUpload { get; set; }
 
+    // Opt-in automatic plugin updates: how often the auto-updater checks plugins flagged for auto-update
+    // for a newer compatible (same-major, Verified-source) version. Null (default) disables it. Also
+    // requires AllowPluginUpload — auto-update changes host-trusted code without a human in the loop.
+    public TimeSpan? PluginAutoUpdateInterval { get; set; }
+
     // When set, terminal executions older than this are deleted by the sweeper.
     // Null (default) keeps history forever.
     public TimeSpan? ExecutionRetention { get; set; }

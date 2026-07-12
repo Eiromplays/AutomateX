@@ -372,6 +372,9 @@ namespace AutomateX.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("AutoUpdate")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset>("InstalledAt")
                         .HasColumnType("timestamp with time zone");
 
