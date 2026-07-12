@@ -5,15 +5,13 @@ import {
   KeyRound,
   LayoutDashboard,
   Menu,
-  Plug,
   Puzzle,
-  ScrollText,
-  Variable,
+  Settings,
   Workflow,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
+import { Link, Links, Meta, Outlet, Scripts, ScrollRestoration, useLocation } from "react-router";
 import { Toasts, toast } from "./components/toast";
 import { Button } from "./components/ui/button";
 import { ConfirmProvider, usePrompt } from "./components/ui/confirm";
@@ -45,6 +43,8 @@ type NavEntry = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
+  // Extra path prefixes that also light this entry (grouped sections). Defaults to `to`.
+  match?: string[];
   end?: boolean;
 };
 
@@ -52,37 +52,44 @@ const NAV: NavEntry[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/workflows", label: "Workflows", icon: Workflow },
   { to: "/executions", label: "Executions", icon: Activity },
-  { to: "/connections", label: "Connections", icon: Plug },
-  { to: "/variables", label: "Variables", icon: Variable },
+  { to: "/connections", label: "Resources", icon: Boxes, match: ["/connections", "/variables"] },
   { to: "/plugins", label: "Plugins", icon: Puzzle },
-  { to: "/audit", label: "Audit", icon: ScrollText },
-  { to: "/workspace", label: "Workspace", icon: Boxes },
-  { to: "/api-keys", label: "API keys", icon: KeyRound },
+  { to: "/workspace", label: "Settings", icon: Settings, match: ["/workspace", "/api-keys", "/audit"] },
 ];
 
-const inlineNavClass = ({ isActive }: { isActive: boolean }) =>
-  `inline-flex items-center gap-1.5 ${isActive ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100"}`;
+function isEntryActive(pathname: string, entry: NavEntry): boolean {
+  if (entry.end) return pathname === entry.to;
+  return (entry.match ?? [entry.to]).some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
-const stackedNavClass = ({ isActive }: { isActive: boolean }) =>
+const inlineNavClass = (active: boolean) =>
+  `inline-flex items-center gap-1.5 ${active ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100"}`;
+
+const stackedNavClass = (active: boolean) =>
   `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
-    isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+    active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
   }`;
 
 function NavItems({ variant, onNavigate }: { variant: "inline" | "stacked"; onNavigate?: () => void }) {
+  const { pathname } = useLocation();
   return (
     <>
-      {NAV.map(({ to, label, icon: Icon, end }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={end}
-          onClick={onNavigate}
-          className={variant === "inline" ? inlineNavClass : stackedNavClass}
-        >
-          <Icon className="h-4 w-4" aria-hidden="true" />
-          {label}
-        </NavLink>
-      ))}
+      {NAV.map((entry) => {
+        const Icon = entry.icon;
+        const active = isEntryActive(pathname, entry);
+        return (
+          <Link
+            key={entry.to}
+            to={entry.to}
+            onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
+            className={variant === "inline" ? inlineNavClass(active) : stackedNavClass(active)}
+          >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {entry.label}
+          </Link>
+        );
+      })}
     </>
   );
 }

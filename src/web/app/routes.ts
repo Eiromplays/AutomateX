@@ -1,4 +1,4 @@
-import { index, type RouteConfig, route } from "@react-router/dev/routes";
+import { index, layout, type RouteConfig, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/dashboard.tsx"),
@@ -9,10 +9,15 @@ export default [
   route("workflows/:id/edit", "routes/workflow-edit.tsx"),
   route("executions", "routes/executions.tsx"),
   route("executions/:id", "routes/execution-detail.tsx"),
-  route("connections", "routes/connections.tsx"),
-  route("variables", "routes/variables.tsx"),
+  // Pathless layouts group related surfaces under a tab strip without changing URLs.
+  layout("routes/resources-layout.tsx", [
+    route("connections", "routes/connections.tsx"),
+    route("variables", "routes/variables.tsx"),
+  ]),
   route("plugins", "routes/plugins.tsx"),
-  route("audit", "routes/audit.tsx"),
-  route("workspace", "routes/workspace.tsx"),
-  route("api-keys", "routes/api-keys.tsx"),
+  layout("routes/settings-layout.tsx", [
+    route("workspace", "routes/workspace.tsx"),
+    route("api-keys", "routes/api-keys.tsx"),
+    route("audit", "routes/audit.tsx"),
+  ]),
 ] satisfies RouteConfig;
