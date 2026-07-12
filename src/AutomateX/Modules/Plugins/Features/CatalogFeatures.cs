@@ -1,4 +1,3 @@
-using System.Text;
 using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Engine.Plugins;
@@ -35,25 +34,8 @@ public static class GetPluginCatalog
                 return;
             }
 
-            List<(string Name, string Url, string? Key)> sources = [];
-            if (!string.IsNullOrWhiteSpace(options.Value.PluginCatalogUrl))
-            {
-                sources.Add(("AutomateX", options.Value.PluginCatalogUrl, CatalogKeys.FirstParty));
-            }
-
-            var added = await dbContext.PluginCatalogSources
-                .AsNoTracking()
-                .Where(x => x.Enabled)
-                .Select(x => new { x.Name, x.Url, x.TrustedKey })
-                .ToListAsync(ct);
-            sources.AddRange(added.Select(x => (x.Name, x.Url, (string?)x.TrustedKey)));
-
             using var http = httpClientFactory.CreateClient();
-            List<(CatalogSourceResult Result, string Url, string? Error)> fetched = [];
-            foreach (var (name, url, key) in sources)
-            {
-                fetched.Add(await ReadAsync(http, name, url, key, ct));
-            }
+            var sources = await PluginCatalogFetch.ReadAllAsync(http, options.Value, dbContext, ct);
 
             var installedNames = plugins.EnumeratePaths()
                 .Where(p => p.WorkspaceId is null)
@@ -68,43 +50,15 @@ public static class GetPluginCatalog
                 .ToDictionary(x => x.Name, x => x.Version, StringComparer.OrdinalIgnoreCase);
 
             var listings = CatalogAggregator.Merge(
-                fetched.Select(x => x.Result), installedNames, installedVersions);
+                sources.Select(x => x.Result), installedNames, installedVersions);
 
             await Send.OkAsync(
                 new Response(
                     options.Value.AllowPluginUpload,
                     listings.Select(ToEntry).ToList(),
-                    fetched.Select(x => new SourceStatus(
-                        x.Result.SourceName, x.Url, x.Result.Index is not null, x.Result.Trust.ToString(), x.Error)).ToList()),
+                    sources.Select(x => new SourceStatus(
+                        x.Name, x.Url, x.Result.Index is not null, x.Result.Trust.ToString(), x.Error)).ToList()),
                 ct);
-        }
-
-        // Fetch the index + its detached .minisig, evaluate trust. Any transport/parse failure degrades the
-        // source (null index) rather than failing the whole catalog.
-        private static async Task<(CatalogSourceResult Result, string Url, string? Error)> ReadAsync(
-            HttpClient http, string name, string url, string? key, CancellationToken ct)
-        {
-            try
-            {
-                var bytes = await http.GetByteArrayAsync(url, ct);
-                var index = PluginCatalog.ParseIndex(Encoding.UTF8.GetString(bytes));
-
-                string? signature = null;
-                try
-                {
-                    signature = await http.GetStringAsync(url + ".minisig", ct);
-                }
-                catch (HttpRequestException)
-                {
-                    // Unsigned source — it stays Untrusted.
-                }
-
-                return (new CatalogSourceResult(name, CatalogSignature.Evaluate(bytes, signature, key), index), url, null);
-            }
-            catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException or TaskCanceledException)
-            {
-                return (new CatalogSourceResult(name, CatalogTrust.Untrusted, null), url, exception.Message);
-            }
         }
 
         private static CatalogEntry ToEntry(CatalogListing listing) => new(
@@ -140,17 +94,21 @@ public static class GetPluginCatalog
     public sealed record Response(bool InstallEnabled, List<CatalogEntry> Entries, List<SourceStatus> Sources);
 }
 
+// Install / update from the catalog. An installed plugin is native code with full host trust, so on top of
+// the AllowPluginUpload master switch: sha256 verifies the artifact (integrity), the source's signature sets
+// the trust tier, an Untrusted source needs an instance admin + acknowledgement, declared permissions need an
+// acknowledgement, and minAutomateXVersion is enforced — all BEFORE anything touches disk. Extract + reload
+// (incl. the v5.0 cross-node propagation) are unchanged; provenance is recorded for update/auto-update.
 public static class InstallCatalogPlugin
 {
-    // Same trust gate as uploads — an installed plugin is code with full host trust.
-    // The download is hash-verified against the catalog BEFORE anything touches disk.
     public sealed class Endpoint(
         PluginAssemblies plugins,
         PluginReloadCoordinator coordinator,
         IHttpClientFactory httpClientFactory,
         IOptions<EngineOptions> options,
         WorkspaceAccess access,
-        Audit.IAuditSink audit) : Endpoint<Request, Response>
+        Audit.IAuditSink audit,
+        AutomateXDbContext dbContext) : Endpoint<Request, Response>
     {
         public override void Configure()
         {
@@ -172,29 +130,47 @@ public static class InstallCatalogPlugin
             }
 
             using var http = httpClientFactory.CreateClient();
+            var sources = await PluginCatalogFetch.ReadAllAsync(http, options.Value, dbContext, ct);
 
-            PluginCatalog.Entry? entry;
-            try
+            if (PluginCatalogResolve.Best(sources, req.Id, req.Name) is not { } resolved)
             {
-                var catalog = PluginCatalog.Parse(await http.GetStringAsync(options.Value.PluginCatalogUrl, ct));
-                entry = catalog.FirstOrDefault(x => string.Equals(x.Name, req.Name, StringComparison.OrdinalIgnoreCase));
-            }
-            catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException)
-            {
-                ThrowError($"Could not fetch the catalog: {exception.Message}");
+                ThrowError($"'{req.Id ?? req.Name}' is not in any enabled catalog.");
                 return;
             }
 
-            if (entry is null)
+            var manifest = resolved.Plugin.Manifest;
+            if (resolved.Plugin.Select(req.Version) is not { } version)
             {
-                ThrowError($"'{req.Name}' is not in the catalog.");
+                ThrowError($"{manifest.DisplayName} has no version '{req.Version}'.");
                 return;
+            }
+
+            var minVersion = version.MinAutomateXVersion ?? manifest.MinAutomateXVersion;
+            if (!PluginCompatibility.IsSupported(AppVersion.Current, minVersion))
+            {
+                ThrowError($"{manifest.DisplayName} {version.Version} requires AutomateX {minVersion} or newer.");
+            }
+
+            var trust = resolved.Source.Result.Trust;
+            switch (InstallGate.Evaluate(trust, access.IsInstanceAdmin(HttpContext), req.Acknowledge, manifest.Permissions.Egress.Count > 0))
+            {
+                case InstallDecision.RequiresInstanceAdmin:
+                    await Send.ForbiddenAsync(ct);
+                    return;
+                case InstallDecision.Refused:
+                    ThrowError($"'{manifest.DisplayName}' failed its signature check — refusing to install.");
+                    return;
+                case InstallDecision.NeedsAcknowledgement:
+                    ThrowError(ConsentMessage(manifest, resolved.Source.Name, trust));
+                    return;
+                case InstallDecision.Allowed:
+                    break;
             }
 
             byte[] content;
             try
             {
-                content = await http.GetByteArrayAsync(entry.Url, ct);
+                content = await http.GetByteArrayAsync(version.Url, ct);
             }
             catch (HttpRequestException exception)
             {
@@ -202,17 +178,17 @@ public static class InstallCatalogPlugin
                 return;
             }
 
-            if (!PluginCatalog.Verify(content, entry.Sha256))
+            if (!PluginCatalog.Verify(content, version.Sha256))
             {
-                ThrowError($"Checksum mismatch for '{entry.Name}' — refusing to install.");
+                ThrowError($"Checksum mismatch for '{manifest.Name}' — refusing to install.");
             }
 
-            var previous = PluginFingerprints.Find(plugins, "global", Guid.Empty, entry.Name);
+            var previous = PluginFingerprints.Find(plugins, "global", Guid.Empty, manifest.Name);
 
             try
             {
                 using var stream = new MemoryStream(content);
-                PluginArchive.Extract(stream, entry.Name, plugins.GlobalRoot);
+                PluginArchive.Extract(stream, manifest.Name, plugins.GlobalRoot);
             }
             catch (InvalidOperationException exception)
             {
@@ -220,15 +196,60 @@ public static class InstallCatalogPlugin
             }
 
             await coordinator.ReloadAndNotifyAsync(ct);
-            var fingerprint = PluginFingerprints.Find(plugins, "global", Guid.Empty, entry.Name);
+            var fingerprint = PluginFingerprints.Find(plugins, "global", Guid.Empty, manifest.Name);
+
+            await RecordProvenanceAsync(manifest, version, resolved.Source, ct);
+
             await audit.RecordAsync(
                 "plugin.install", null, WorkspaceAccess.GetActor(HttpContext),
-                "plugin", entry.Name, $"{entry.Name} {entry.Version}", ct);
-            await Send.OkAsync(new Response(entry.Name, entry.Version, previous, fingerprint), ct);
+                "plugin", manifest.Name, $"{manifest.DisplayName} {version.Version} ({trust}, {resolved.Source.Name})", ct);
+
+            await Send.OkAsync(new Response(manifest.Name, version.Version, trust.ToString(), previous, fingerprint), ct);
+        }
+
+        private async Task RecordProvenanceAsync(
+            PluginManifest manifest, CatalogVersion version, FetchedSource source, CancellationToken ct)
+        {
+            var actor = WorkspaceAccess.GetActor(HttpContext);
+            var publisher = source.Result.Index?.Publisher?.Name;
+            var existing = await dbContext.InstalledPlugins
+                .FirstOrDefaultAsync(x => x.WorkspaceId == Guid.Empty && x.Name == manifest.Name, ct);
+
+            if (existing is null)
+            {
+                dbContext.InstalledPlugins.Add(InstalledPlugin.Record(
+                    Guid.Empty, manifest.Name, manifest.Id, version.Version, version.Sha256,
+                    source.SourceId, publisher, actor));
+            }
+            else
+            {
+                existing.Refresh(manifest.Id, version.Version, version.Sha256, source.SourceId, publisher, actor);
+            }
+
+            await dbContext.SaveChangesAsync(ct);
+        }
+
+        private static string ConsentMessage(PluginManifest manifest, string sourceName, CatalogTrust trust)
+        {
+            List<string> reasons = [];
+            if (trust != CatalogTrust.Verified)
+            {
+                reasons.Add($"it comes from an untrusted source ('{sourceName}')");
+            }
+
+            if (manifest.Permissions.Egress.Count > 0)
+            {
+                reasons.Add($"it requests network access to: {string.Join(", ", manifest.Permissions.Egress)}");
+            }
+
+            return $"{manifest.DisplayName} needs your consent — {string.Join("; ", reasons)}. "
+                + "Re-install with acknowledge=true to proceed.";
         }
     }
 
-    public sealed record Request(string Name);
+    // Resolve by id (preferred) or package name; optional version pin; acknowledge to consent to an
+    // untrusted source and/or declared permissions.
+    public sealed record Request(string? Id, string? Name, string? Version, bool Acknowledge);
 
-    public sealed record Response(string Name, string Version, string? PreviousFingerprint, string? Fingerprint);
+    public sealed record Response(string Name, string Version, string Trust, string? PreviousFingerprint, string? Fingerprint);
 }
