@@ -220,8 +220,8 @@ export default function ExecutionDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-lg font-semibold">Execution</h1>
           {execution.workflowVersion != null && (
             <span className="text-sm text-zinc-500">v{execution.workflowVersion}</span>
@@ -229,7 +229,7 @@ export default function ExecutionDetail() {
           <StatusBadge status={execution.status} />
           <span className="text-xs font-normal text-emerald-400">● live</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           {execution.status === "Waiting" && (
             <button
               type="button"

@@ -93,9 +93,9 @@ export default function Executions() {
       >
         <Link
           to={`/executions/${execution.id}`}
-          className="flex flex-1 items-center justify-between px-4 py-3 text-sm"
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3 text-sm"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             {depth > 0 && (
               <span
                 className={
@@ -110,7 +110,7 @@ export default function Executions() {
               </span>
             )}
             <StatusBadge status={execution.status} />
-            <span className="font-medium text-zinc-200">{execution.workflowName}</span>
+            <span className="min-w-0 truncate font-medium text-zinc-200">{execution.workflowName}</span>
             {execution.triggeredBy === "workflow" ? (
               depth === 0 && (
                 <span
@@ -133,7 +133,9 @@ export default function Executions() {
               <span className="text-xs text-zinc-500">{execution.triggeredBy.split(":")[0]}</span>
             )}
           </div>
-          <span className="text-xs text-zinc-500">{new Date(execution.startedAt).toLocaleString()}</span>
+          <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500">
+            {new Date(execution.startedAt).toLocaleString()}
+          </span>
         </Link>
         {(execution.status === "Succeeded" || execution.status === "Failed") && (
           <button
@@ -179,7 +181,7 @@ export default function Executions() {
             placeholder="Search by workflow…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+            className="w-full min-w-0 max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
           />
           <select
             value={statusFilter}

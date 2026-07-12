@@ -25,7 +25,7 @@ export default function Workflows() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-lg font-semibold">Workflows</h1>
         <div className="flex items-center gap-3">
           <label className="cursor-pointer text-sm text-zinc-500 hover:text-zinc-200">
@@ -86,10 +86,10 @@ export default function Workflows() {
             <li key={workflow.id}>
               <Link
                 to={`/workflows/${workflow.id}`}
-                className="flex items-center justify-between px-4 py-3 hover:bg-zinc-900"
+                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-900"
               >
-                <div>
-                  <div className="text-sm font-medium">{workflow.name}</div>
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">{workflow.name}</div>
                   {workflow.description && (
                     <div className="text-xs text-zinc-500">{workflow.description}</div>
                   )}
@@ -102,7 +102,7 @@ export default function Workflows() {
                     <div className="text-xs text-violet-400">⛓ feeds {workflow.feeds.join(", ")}</div>
                   )}
                 </div>
-                <span className="flex items-center gap-2 text-xs text-zinc-500">
+                <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500">
                   {!workflow.enabled && <span className="text-amber-400">⏸ paused</span>}v
                   {workflow.latestVersion}
                 </span>

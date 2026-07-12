@@ -3,6 +3,31 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v5.1.0
+
+A **web UI modernization** arc — incremental, no rewrite, backend untouched. Adopts
+[shadcn/ui](https://ui.shadcn.com) on the stack already in place (React 19 + React Router 8 framework mode +
+Tailwind v4 + Radix + lucide), makes the app mobile-responsive, and tightens the information architecture.
+Frontend-only: no EF migration, no API changes; the React Flow editor and SignalR live views are unchanged.
+Design: [docs/ui-modernization-design.md](docs/ui-modernization-design.md).
+
+- **Design tokens + shadcn foundation.** `app.css` now carries a CSS-variable token layer (`:root`/`.dark`
+  + `@theme inline`) tuned to the existing zinc/emerald palette — `--background` is zinc-950 exactly, so the
+  look is unchanged — with `components.json`, a `~ → ./app` alias, a `cn` helper, and `tw-animate-css`. The
+  app is dark-only (`.dark` forced on `<html>`); a light theme is a later freebie.
+- **shadcn components replace the hand-rolled primitives.** Dialog, DropdownMenu, AlertDialog, Sheet, Tabs,
+  Badge, Button, Skeleton, and Sonner toasts are now owned shadcn source. `useConfirm`/`usePrompt` and
+  `toast.success/error` keep their signatures (shims over AlertDialog/Dialog and sonner), so call sites were
+  untouched.
+- **Responsive app shell.** The top nav collapses into a `Sheet` drawer below `md` behind a hamburger;
+  desktop is unchanged. High-traffic pages (Dashboard, Workflows, Executions, Execution detail) were audited
+  at narrow widths — headers stack, long rows truncate, timelines/tables stop overflowing. The workflow
+  editor stays pan/read-only on mobile (full touch authoring deferred).
+- **Fewer top-level nav items (9 → 6).** Connections + Variables group under **Resources**, and Workspace +
+  API keys + Audit under **Settings**, each behind a tab strip. Grouping uses pathless React Router layout
+  routes, so **every URL is unchanged and there are no redirects**. Plugins stays top-level (its catalog
+  overhaul is a separate v5.2 arc).
+
 ## v5.0.0
 
 The multi-node / HA release. AutomateX can now run as **several API replicas** behind a load balancer,
