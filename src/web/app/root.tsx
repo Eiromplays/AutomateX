@@ -4,6 +4,7 @@ import {
   Boxes,
   KeyRound,
   LayoutDashboard,
+  Menu,
   Plug,
   Puzzle,
   ScrollText,
@@ -14,8 +15,10 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Link, Links, Meta, NavLink, Outlet, Scripts, ScrollRestoration } from "react-router";
 import { Toasts, toast } from "./components/toast";
+import { Button } from "./components/ui/button";
 import { ConfirmProvider, usePrompt } from "./components/ui/confirm";
-import { api, getWorkspaceId, setWorkspaceId } from "./lib/api";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "./components/ui/sheet";
+import { api, type AuthMe, getWorkspaceId, setWorkspaceId } from "./lib/api";
 import "./app.css";
 
 export function Layout({ children }: { children: ReactNode }) {
@@ -38,10 +41,94 @@ export function Layout({ children }: { children: ReactNode }) {
   );
 }
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+type NavEntry = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+};
+
+const NAV: NavEntry[] = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/workflows", label: "Workflows", icon: Workflow },
+  { to: "/executions", label: "Executions", icon: Activity },
+  { to: "/connections", label: "Connections", icon: Plug },
+  { to: "/variables", label: "Variables", icon: Variable },
+  { to: "/plugins", label: "Plugins", icon: Puzzle },
+  { to: "/audit", label: "Audit", icon: ScrollText },
+  { to: "/workspace", label: "Workspace", icon: Boxes },
+  { to: "/api-keys", label: "API keys", icon: KeyRound },
+];
+
+const inlineNavClass = ({ isActive }: { isActive: boolean }) =>
   `inline-flex items-center gap-1.5 ${isActive ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100"}`;
 
-const navIconClass = "h-4 w-4";
+const stackedNavClass = ({ isActive }: { isActive: boolean }) =>
+  `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+    isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+  }`;
+
+function NavItems({ variant, onNavigate }: { variant: "inline" | "stacked"; onNavigate?: () => void }) {
+  return (
+    <>
+      {NAV.map(({ to, label, icon: Icon, end }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={end}
+          onClick={onNavigate}
+          className={variant === "inline" ? inlineNavClass : stackedNavClass}
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+          {label}
+        </NavLink>
+      ))}
+    </>
+  );
+}
+
+function AuthActions({ me }: { me: AuthMe }) {
+  if (me.mode === "apikey") return <ApiKeyButton />;
+  if (me.mode === "oidc" && me.authenticated) {
+    return (
+      <span className="flex items-center gap-3 text-xs text-zinc-500">
+        {me.name ?? me.email}
+        <a href="/auth/logout" className="hover:text-zinc-100">
+          Sign out
+        </a>
+      </span>
+    );
+  }
+  return null;
+}
+
+// Below md the nav collapses into a Sheet drawer; each link closes it on navigate.
+function MobileNav({ me }: { me: AuthMe }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="icon" aria-label="Open menu">
+          <Menu className="h-5 w-5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-72 sm:w-80">
+        <SheetTitle className="px-4 pt-4 text-base">
+          Automate<span className="text-emerald-400">X</span>
+        </SheetTitle>
+        <div className="flex flex-col gap-1 px-2">
+          <div className="px-2 pb-2">
+            <WorkspaceSwitcher />
+          </div>
+          <NavItems variant="stacked" onNavigate={() => setOpen(false)} />
+        </div>
+        <div className="mt-auto border-t border-border p-4">
+          <AuthActions me={me} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 function ApiKeyButton() {
   const prompt = usePrompt();
@@ -255,63 +342,23 @@ function Shell() {
   const gated = me?.mode === "oidc" && !me.authenticated;
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <header className="mb-8 flex items-center justify-between border-b border-zinc-800 pb-4">
+    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+      <header className="mb-8 flex items-center justify-between gap-3 border-b border-zinc-800 pb-4">
         <Link to="/" className="text-xl font-semibold tracking-tight">
           Automate<span className="text-emerald-400">X</span>
         </Link>
-        <nav className="flex items-center gap-5 text-sm">
-          {!gated && (
-            <>
+        {!gated && me && (
+          <>
+            <nav className="hidden items-center gap-5 text-sm md:flex">
               <WorkspaceSwitcher />
-              <NavLink to="/" end className={navLinkClass}>
-                <LayoutDashboard className={navIconClass} aria-hidden="true" />
-                Dashboard
-              </NavLink>
-              <NavLink to="/workflows" className={navLinkClass}>
-                <Workflow className={navIconClass} aria-hidden="true" />
-                Workflows
-              </NavLink>
-              <NavLink to="/executions" className={navLinkClass}>
-                <Activity className={navIconClass} aria-hidden="true" />
-                Executions
-              </NavLink>
-              <NavLink to="/connections" className={navLinkClass}>
-                <Plug className={navIconClass} aria-hidden="true" />
-                Connections
-              </NavLink>
-              <NavLink to="/variables" className={navLinkClass}>
-                <Variable className={navIconClass} aria-hidden="true" />
-                Variables
-              </NavLink>
-              <NavLink to="/plugins" className={navLinkClass}>
-                <Puzzle className={navIconClass} aria-hidden="true" />
-                Plugins
-              </NavLink>
-              <NavLink to="/audit" className={navLinkClass}>
-                <ScrollText className={navIconClass} aria-hidden="true" />
-                Audit
-              </NavLink>
-              <NavLink to="/workspace" className={navLinkClass}>
-                <Boxes className={navIconClass} aria-hidden="true" />
-                Workspace
-              </NavLink>
-              <NavLink to="/api-keys" className={navLinkClass}>
-                <KeyRound className={navIconClass} aria-hidden="true" />
-                API keys
-              </NavLink>
-            </>
-          )}
-          {me?.mode === "apikey" && <ApiKeyButton />}
-          {me?.mode === "oidc" && me.authenticated && (
-            <span className="flex items-center gap-3 text-xs text-zinc-500">
-              {me.name ?? me.email}
-              <a href="/auth/logout" className="hover:text-zinc-100">
-                Sign out
-              </a>
-            </span>
-          )}
-        </nav>
+              <NavItems variant="inline" />
+              <AuthActions me={me} />
+            </nav>
+            <div className="md:hidden">
+              <MobileNav me={me} />
+            </div>
+          </>
+        )}
       </header>
       {!gated && <NewWorkspaceBanner />}
       {gated ? <SignInGate /> : <Outlet />}
