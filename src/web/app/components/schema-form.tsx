@@ -9,7 +9,7 @@ import { filterConnections } from "./connection-form-logic";
 import { checkConnectionRefs, hasConnectionRef } from "./connection-refs";
 import { fieldKind, type JsonSchema } from "./schema-fields";
 import { checkStepRefs, type StepOutput, stepInsertGroups } from "./step-refs";
-import { Dialog, DialogContent } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 
 // Renders a form from the JSON Schema the engine exports for each action's config
 // type (GET /api/actions). Strings, numbers and booleans get native inputs; anything
@@ -280,7 +280,10 @@ function ConnectionCreateModal({
 }) {
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent title="New connection">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New connection</DialogTitle>
+        </DialogHeader>
         {/* Same form as the Connections page (ConnectionForm), so typed + free-form + custom
             fields all work here. On save we drop a reference to the first field and close. */}
         <ConnectionForm

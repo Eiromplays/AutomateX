@@ -1,5 +1,16 @@
 import { createContext, type ReactNode, useCallback, useContext, useRef, useState } from "react";
-import { Dialog, DialogContent } from "./dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./alert-dialog";
+import { Button } from "./button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "./dialog";
 
 type ConfirmOptions = {
   title: string;
@@ -25,7 +36,7 @@ type PromptFn = (options: PromptOptions) => Promise<string | null>;
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 const PromptContext = createContext<PromptFn | null>(null);
 
-// Promise-based confirm: `if (await confirm({...})) …`, rendered through the Radix Dialog so
+// Promise-based confirm: `if (await confirm({...})) …`, rendered through a shadcn AlertDialog so
 // every confirmation looks and behaves the same (instead of the browser's window.confirm).
 export function useConfirm(): ConfirmFn {
   const fn = useContext(ConfirmContext);
@@ -51,6 +62,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Null the resolver on first settle so the auto-close that follows a button click
+  // (which re-fires onOpenChange) can't overwrite the result.
   const settle = (ok: boolean) => {
     resolver.current?.(ok);
     resolver.current = null;
@@ -79,37 +92,34 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       <PromptContext.Provider value={promptFn}>
         {children}
-        <Dialog open={options != null} onOpenChange={(open) => (open ? undefined : settle(false))}>
+        <AlertDialog open={options != null} onOpenChange={(open) => (open ? undefined : settle(false))}>
           {options && (
-            <DialogContent title={options.title}>
-              {options.body && <div className="mb-4 text-sm text-zinc-400">{options.body}</div>}
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => settle(false)}
-                  className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
-                >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{options.title}</AlertDialogTitle>
+                {options.body && <AlertDialogDescription>{options.body}</AlertDialogDescription>}
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => settle(false)}>
                   {options.cancelLabel ?? "Cancel"}
-                </button>
-                <button
-                  type="button"
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  variant={options.destructive ? "destructive" : "default"}
                   onClick={() => settle(true)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium text-white ${
-                    options.destructive
-                      ? "bg-red-600 hover:bg-red-500"
-                      : "bg-emerald-600 hover:bg-emerald-500"
-                  }`}
                 >
                   {options.confirmLabel ?? "Confirm"}
-                </button>
-              </div>
-            </DialogContent>
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
           )}
-        </Dialog>
+        </AlertDialog>
 
         <Dialog open={prompt != null} onOpenChange={(open) => (open ? undefined : settlePrompt(null))}>
           {prompt && (
-            <DialogContent title={prompt.title}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{prompt.title}</DialogTitle>
+              </DialogHeader>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -117,30 +127,21 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 }}
                 className="space-y-3"
               >
-                {prompt.label && <span className="block text-xs text-zinc-400">{prompt.label}</span>}
+                {prompt.label && <span className="block text-xs text-muted-foreground">{prompt.label}</span>}
                 <input
                   autoFocus
                   type={prompt.password ? "password" : "text"}
-                  className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+                  className="w-full rounded-md border border-input bg-transparent px-3 py-1.5 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                   placeholder={prompt.placeholder}
                   value={promptValue}
                   onChange={(e) => setPromptValue(e.target.value)}
                 />
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => settlePrompt(null)}
-                    className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
-                  >
+                <DialogFooter>
+                  <Button type="button" variant="outline" onClick={() => settlePrompt(null)}>
                     Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-                  >
-                    {prompt.confirmLabel ?? "OK"}
-                  </button>
-                </div>
+                  </Button>
+                  <Button type="submit">{prompt.confirmLabel ?? "OK"}</Button>
+                </DialogFooter>
               </form>
             </DialogContent>
           )}

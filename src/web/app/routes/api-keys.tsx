@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
-import { Dialog, DialogContent } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import {
   api,
   type ApiKeyScope,
@@ -269,7 +269,10 @@ export default function ApiKeys() {
 
       <Dialog open={created !== null} onOpenChange={(open) => !open && setCreated(null)}>
         {created && (
-          <DialogContent title="Copy your API key">
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Copy your API key</DialogTitle>
+            </DialogHeader>
             <div className="space-y-3">
               <p className="text-sm text-zinc-400">
                 This is the only time <span className="font-medium text-zinc-200">{created.name}</span> is shown.

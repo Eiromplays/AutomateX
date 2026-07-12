@@ -5,7 +5,7 @@ import { CodeBlock } from "../components/code-block";
 import { backboneEdges } from "../components/switch-routing";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
-import { Dialog, DialogContent } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -231,7 +231,7 @@ export default function WorkflowDetail() {
                 ⋯
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => navigate(`/workflows/${id}/edit`)}>Edit</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => clone.mutate()}>Clone</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setEnabled.mutate(!workflow.enabled)}>
@@ -247,7 +247,7 @@ export default function WorkflowDetail() {
                 Save as template
               </DropdownMenuItem>
               <DropdownMenuItem
-                destructive
+                variant="destructive"
                 onSelect={async () => {
                   if (
                     await confirm({
@@ -270,7 +270,10 @@ export default function WorkflowDetail() {
       {removeWorkflow.error && <p className="text-sm text-red-400">{String(removeWorkflow.error)}</p>}
 
       <Dialog open={runOpen} onOpenChange={setRunOpen}>
-        <DialogContent title="Run now">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Run now</DialogTitle>
+          </DialogHeader>
           <p className="mb-2 text-xs text-zinc-500">
             Optional JSON payload — available in steps as{" "}
             <code className="text-zinc-400">{"{{trigger.payload}}"}</code>.
@@ -300,12 +303,15 @@ export default function WorkflowDetail() {
           if (!open) setSelectedStepOrder(null);
         }}
       >
-        <DialogContent
-          title={(() => {
-            const step = workflow.latestVersion.steps.find((s) => s.order === selectedStepOrder);
-            return step ? `#${step.order + 1} ${step.name ?? step.actionType}` : "Step";
-          })()}
-        >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {(() => {
+                const step = workflow.latestVersion.steps.find((s) => s.order === selectedStepOrder);
+                return step ? `#${step.order + 1} ${step.name ?? step.actionType}` : "Step";
+              })()}
+            </DialogTitle>
+          </DialogHeader>
           {(() => {
             const step = workflow.latestVersion.steps.find((s) => s.order === selectedStepOrder);
             if (!step) return null;
@@ -325,13 +331,16 @@ export default function WorkflowDetail() {
           if (!open) setSelectedTriggerIndex(null);
         }}
       >
-        <DialogContent
-          title={(() => {
-            const trigger =
-              selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
-            return trigger ? `${trigger.type} trigger` : "Trigger";
-          })()}
-        >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {(() => {
+                const trigger =
+                  selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
+                return trigger ? `${trigger.type} trigger` : "Trigger";
+              })()}
+            </DialogTitle>
+          </DialogHeader>
           {(() => {
             const trigger =
               selectedTriggerIndex != null ? workflow.triggers[selectedTriggerIndex] : undefined;
@@ -592,7 +601,10 @@ export default function WorkflowDetail() {
           if (!open) setNewWebhook(null);
         }}
       >
-        <DialogContent title="Webhook URL">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Webhook URL</DialogTitle>
+          </DialogHeader>
           {newWebhook &&
             (() => {
               const url = `POST ${newWebhook.startsWith("http") ? newWebhook : `${window.location.origin}${newWebhook}`}`;

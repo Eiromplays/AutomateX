@@ -7,7 +7,7 @@ import { StatusBadge } from "../components/status-badge";
 import { backboneEdges } from "../components/switch-routing";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
-import { Dialog, DialogContent } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
 import { type GraphTrigger, WorkflowGraph } from "../components/workflow-graph";
 import { triggerSummary } from "../components/workflow-triggers";
 import {
@@ -376,7 +376,10 @@ function StepDialog({
         if (!open) onClose();
       }}
     >
-      <DialogContent title={title}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
         {!step ? (
           <p className="text-sm text-zinc-500">This step did not run in this execution.</p>
         ) : (
