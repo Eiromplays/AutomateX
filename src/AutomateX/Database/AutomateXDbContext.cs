@@ -59,6 +59,10 @@ public sealed class AutomateXDbContext(DbContextOptions<AutomateXDbContext> opti
 
     public DbSet<Modules.ApiKeys.ApiKey> ApiKeys => Set<Modules.ApiKeys.ApiKey>();
 
+    public DbSet<Modules.Plugins.PluginCatalogSource> PluginCatalogSources => Set<Modules.Plugins.PluginCatalogSource>();
+
+    public DbSet<Modules.Plugins.InstalledPlugin> InstalledPlugins => Set<Modules.Plugins.InstalledPlugin>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AutomateXDbContext).Assembly);
 }
