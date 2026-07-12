@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { reactRouter } from "@react-router/dev/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
@@ -7,6 +8,11 @@ const apiUrl = process.env.services__api__http__0 ?? "http://localhost:5180";
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter()],
+  // `~` → ./app so shadcn's generated imports (~/lib/utils, ~/components/ui/*) resolve.
+  // A plain alias keeps it to one line and avoids a tsconfig-paths plugin dep.
+  resolve: {
+    alias: { "~": fileURLToPath(new URL("./app", import.meta.url)) },
+  },
   // Pre-bundle everything up front so Vite never re-optimizes mid-session
   // (mixed-pass chunks cause "Cannot read properties of null (reading 'useContext')").
   optimizeDeps: {
