@@ -331,17 +331,21 @@ static IConnectionType FindConnectionType(Assembly assembly, string connectionTy
 static HttpClient CreateHttpClient()
 {
     var blockPrivate = Environment.GetEnvironmentVariable("AUTOMATEX_EGRESS_BLOCK_PRIVATE") is "true";
-    var client = blockPrivate
-        ? new HttpClient(new SocketsHttpHandler
-        {
-            ConnectCallback = EgressGuard.MakeConnectCallback(new EgressPolicy(
-                blockPrivate,
-                Environment.GetEnvironmentVariable("AUTOMATEX_EGRESS_ALLOWLIST")
-                    ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))),
-        })
+    var policy = new EgressPolicy(
+        blockPrivate,
+        Split("AUTOMATEX_EGRESS_ALLOWLIST"),
+        Split("AUTOMATEX_EGRESS_ALLOW_ONLY"));
+
+    // Wire the guard when the SSRF block is on OR the plugin declares a restrictive egress allowlist.
+    var client = blockPrivate || policy.HasRestriction
+        ? new HttpClient(new SocketsHttpHandler { ConnectCallback = EgressGuard.MakeConnectCallback(policy) })
         : new HttpClient();
     client.DefaultRequestHeaders.UserAgent.ParseAdd("AutomateX/2.0");
     return client;
+
+    static string[]? Split(string variable) =>
+        Environment.GetEnvironmentVariable(variable)
+            ?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }
 
 // Out-of-proc plugins receive their services via ActionContext (Logger/Http), not ctor injection. Build

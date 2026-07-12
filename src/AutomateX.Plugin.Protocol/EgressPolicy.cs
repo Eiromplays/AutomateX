@@ -13,13 +13,28 @@ public sealed class EgressPolicy
 
     private readonly HashSet<string> _hostnames = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<IPNetwork> _networks = [];
+    private readonly HashSet<string> _allowOnlyHostnames = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<IPNetwork> _allowOnlyNetworks = [];
 
-    public EgressPolicy(bool blockPrivate, IEnumerable<string>? allowlist)
+    // allowlist widens the SSRF block (permit otherwise-private targets); allowOnly is the opposite — a
+    // restrictive allowlist (a per-plugin declared egress) that permits ONLY its entries and denies
+    // everything else, public and private, regardless of BlockPrivate. Null/empty allowOnly = no
+    // restriction, i.e. exactly the prior behaviour.
+    public EgressPolicy(bool blockPrivate, IEnumerable<string>? allowlist, IEnumerable<string>? allowOnly = null)
     {
         BlockPrivate = blockPrivate;
         List<string> invalid = [];
 
-        foreach (var raw in allowlist ?? [])
+        Parse(allowlist, _hostnames, _networks, invalid);
+        Parse(allowOnly, _allowOnlyHostnames, _allowOnlyNetworks, invalid);
+
+        InvalidEntries = invalid;
+    }
+
+    private static void Parse(
+        IEnumerable<string>? entries, HashSet<string> hostnames, List<IPNetwork> networks, List<string> invalid)
+    {
+        foreach (var raw in entries ?? [])
         {
             var entry = raw.Trim();
             if (entry.Length == 0)
@@ -31,7 +46,7 @@ public sealed class EgressPolicy
             {
                 if (IPNetwork.TryParse(entry, out var network))
                 {
-                    _networks.Add(network);
+                    networks.Add(network);
                 }
                 else
                 {
@@ -40,46 +55,41 @@ public sealed class EgressPolicy
             }
             else if (Uri.CheckHostName(entry) != UriHostNameType.Unknown)
             {
-                _hostnames.Add(entry);
+                hostnames.Add(entry);
             }
             else
             {
                 invalid.Add(entry);
             }
         }
-
-        InvalidEntries = invalid;
     }
 
     public bool BlockPrivate { get; }
+
+    // True when a restrictive allowOnly list is in force — the host wires the guard whenever this holds,
+    // even if BlockPrivate is off.
+    public bool HasRestriction => _allowOnlyHostnames.Count > 0 || _allowOnlyNetworks.Count > 0;
 
     // Entries that couldn't be parsed as a hostname or CIDR — dropped, not fatal. The engine/host logs
     // these once at startup so a typo is visible without taking the instance down.
     public IReadOnlyList<string> InvalidEntries { get; }
 
-    // Widens-only. Permitted if the guard is off, the address isn't private in the first place, the host
-    // is an allowlisted name (pre-resolution), or the dialed IP falls in an allowlisted CIDR. With an
-    // empty allowlist this is exactly !EgressGuard.IsBlockedAddress.
     public bool IsConnectionAllowed(string host, IPAddress address)
     {
+        // Restrictive mode: only the declared hosts/CIDRs are reachable — deny everything else outright.
+        if (HasRestriction)
+        {
+            return _allowOnlyHostnames.Contains(host) || _allowOnlyNetworks.Exists(network => network.Contains(address));
+        }
+
+        // Widen mode: permitted if the guard is off, the address isn't private, the host is an allowlisted
+        // name (pre-resolution), or the dialed IP falls in an allowlisted CIDR. Empty allowlist is exactly
+        // !EgressGuard.IsBlockedAddress.
         if (!BlockPrivate || !EgressGuard.IsBlockedAddress(address))
         {
             return true;
         }
 
-        if (_hostnames.Contains(host))
-        {
-            return true;
-        }
-
-        foreach (var network in _networks)
-        {
-            if (network.Contains(address))
-            {
-                return true;
-            }
-        }
-
-        return false;
+        return _hostnames.Contains(host) || _networks.Exists(network => network.Contains(address));
     }
 }

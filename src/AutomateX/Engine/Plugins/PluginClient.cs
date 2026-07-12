@@ -44,7 +44,8 @@ public sealed class PluginClient : IAsyncDisposable
 
     public PluginClient(
         string hostDll, string pluginDll, IPluginHostCallbacks callbacks, ILogger logger,
-        bool blockPrivateEgress = false, string[]? egressAllowlist = null)
+        bool blockPrivateEgress = false, string[]? egressAllowlist = null,
+        IReadOnlyList<string>? allowOnlyEgress = null)
     {
         _callbacks = callbacks;
         _pluginDll = pluginDll;
@@ -64,6 +65,12 @@ public sealed class PluginClient : IAsyncDisposable
         if (egressAllowlist is { Length: > 0 } allowlist)
         {
             startInfo.Environment["AUTOMATEX_EGRESS_ALLOWLIST"] = string.Join(',', allowlist);
+        }
+
+        // The plugin's declared egress (plugin.json) — restricts this host to only those hosts/CIDRs.
+        if (allowOnlyEgress is { Count: > 0 } allowOnly)
+        {
+            startInfo.Environment["AUTOMATEX_EGRESS_ALLOW_ONLY"] = string.Join(',', allowOnly);
         }
 
         _process = Process.Start(startInfo)

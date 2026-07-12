@@ -189,7 +189,8 @@ public sealed class PluginProcessSupervisor(
             }
 
             var client = new PluginClient(
-                pluginHostDll, pluginDll, this, _logger, blockPrivateEgress, egressAllowlist);
+                pluginHostDll, pluginDll, this, _logger, blockPrivateEgress, egressAllowlist,
+                PluginEgress.ForPlugin(pluginDll));
             _clients[pluginDll] = client;
             return client;
         }

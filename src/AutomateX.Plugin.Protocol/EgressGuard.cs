@@ -17,7 +17,7 @@ public static class EgressGuard
     // v4.7 exactly, and a guard-off policy is a no-op.
     public static async Task GuardAsync(string url, EgressPolicy policy, CancellationToken cancellationToken)
     {
-        if (!policy.BlockPrivate)
+        if (!policy.BlockPrivate && !policy.HasRestriction)
         {
             return;
         }
@@ -46,9 +46,10 @@ public static class EgressGuard
 
         if (Array.Exists(addresses, address => !policy.IsConnectionAllowed(uri.Host, address)))
         {
-            throw new InvalidOperationException(
-                $"http.request: '{uri.Host}' resolves to a private/loopback/link-local address, blocked by "
-                + "Engine:BlockPrivateNetworkRequests.");
+            throw new InvalidOperationException(policy.HasRestriction
+                ? $"http.request: '{uri.Host}' is not in the declared egress allowlist."
+                : $"http.request: '{uri.Host}' resolves to a private/loopback/link-local address, blocked by "
+                  + "Engine:BlockPrivateNetworkRequests.");
         }
     }
 
@@ -64,9 +65,10 @@ public static class EgressGuard
         var allowed = Array.FindAll(resolved, address => policy.IsConnectionAllowed(host, address));
         if (allowed.Length == 0)
         {
-            throw new IOException(
-                $"http: '{host}' resolves only to private/loopback/link-local addresses, "
-                + "blocked by Engine:BlockPrivateNetworkRequests.");
+            throw new IOException(policy.HasRestriction
+                ? $"http: '{host}' is not in the plugin's declared egress allowlist."
+                : $"http: '{host}' resolves only to private/loopback/link-local addresses, "
+                  + "blocked by Engine:BlockPrivateNetworkRequests.");
         }
 
         var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
