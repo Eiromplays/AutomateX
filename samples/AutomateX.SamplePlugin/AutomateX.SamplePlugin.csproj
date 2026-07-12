@@ -6,6 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- A plugin-private dependency the host does NOT reference — bundled with the plugin (deps.json) so
+         the out-of-proc dependency test proves the host's AssemblyLoadContext resolves it. -->
+    <PackageReference Include="Humanizer.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- The SDK assembly is provided by the host at runtime — never ship a private copy. -->
     <ProjectReference Include="..\..\src\AutomateX.Plugin.Sdk\AutomateX.Plugin.Sdk.csproj">
       <Private>false</Private>
