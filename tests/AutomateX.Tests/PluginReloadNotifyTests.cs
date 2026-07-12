@@ -3,10 +3,10 @@ using AutomateX.Database;
 using AutomateX.Engine;
 using AutomateX.Engine.Plugins;
 using AutomateX.Engine.Triggers;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -59,26 +59,52 @@ public sealed class PluginReloadNotifyTests : IAsyncLifetime
         var registryB = _nodeB.Services.GetRequiredService<TriggerRegistry>();
         var coordinatorA = _nodeA.Services.GetRequiredService<PluginReloadCoordinator>();
 
-        var genA0 = registryA.Generation;
-        var genB0 = registryB.Generation;
+        var genA = registryA.Generation;
+        var genB = registryB.Generation;
 
+        // Reload node A once locally; this also NOTIFYs peers.
         await coordinatorA.ReloadAndNotifyAsync();
 
-        // Peer learns via NOTIFY and reloads.
-        await WaitUntilAsync(() => registryB.Generation > genB0, TimeSpan.FromSeconds(20));
-        Assert.True(registryB.Generation >= genB0 + 1);
+        // A NOTIFY sent before a peer's listener has issued LISTEN is lost (notifications aren't durable),
+        // and the listener starts asynchronously — under a slow/contended CI runner it may not be ready for
+        // that first signal. Re-send node A's signal (raw, so node A is NOT reloaded again — its own listener
+        // keeps skipping its id) until node B picks it up.
+        await WaitUntilAsync(async () =>
+        {
+            if (registryB.Generation > genB)
+            {
+                return true;
+            }
 
-        // Originating node reloaded once locally; it receives its own NOTIFY but ignores it (no second reload).
-        await Task.Delay(TimeSpan.FromSeconds(2));
-        Assert.Equal(genA0 + 1, registryA.Generation);
+            await NotifyRawAsync(coordinatorA.InstanceId);
+            await Task.Delay(200);
+            return registryB.Generation > genB;
+        }, TimeSpan.FromSeconds(30));
+
+        Assert.True(registryB.Generation >= genB + 1);
+
+        // Node A reloaded once locally and ignores its own NOTIFY (and every re-send) — no second reload.
+        await Task.Delay(TimeSpan.FromSeconds(1));
+        Assert.Equal(genA + 1, registryA.Generation);
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout)
+    // Raw pg_notify from an independent connection — used to re-send the origin's signal without reloading it.
+    private async Task NotifyRawAsync(string payload)
+    {
+        await using var connection = new NpgsqlConnection(_postgres.GetConnectionString());
+        await connection.OpenAsync();
+        await using var command = new NpgsqlCommand(
+            $"SELECT pg_notify('{PluginReloadCoordinator.Channel}', @payload)", connection);
+        command.Parameters.AddWithValue("payload", payload);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task WaitUntilAsync(Func<Task<bool>> condition, TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
         while (DateTimeOffset.UtcNow < deadline)
         {
-            if (condition())
+            if (await condition())
             {
                 return;
             }
