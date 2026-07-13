@@ -61,8 +61,10 @@ dotnet new install ./templates/automatex-plugin
 dotnet new automatex-plugin -n MyPlugin
 ```
 
-See the README's "Writing a plugin" section and the first-party plugins under `src/Plugins` for
-reference.
+See the README's "Writing a plugin" section, the reference `samples/AutomateX.SamplePlugin`, and the
+first-party plugins in [AutomateX-Plugins](https://github.com/Eiromplays/AutomateX-Plugins) for reference —
+plus [docs/recipes/publishing-plugins.md](docs/recipes/publishing-plugins.md) for manifests and publishing a
+catalog.
 
 ## Pull requests
 

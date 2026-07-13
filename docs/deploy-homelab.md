@@ -166,7 +166,9 @@ UI/API work without any host-permission setup — the `plugin-init` one-shot cho
 API's non-root user (uid 1654) before the API starts. Set `Engine__AllowPluginUpload=true` in `.env`
 to enable upload (uploaded plugins run in-process with full host trust, so turn it off when done).
 
-To drop a `<Name>/<Name>.dll` in by hand instead, copy it into the running container and restart:
+To drop a locally-built `<Name>/<Name>.dll` in by hand instead of installing from the catalog (e.g. one you
+built from [AutomateX-Plugins](https://github.com/Eiromplays/AutomateX-Plugins)), copy it into the running
+container and restart:
 
 ```bash
 docker compose -f docker-compose.prod.yml cp ./AutomateX.Plugins.Ssh api:/app/plugins/

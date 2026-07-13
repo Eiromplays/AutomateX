@@ -147,7 +147,8 @@ dotnet new install ./templates/automatex-plugin
 dotnet new automatex-plugin -n MyPlugin
 ```
 
-First-party plugins live under `src/Plugins`; the sample (echo/delay actions) is in
+First-party plugins live in the [AutomateX-Plugins](https://github.com/Eiromplays/AutomateX-Plugins) repo
+(installable from the catalog); the reference sample (echo/delay actions) is in
 `samples/AutomateX.SamplePlugin`. Deploy convention: `plugins/<PluginName>/<PluginName>.dll` **with its
 dependency dlls in the same folder** (a normal `dotnet publish`/`build`, or the catalog zip — both
 include them); override the root with `Engine__PluginsPath`.

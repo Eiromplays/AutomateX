@@ -3,6 +3,44 @@
 Notable changes per release, newest first. AutomateX is the v2/v3 rewrite of
 [AutomateX-v1](https://github.com/Eiromplays/AutomateX-v1).
 
+## v5.2.0
+
+The **plugin catalog overhaul**. Plugins become a first-class, browsable, shareable catalog —
+independently versioned, cryptographically trusted, and permission-aware — decoupled from the API's release
+train. First-party plugins now live in their own open-source repo,
+[AutomateX-Plugins](https://github.com/Eiromplays/AutomateX-Plugins), with their own semver and a signed
+release catalog; the engine consumes it as one of any number of operator-configurable sources. Design:
+[docs/plugin-catalog-design.md](docs/plugin-catalog-design.md). Two EF migrations (`PluginCatalog`,
+`PluginAutoUpdate`); everything degrades to the pre-v5.2 behaviour when nothing new is configured.
+
+- **Plugins moved out + independently versioned.** The nine first-party plugins left `src/Plugins/` for the
+  [AutomateX-Plugins](https://github.com/Eiromplays/AutomateX-Plugins) repo. Each ships a `plugin.json`
+  manifest carrying its **own semver**, so a catalog "update" now means the plugin actually changed — no
+  more phantom bumps to the API version. `AutomateX.Plugin.Sdk` and `AutomateX.Plugin.Protocol` are
+  published to NuGet (via Trusted Publishing) so out-of-repo plugins can reference them.
+- **A real manifest + versioned catalog schema.** `plugin.json` declares id (reverse-DNS), display name,
+  version, description, author, license, categories, icon, `minAutomateXVersion`, capabilities, and required
+  network permissions. The v2 catalog index carries these plus a per-plugin `versions[]`; the legacy flat
+  shape still parses.
+- **Multiple runtime-configurable sources.** Add, trust, enable, and remove catalog sources at runtime
+  (public, third-party, or a private LAN host) — npm/nuget-style — instead of a single hard-coded URL.
+  Sources dedupe by id, and a verified source always wins over an untrusted one claiming a higher version.
+- **Trust: signatures, not just hashes.** sha256 still verifies integrity before anything touches disk; on
+  top, the catalog is **minisign-signed** (Ed25519) and each source pins its publisher's key. Verified /
+  Untrusted / Blocked tiers drive the UI and the install gate — an untrusted source needs an instance admin
+  plus an explicit acknowledgement.
+- **Permissions: declared → consented → enforced.** A plugin declares the network egress it needs; it's
+  surfaced for consent at install and **enforced at runtime** — the plugin's host process can reach only its
+  declared hosts (`*` or no declaration stays unrestricted).
+- **Opt-in auto-update.** Per plugin, a cluster-singleton agent keeps it on the latest compatible,
+  same-major version from a verified source. Off unless `Engine:PluginAutoUpdateInterval` (and
+  `AllowPluginUpload`) are set; never crosses a major, never installs from an untrusted source.
+- **Browsable catalog UI.** The Plugins page gains a searchable, filterable card grid with trust badges,
+  categories, capability + network summaries, and a detail view with a version picker, permission consent,
+  an auto-update toggle, and instance-admin source management.
+- **Runtime untouched.** `PluginProcessSupervisor`, triggers, hot-reload, and the v5.0 cross-node reload
+  propagation are unchanged — a catalog install still ends in the same extract + reload path.
+
 ## v5.1.0
 
 A **web UI modernization** arc — incremental, no rewrite, backend untouched. Adopts

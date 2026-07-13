@@ -11,13 +11,17 @@ git tag v2.x → GitHub Actions builds + pushes GHCR images
                                             (execution completes — *then* the containers restart)
 ```
 
-## 1. Publish the plugins
+## 1. Install the plugins
 
-Into the compose-mounted `./plugins` folder (or your `Engine__PluginsPath`):
+`ssh.command` and `matrix.send` come from the **SSH** and **Matrix** plugins. Install them from the catalog
+(Plugins page, with `Engine__AllowPluginUpload=true`), or build them from
+[AutomateX-Plugins](https://github.com/Eiromplays/AutomateX-Plugins) into the compose-mounted `./plugins`
+folder (or your `Engine__PluginsPath`):
 
 ```bash
-dotnet publish src/Plugins/AutomateX.Plugins.Ssh    -c Release -o plugins/AutomateX.Plugins.Ssh
-dotnet publish src/Plugins/AutomateX.Plugins.Matrix -c Release -o plugins/AutomateX.Plugins.Matrix
+git clone https://github.com/Eiromplays/AutomateX-Plugins
+dotnet publish AutomateX-Plugins/plugins/AutomateX.Plugins.Ssh    -c Release -o plugins/AutomateX.Plugins.Ssh
+dotnet publish AutomateX-Plugins/plugins/AutomateX.Plugins.Matrix -c Release -o plugins/AutomateX.Plugins.Matrix
 ```
 
 Restart the api container and confirm `ssh.command` + `matrix.send` appear in `GET /api/actions`.
