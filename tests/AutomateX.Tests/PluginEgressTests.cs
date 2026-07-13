@@ -52,4 +52,48 @@ public sealed class PluginEgressTests
     [Fact]
     public void Egress_allowOnly_is_unrestricted_for_an_empty_declaration() =>
         Assert.Empty(PluginEgress.AllowOnly([]));
+
+    [Fact]
+    public void ForPlugin_reads_declared_egress_from_the_manifest_next_to_the_dll()
+    {
+        var dir = Directory.CreateTempSubdirectory();
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(dir.FullName, "plugin.json"),
+                """{ "permissions": { "egress": ["hooks.slack.com"] } }""");
+
+            Assert.Equal(
+                new[] { "hooks.slack.com" },
+                PluginEgress.ForPlugin(Path.Combine(dir.FullName, "Plugin.dll")));
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void ForPlugin_is_unrestricted_without_a_specific_declaration()
+    {
+        var dir = Directory.CreateTempSubdirectory();
+        var dll = Path.Combine(dir.FullName, "Plugin.dll");
+        try
+        {
+            // No manifest → unrestricted.
+            Assert.Empty(PluginEgress.ForPlugin(dll));
+
+            // Wildcard → unrestricted.
+            File.WriteAllText(Path.Combine(dir.FullName, "plugin.json"), """{ "permissions": { "egress": ["*"] } }""");
+            Assert.Empty(PluginEgress.ForPlugin(dll));
+
+            // Malformed manifest → unrestricted (lenient, never blocks a launch).
+            File.WriteAllText(Path.Combine(dir.FullName, "plugin.json"), "{ not json");
+            Assert.Empty(PluginEgress.ForPlugin(dll));
+        }
+        finally
+        {
+            dir.Delete(recursive: true);
+        }
+    }
 }
