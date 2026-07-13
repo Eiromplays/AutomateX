@@ -23,8 +23,7 @@ public static class PluginCatalogFetch
 
         if (!string.IsNullOrWhiteSpace(options.PluginCatalogUrl))
         {
-            results.Add(await ReadAsync(
-                http, "AutomateX", options.PluginCatalogUrl, CatalogKeys.FirstParty, null, firstParty: true, ct));
+            results.Add(await ReadAsync(http, "AutomateX", options.PluginCatalogUrl, CatalogKeys.FirstParty, null, ct));
         }
 
         var added = await dbContext.PluginCatalogSources
@@ -35,14 +34,17 @@ public static class PluginCatalogFetch
 
         foreach (var source in added)
         {
-            results.Add(await ReadAsync(http, source.Name, source.Url, source.TrustedKey, source.Id, firstParty: false, ct));
+            results.Add(await ReadAsync(http, source.Name, source.Url, source.TrustedKey, source.Id, ct));
         }
 
         return results;
     }
 
+    // Trust comes purely from the signature: a pinned key + a valid signature is Verified, a present-but-bad
+    // signature is Blocked, and no key or no signature is Untrusted — for every source, first-party included.
+    // Fail-closed: an unsigned catalog (or a build without CatalogKeys.FirstParty) is never auto-trusted.
     private static async Task<FetchedSource> ReadAsync(
-        HttpClient http, string name, string url, string? key, Guid? sourceId, bool firstParty, CancellationToken ct)
+        HttpClient http, string name, string url, string? key, Guid? sourceId, CancellationToken ct)
     {
         try
         {
@@ -60,15 +62,6 @@ public static class PluginCatalogFetch
             }
 
             var trust = CatalogSignature.Evaluate(bytes, signature, key);
-
-            // The operator's own configured first-party catalog is trusted by configuration until the
-            // release signing key ships (m7) — this preserves today's first-party install behaviour. Added
-            // third-party sources stay Untrusted until their key is pinned.
-            if (firstParty && key is null)
-            {
-                trust = CatalogTrust.Verified;
-            }
-
             return new FetchedSource(name, url, sourceId, new CatalogSourceResult(name, trust, index), null);
         }
         catch (Exception exception) when (exception is HttpRequestException or InvalidOperationException or TaskCanceledException)
