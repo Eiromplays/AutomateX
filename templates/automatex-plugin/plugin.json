@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "example.plugin",
+  "name": "AutomateX.PluginTemplate",
+  "displayName": "AutomateX.PluginTemplate",
+  "version": "1.0.0",
+  "description": "An AutomateX plugin.",
+  "author": "you",
+  "license": "MIT",
+  "minAutomateXVersion": "5.0.0",
+  "capabilities": { "actions": ["greet.hello"], "triggers": [], "connectionTypes": [] },
+  "permissions": { "egress": [] }
+}
