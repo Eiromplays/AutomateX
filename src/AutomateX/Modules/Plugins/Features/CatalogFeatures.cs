@@ -42,15 +42,19 @@ public static class GetPluginCatalog
                 .Select(x => x.Name)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            var installedVersions = (await dbContext.InstalledPlugins
-                    .AsNoTracking()
-                    .Where(x => x.WorkspaceId == Guid.Empty)
-                    .Select(x => new { x.Name, x.Version })
-                    .ToListAsync(ct))
-                .ToDictionary(x => x.Name, x => x.Version, StringComparer.OrdinalIgnoreCase);
+            var provenance = await dbContext.InstalledPlugins
+                .AsNoTracking()
+                .Where(x => x.WorkspaceId == Guid.Empty)
+                .Select(x => new { x.Name, x.Version, x.AutoUpdate })
+                .ToListAsync(ct);
+            var installedVersions = provenance.ToDictionary(x => x.Name, x => x.Version, StringComparer.OrdinalIgnoreCase);
+            var autoUpdateNames = provenance
+                .Where(x => x.AutoUpdate)
+                .Select(x => x.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var listings = CatalogAggregator.Merge(
-                sources.Select(x => x.Result), installedNames, installedVersions);
+                sources.Select(x => x.Result), installedNames, installedVersions, autoUpdateNames);
 
             await Send.OkAsync(
                 new Response(
@@ -64,9 +68,10 @@ public static class GetPluginCatalog
         private static CatalogEntry ToEntry(CatalogListing listing) => new(
             listing.Id, listing.Name, listing.DisplayName, listing.LatestVersion, listing.Description,
             listing.Author, [.. listing.Categories], listing.Icon, listing.SourceName, listing.Trust.ToString(),
-            listing.Installed, listing.InstalledVersion, listing.UpdateAvailable,
+            listing.Installed, listing.InstalledVersion, listing.UpdateAvailable, listing.AutoUpdate,
             listing.Capabilities.Actions.Count, listing.Capabilities.Triggers.Count,
-            listing.Capabilities.ConnectionTypes.Count, [.. listing.Permissions.Egress]);
+            listing.Capabilities.ConnectionTypes.Count, [.. listing.Permissions.Egress],
+            [.. listing.Versions.Select(v => v.Version)]);
     }
 
     // Name/Version/Description/Installed are kept for the current UI; the rest is the m8 browse surface.
@@ -84,10 +89,12 @@ public static class GetPluginCatalog
         bool Installed,
         string? InstalledVersion,
         bool UpdateAvailable,
+        bool AutoUpdate,
         int Actions,
         int Triggers,
         int Connections,
-        List<string> Egress);
+        List<string> Egress,
+        List<string> Versions);
 
     public sealed record SourceStatus(string Name, string Url, bool Ok, string Trust, string? Error);
 

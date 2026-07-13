@@ -16,8 +16,12 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <!-- Version is supplied by the sdk-v* release tag (publish-sdk.yml); 0.0.0 for local packs. -->
+    <!-- Package version is supplied by the sdk-v* release tag (publish-sdk.yml); 0.0.0 for local packs. -->
     <Version>0.0.0</Version>
+    <!-- AssemblyVersion stays pinned to the major so the host (built from source at any package version)
+         always satisfies plugins compiled against SDK 1.x. Bump only on a breaking major. -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

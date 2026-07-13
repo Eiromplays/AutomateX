@@ -316,16 +316,51 @@ export type TriggerTypeInfo = {
 };
 
 export type CatalogEntry = {
+  id: string;
   name: string;
+  displayName: string;
   version: string;
   description: string | null;
+  author: string | null;
+  categories: string[];
+  icon: string | null;
+  source: string;
+  trust: "Verified" | "Untrusted" | "Blocked" | string;
   installed: boolean;
+  installedVersion: string | null;
+  updateAvailable: boolean;
+  autoUpdate: boolean;
+  actions: number;
+  triggers: number;
+  connections: number;
+  egress: string[];
+  versions: string[];
+};
+
+export type CatalogSourceStatus = {
+  name: string;
+  url: string;
+  ok: boolean;
+  trust: string;
+  error: string | null;
 };
 
 export type PluginCatalogInfo = {
   installEnabled: boolean;
   entries: CatalogEntry[];
+  sources: CatalogSourceStatus[];
 };
+
+export type CatalogSource = {
+  id: string;
+  name: string;
+  url: string;
+  hasKey: boolean;
+  enabled: boolean;
+  createdAt: string;
+};
+
+export type InstallRequest = { id?: string; name?: string; version?: string; acknowledge?: boolean };
 
 export type PluginUploadResult = {
   name: string;
@@ -547,16 +582,33 @@ export const api = {
         body: JSON.stringify({ enabled }),
       }),
     catalog: () => request<PluginCatalogInfo>("/plugins/catalog"),
-    installFromCatalog: (name: string) =>
+    installFromCatalog: (req: InstallRequest) =>
       request<{
         name: string;
         version: string;
+        trust: string;
         previousFingerprint: string | null;
         fingerprint: string | null;
       }>("/plugins/catalog/install", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify(req),
       }),
+    setAutoUpdate: (name: string, enabled: boolean) =>
+      request<void>("/plugins/catalog/auto-update", {
+        method: "PUT",
+        body: JSON.stringify({ name, enabled }),
+      }),
+    sources: {
+      list: () => request<CatalogSource[]>("/plugins/catalog/sources"),
+      add: (req: { name: string; url: string; trustedKey?: string }) =>
+        request<{ id: string }>("/plugins/catalog/sources", {
+          method: "POST",
+          body: JSON.stringify(req),
+        }),
+      update: (id: string, req: { name?: string; url?: string; trustedKey?: string; enabled?: boolean }) =>
+        request<void>(`/plugins/catalog/sources/${id}`, { method: "PUT", body: JSON.stringify(req) }),
+      remove: (id: string) => request<void>(`/plugins/catalog/sources/${id}`, { method: "DELETE" }),
+    },
     remove: (scope: "global" | "workspace", name: string, force = false) =>
       request<void>(`/plugins/${scope}/${encodeURIComponent(name)}${force ? "?force=true" : ""}`, {
         method: "DELETE",

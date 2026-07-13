@@ -18,8 +18,12 @@
     <RepositoryType>git</RepositoryType>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <!-- Version is supplied by the sdk-v* release tag (publish-sdk.yml); 0.0.0 for local packs. -->
+    <!-- Package version is supplied by the sdk-v* release tag (publish-sdk.yml); 0.0.0 for local packs. -->
     <Version>0.0.0</Version>
+    <!-- AssemblyVersion pinned to the major, like the SDK, so host/plugin binding stays stable across
+         package versions. -->
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

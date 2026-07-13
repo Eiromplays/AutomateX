@@ -20,6 +20,7 @@ public sealed record CatalogListing(
     bool Installed,
     string? InstalledVersion,
     bool UpdateAvailable,
+    bool AutoUpdate,
     PluginCapabilities Capabilities,
     PluginPermissions Permissions,
     IReadOnlyList<CatalogVersion> Versions);
@@ -33,7 +34,8 @@ public static class CatalogAggregator
     public static IReadOnlyList<CatalogListing> Merge(
         IEnumerable<CatalogSourceResult> sources,
         ISet<string> installedNames,
-        IReadOnlyDictionary<string, string> installedVersions)
+        IReadOnlyDictionary<string, string> installedVersions,
+        ISet<string>? autoUpdateNames = null)
     {
         Dictionary<string, CatalogListing> byId = new(StringComparer.OrdinalIgnoreCase);
 
@@ -46,7 +48,7 @@ public static class CatalogAggregator
 
             foreach (var plugin in source.Index.Plugins)
             {
-                var listing = ToListing(plugin, source, installedNames, installedVersions);
+                var listing = ToListing(plugin, source, installedNames, installedVersions, autoUpdateNames);
                 if (!byId.TryGetValue(listing.Id, out var existing) || Wins(listing, existing))
                 {
                     byId[listing.Id] = listing;
@@ -71,7 +73,8 @@ public static class CatalogAggregator
         CatalogPlugin plugin,
         CatalogSourceResult source,
         ISet<string> installedNames,
-        IReadOnlyDictionary<string, string> installedVersions)
+        IReadOnlyDictionary<string, string> installedVersions,
+        ISet<string>? autoUpdateNames)
     {
         var manifest = plugin.Manifest;
         var latest = plugin.Latest.Version;
@@ -84,7 +87,7 @@ public static class CatalogAggregator
         return new CatalogListing(
             manifest.Id, manifest.Name, manifest.DisplayName, manifest.Description, manifest.Author,
             manifest.Categories, manifest.Icon, source.SourceName, source.Trust, latest,
-            installed, installedVersion, updateAvailable, manifest.Capabilities, manifest.Permissions,
-            plugin.Versions);
+            installed, installedVersion, updateAvailable, autoUpdateNames?.Contains(manifest.Name) ?? false,
+            manifest.Capabilities, manifest.Permissions, plugin.Versions);
     }
 }

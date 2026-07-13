@@ -104,6 +104,19 @@ public sealed class CatalogAggregatorTests
     }
 
     [Fact]
+    public void Flags_auto_update_from_provenance()
+    {
+        var listings = CatalogAggregator.Merge(
+            [Source("A", CatalogTrust.Verified, Plugin("automatex.slack", "AutomateX.Plugins.Slack", "1.4.0"))],
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AutomateX.Plugins.Slack" },
+            NoProvenance,
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AutomateX.Plugins.Slack" });
+
+        var listing = Assert.Single(listings);
+        Assert.True(listing.AutoUpdate);
+    }
+
+    [Fact]
     public void Uninstalled_plugins_are_not_flagged_installed()
     {
         var listings = CatalogAggregator.Merge(

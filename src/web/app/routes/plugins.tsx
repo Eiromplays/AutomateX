@@ -5,6 +5,7 @@ import { groupBySource, SourceChip, sourceLabel } from "../components/action-sou
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { PluginOps } from "../components/plugin-ops";
+import { CatalogBrowser } from "../components/plugin-catalog";
 import { type ActionDescriptor, api, type PluginInfo } from "../lib/api";
 
 function configFields(raw: string | null): { name: string; required: boolean }[] {
@@ -225,77 +226,8 @@ function PluginManager() {
           drop folders into <code>plugins/</code> and reload.
         </p>
       )}
-      <CatalogPanel />
+      <CatalogBrowser />
     </section>
-  );
-}
-
-function CatalogPanel() {
-  const queryClient = useQueryClient();
-  const { data: catalog, error } = useQuery({
-    queryKey: ["plugin-catalog"],
-    queryFn: api.plugins.catalog,
-    retry: false,
-    staleTime: 300_000,
-  });
-
-  const install = useMutation({
-    mutationFn: (name: string) => api.plugins.installFromCatalog(name),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      queryClient.invalidateQueries({ queryKey: ["actions"] });
-      queryClient.invalidateQueries({ queryKey: ["plugin-catalog"] });
-      queryClient.invalidateQueries({ queryKey: ["trigger-types"] });
-      queryClient.invalidateQueries({ queryKey: ["connection-types"] });
-      toast.success(
-        result.previousFingerprint && result.previousFingerprint !== result.fingerprint
-          ? `${result.name} ${result.version} installed: ${result.previousFingerprint} → ${result.fingerprint}`
-          : `${result.name} ${result.version} installed (${result.fingerprint}).`,
-      );
-    },
-    onError: (installError) => toast.error(`Install failed — ${String(installError)}`),
-  });
-
-  if (error) {
-    return <p className="mt-3 text-xs text-zinc-600">Plugin catalog unreachable — {String(error)}</p>;
-  }
-
-  if (!catalog || catalog.entries.length === 0) return null;
-
-  return (
-    <div className="mt-3 rounded-lg border border-zinc-800 p-4">
-      <h3 className="mb-2 text-sm font-medium text-zinc-300">Catalog</h3>
-      <div className={cardGrid}>
-        {catalog.entries.map((entry) => (
-          <div
-            key={entry.name}
-            className="flex items-center justify-between gap-3 rounded-md border border-zinc-800 px-3 py-2 text-sm"
-          >
-            <span>
-              <span className="text-zinc-200">{entry.name}</span>{" "}
-              <span className="text-[10px] text-zinc-600">v{entry.version}</span>
-              {entry.description && <span className="block text-xs text-zinc-500">{entry.description}</span>}
-            </span>
-            {catalog.installEnabled ? (
-              <button
-                type="button"
-                onClick={() => install.mutate(entry.name)}
-                disabled={install.isPending}
-                className={
-                  entry.installed
-                    ? "rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900 disabled:opacity-50"
-                    : "rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-                }
-              >
-                {install.isPending ? "Installing…" : entry.installed ? "Update" : "Install"}
-              </button>
-            ) : (
-              entry.installed && <span className="text-xs text-emerald-400">installed</span>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
