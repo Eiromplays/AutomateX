@@ -28,7 +28,7 @@ export default function Workflows() {
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-lg font-semibold">Workflows</h1>
         <div className="flex items-center gap-3">
-          <label className="cursor-pointer text-sm text-zinc-500 hover:text-zinc-200">
+          <label className="cursor-pointer text-sm text-muted-foreground hover:text-fg-emphasis">
             Import
             <input
               type="file"
@@ -55,12 +55,12 @@ export default function Workflows() {
               }}
             />
           </label>
-          <Link to="/templates" className="text-sm text-zinc-400 hover:text-zinc-100">
+          <Link to="/templates" className="text-sm text-muted-foreground hover:text-fg-strong">
             Templates
           </Link>
           <Link
             to="/workflows/new"
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
           >
             New workflow
           </Link>
@@ -68,7 +68,7 @@ export default function Workflows() {
       </div>
 
       {isLoading && <ListSkeleton />}
-      {error && <p className="text-sm text-red-400">{String(error)}</p>}
+      {error && <p className="text-sm text-danger">{String(error)}</p>}
 
       {(workflows?.length ?? 0) > 0 && (
         <input
@@ -76,50 +76,50 @@ export default function Workflows() {
           placeholder="Search workflows…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="mb-3 w-full max-w-sm rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+          className="mb-3 w-full max-w-sm rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
         />
       )}
 
       {!isLoading && (
-        <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+        <ul className="divide-y divide-zinc-800 rounded-lg border border-line">
           {filtered.map((workflow) => (
             <li key={workflow.id}>
               <Link
                 to={`/workflows/${workflow.id}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-900"
+                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-card"
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{workflow.name}</div>
                   {workflow.description && (
-                    <div className="text-xs text-zinc-500">{workflow.description}</div>
+                    <div className="text-xs text-muted-foreground">{workflow.description}</div>
                   )}
                   {workflow.runsAfter.length > 0 && (
-                    <div className="text-xs text-violet-400">
+                    <div className="text-xs text-trigger">
                       ⛓ runs after {workflow.runsAfter.join(", ")}
                     </div>
                   )}
                   {workflow.feeds.length > 0 && (
-                    <div className="text-xs text-violet-400">⛓ feeds {workflow.feeds.join(", ")}</div>
+                    <div className="text-xs text-trigger">⛓ feeds {workflow.feeds.join(", ")}</div>
                   )}
                 </div>
-                <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500">
-                  {!workflow.enabled && <span className="text-amber-400">⏸ paused</span>}v
+                <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                  {!workflow.enabled && <span className="text-warning">⏸ paused</span>}v
                   {workflow.latestVersion}
                 </span>
               </Link>
             </li>
           ))}
           {workflows?.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-zinc-500">
+            <li className="px-4 py-6 text-center text-sm text-muted-foreground">
               No workflows yet — create the first one, or{" "}
-              <Link to="/templates" className="text-emerald-400 hover:underline">
+              <Link to="/templates" className="text-brand hover:underline">
                 start from a template
               </Link>
               .
             </li>
           )}
           {(workflows?.length ?? 0) > 0 && filtered.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-zinc-500">No workflows match “{query}”.</li>
+            <li className="px-4 py-6 text-center text-sm text-muted-foreground">No workflows match “{query}”.</li>
           )}
         </ul>
       )}

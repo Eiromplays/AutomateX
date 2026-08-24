@@ -5,8 +5,8 @@ import { useConfirm } from "../components/ui/confirm";
 import { api, DEFAULT_WORKSPACE_ID, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
 
 const inputClass =
-  "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 export default function WorkspaceSettings() {
   const queryClient = useQueryClient();
   const confirm = useConfirm();
@@ -79,15 +79,15 @@ export default function WorkspaceSettings() {
     onError: (error) => toast.error(`Re-wrap failed — ${String(error)}`),
   });
 
-  if (!current) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (!current) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
   return (
     <div className="max-w-2xl space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold">{current.name}</h1>
-          <p className="text-sm text-zinc-500">
-            Your role: <span className="text-zinc-300">{current.role}</span>
+          <p className="text-sm text-muted-foreground">
+            Your role: <span className="text-fg-body">{current.role}</span>
           </p>
         </div>
         {current.id !== DEFAULT_WORKSPACE_ID && (
@@ -105,7 +105,7 @@ export default function WorkspaceSettings() {
                 removeWorkspace.mutate();
               }
             }}
-            className="rounded-md border border-red-900 px-3 py-1.5 text-sm text-red-400 hover:bg-red-950/40"
+            className="rounded-md border border-red-900 px-3 py-1.5 text-sm text-danger hover:bg-red-950/40"
           >
             Delete workspace
           </button>
@@ -113,28 +113,28 @@ export default function WorkspaceSettings() {
       </div>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium text-zinc-300">Members</h2>
-        <p className="text-xs text-zinc-500">
+        <h2 className="text-sm font-medium text-fg-body">Members</h2>
+        <p className="text-xs text-muted-foreground">
           Invite by email — access starts the first time they sign in. A workspace with no members is open to
           every signed-in user; adding the first member claims it.
         </p>
-        <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+        <ul className="divide-y divide-zinc-800 rounded-lg border border-line">
           {members?.map((member) => {
             const isSelf = !!me?.email && member.email === me.email.toLowerCase();
             return (
               <li key={member.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
                 <div className="flex items-center gap-3">
                   <span>{member.email}</span>
-                  <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                     {member.role}
                   </span>
-                  {!member.signedInBefore && <span className="text-xs text-amber-400">invited</span>}
-                  {isSelf && <span className="text-xs text-zinc-600">you</span>}
+                  {!member.signedInBefore && <span className="text-xs text-warning">invited</span>}
+                  {isSelf && <span className="text-xs text-muted-foreground">you</span>}
                 </div>
                 <button
                   type="button"
                   onClick={() => remove.mutate({ memberId: member.id, self: isSelf })}
-                  className="text-xs text-zinc-500 hover:text-red-400"
+                  className="text-xs text-muted-foreground hover:text-danger"
                 >
                   {isSelf ? "Leave" : "Remove"}
                 </button>
@@ -142,7 +142,7 @@ export default function WorkspaceSettings() {
             );
           })}
           {members?.length === 0 && (
-            <li className="px-4 py-4 text-center text-sm text-zinc-500">
+            <li className="px-4 py-4 text-center text-sm text-muted-foreground">
               No members — this workspace is unclaimed.
             </li>
           )}
@@ -164,13 +164,13 @@ export default function WorkspaceSettings() {
             type="button"
             disabled={!email || upsert.isPending}
             onClick={() => upsert.mutate()}
-            className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
           >
             Add / update
           </button>
         </div>
         {(upsert.error ?? remove.error ?? removeWorkspace.error) && (
-          <p className="text-sm text-red-400">
+          <p className="text-sm text-danger">
             {String(upsert.error ?? remove.error ?? removeWorkspace.error)}
           </p>
         )}
@@ -178,8 +178,8 @@ export default function WorkspaceSettings() {
 
       {me?.isInstanceAdmin && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-zinc-300">Encryption</h2>
-          <p className="text-xs text-zinc-500">
+          <h2 className="text-sm font-medium text-fg-body">Encryption</h2>
+          <p className="text-xs text-muted-foreground">
             Rotate this workspace's data-encryption key (re-encrypts its connection secrets), or re-wrap
             every key under the current instance key after changing <code>Encryption__Key</code>.
           </p>
@@ -198,7 +198,7 @@ export default function WorkspaceSettings() {
                   rotateKey.mutate();
                 }
               }}
-              className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
             >
               {rotateKey.isPending ? "Rotating…" : "Rotate workspace key"}
             </button>
@@ -216,7 +216,7 @@ export default function WorkspaceSettings() {
                   rewrap.mutate();
                 }
               }}
-              className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+              className="rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
             >
               {rewrap.isPending ? "Re-wrapping…" : "Re-wrap all keys"}
             </button>

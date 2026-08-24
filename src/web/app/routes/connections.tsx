@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ConnectionForm } from "../components/connection-form";
@@ -101,14 +102,14 @@ export default function Connections() {
     <div className="space-y-8">
       <div>
         <h1 className="text-lg font-semibold">Connections</h1>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Encrypted secret bundles — reference them in step configs as{" "}
-          <code className="text-emerald-400">{"{{connections.<name>.<field>}}"}</code>. Values are write-only:
+          <code className="text-brand">{"{{connections.<name>.<field>}}"}</code>. Values are write-only:
           never shown again after saving.
         </p>
       </div>
 
-      {isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
 
       {(connections?.length ?? 0) > 0 && (
         <input
@@ -116,25 +117,30 @@ export default function Connections() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search connections…"
-          className="w-full max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+          className="w-full max-w-xs rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
         />
       )}
 
-      <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+      <ul className="divide-y divide-zinc-800 rounded-lg border border-line">
         {filterConnections(connections ?? [], search).map((connection) => (
           <li key={connection.id} className="flex items-center justify-between px-4 py-3 text-sm">
             <div className="flex items-center gap-3">
               <span className="font-medium">{connection.name}</span>
               {connection.provider && (
-                <span className="rounded-full border border-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400">
+                <span className="rounded-full border border-line-strong px-1.5 py-0.5 text-[11px] text-muted-foreground">
                   {typeFor(connection.provider)?.displayName ?? connection.provider}
                 </span>
               )}
-              <span className="text-xs text-zinc-500">
-                {connection.secretKeys.map((k) => `🔒 ${k}`).join("  ")}
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {connection.secretKeys.map((k) => (
+                  <span key={k} className="inline-flex items-center gap-1">
+                    <Lock className="h-3 w-3" aria-label="secret" />
+                    {k}
+                  </span>
+                ))}
               </span>
               {!connection.decryptable && (
-                <span className="text-xs text-red-400">undecryptable — wrong encryption key?</span>
+                <span className="text-xs text-danger">undecryptable — wrong encryption key?</span>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -146,7 +152,7 @@ export default function Connections() {
                       connection.oauthExpiresAt != null && connection.oauthExpiresAt * 1000 < Date.now();
                     return (
                       <span
-                        className={`text-xs ${!connected ? "text-zinc-500" : expired ? "text-amber-400" : "text-emerald-400"}`}
+                        className={`text-xs ${!connected ? "text-muted-foreground" : expired ? "text-warning" : "text-brand"}`}
                       >
                         {!connected ? "● not connected" : expired ? "● expired" : "● connected"}
                       </span>
@@ -156,7 +162,7 @@ export default function Connections() {
                     type="button"
                     onClick={() => connect.mutate(connection.id)}
                     disabled={connect.isPending}
-                    className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+                    className="text-xs text-muted-foreground hover:text-brand disabled:opacity-50"
                   >
                     {connection.secretKeys.includes("accessToken") ? "Reconnect" : "Connect"}
                   </button>
@@ -166,7 +172,7 @@ export default function Connections() {
                   type="button"
                   onClick={() => test.mutate(connection.id)}
                   disabled={test.isPending}
-                  className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50"
+                  className="text-xs text-muted-foreground hover:text-brand disabled:opacity-50"
                 >
                   {test.isPending && test.variables === connection.id ? "Testing…" : "Test"}
                 </button>
@@ -174,14 +180,14 @@ export default function Connections() {
               <button
                 type="button"
                 onClick={() => edit(connection)}
-                className="text-xs text-zinc-500 hover:text-zinc-100"
+                className="text-xs text-muted-foreground hover:text-fg-strong"
               >
                 Edit
               </button>
               <button
                 type="button"
                 onClick={() => remove.mutate({ id: connection.id })}
-                className="text-xs text-zinc-500 hover:text-red-400"
+                className="text-xs text-muted-foreground hover:text-danger"
               >
                 Delete
               </button>
@@ -189,15 +195,15 @@ export default function Connections() {
           </li>
         ))}
         {connections?.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-zinc-500">No connections yet.</li>
+          <li className="px-4 py-6 text-center text-sm text-muted-foreground">No connections yet.</li>
         )}
         {(connections?.length ?? 0) > 0 && filterConnections(connections ?? [], search).length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-zinc-500">No connections match “{search}”.</li>
+          <li className="px-4 py-6 text-center text-sm text-muted-foreground">No connections match “{search}”.</li>
         )}
       </ul>
 
-      <div className="max-w-xl space-y-3 rounded-lg border border-zinc-800 p-4">
-        <h2 className="text-sm font-medium text-zinc-300">
+      <div className="max-w-xl space-y-3 rounded-lg border border-line p-4">
+        <h2 className="text-sm font-medium text-fg-body">
           {editing ? `Edit ${editing.name}` : "New connection"}
         </h2>
         <ConnectionForm

@@ -16,10 +16,10 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4" title={hint}>
-      <div className="text-xs uppercase tracking-wide text-zinc-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-zinc-100">{value}</div>
-      {sub ? <div className="mt-0.5 text-xs text-zinc-500">{sub}</div> : null}
+    <div className="rounded-lg border border-line bg-card/40 p-4" title={hint}>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-fg-strong">{value}</div>
+      {sub ? <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div> : null}
     </div>
   );
 }
@@ -95,7 +95,7 @@ export default function Dashboard() {
       </div>
     );
   }
-  if (!data) return <div className="text-sm text-zinc-500">No data.</div>;
+  if (!data) return <div className="text-sm text-muted-foreground">No data.</div>;
 
   const statByWorkflow = new Map(data.topWorkflows.map((w) => [w.workflowId, w]));
   const sortedWorkflows = [...(workflows ?? [])].sort((a, b) => {
@@ -111,7 +111,7 @@ export default function Dashboard() {
         <select
           value={days}
           onChange={(e) => setDays(Number(e.target.value))}
-          className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-xs text-zinc-300 focus:border-emerald-500 focus:outline-none"
+          className="rounded-md border border-line-strong bg-card px-2.5 py-1 text-xs text-fg-body focus:border-brand-bright focus:outline-none"
         >
           <option value={7}>Last 7 days</option>
           <option value={14}>Last 14 days</option>
@@ -142,37 +142,37 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-        <div className="mb-2 flex items-center justify-between text-xs text-zinc-500">
+      <div className="rounded-lg border border-line bg-card/40 p-4">
+        <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
           <span>Executions per day</span>
           <span className="flex gap-3">
             <span className="flex items-center gap-1">
               <span className="inline-block h-2 w-2 rounded-sm bg-green-500/70" /> succeeded
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-red-500/70" /> failed
+              <span className="inline-block h-2 w-2 rounded-sm bg-danger-solid/70" /> failed
             </span>
           </span>
         </div>
         {data.total === 0 ? (
-          <div className="py-8 text-center text-sm text-zinc-600">No executions yet in this window.</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">No executions yet in this window.</div>
         ) : (
           <DayChart perDay={data.perDay} />
         )}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+        <div className="rounded-lg border border-line bg-card/40 p-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-300">Workflows</span>
-            <Link to="/workflows/new" className="text-xs text-emerald-400 hover:underline">
+            <span className="text-sm font-medium text-fg-body">Workflows</span>
+            <Link to="/workflows/new" className="text-xs text-brand hover:underline">
               + New
             </Link>
           </div>
           {sortedWorkflows.length === 0 ? (
-            <div className="text-sm text-zinc-600">
+            <div className="text-sm text-muted-foreground">
               No workflows yet —{" "}
-              <Link to="/workflows/new" className="text-emerald-400 hover:underline">
+              <Link to="/workflows/new" className="text-brand hover:underline">
                 create one
               </Link>
               .
@@ -183,18 +183,18 @@ export default function Dashboard() {
                 const s = statByWorkflow.get(w.id);
                 return (
                   <li key={w.id} className="flex items-center justify-between gap-3 text-sm">
-                    <Link to={`/workflows/${w.id}`} className="truncate text-zinc-200 hover:text-white">
+                    <Link to={`/workflows/${w.id}`} className="truncate text-fg-emphasis hover:text-white">
                       {w.name}
                     </Link>
                     {s ? (
-                      <span className="flex shrink-0 items-center gap-3 text-xs text-zinc-500">
+                      <span className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
                         <span>{s.total} runs</span>
                         <span className="text-green-500/80">{s.succeeded}✓</span>
                         {s.failed > 0 ? <span className="text-red-500/80">{s.failed}✕</span> : null}
                         <span>{formatMs(s.avgDurationMs)}</span>
                       </span>
                     ) : (
-                      <span className="shrink-0 text-xs text-zinc-600">no recent runs</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">no recent runs</span>
                     )}
                   </li>
                 );
@@ -203,18 +203,18 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
-          <div className="mb-3 text-sm font-medium text-zinc-300">Recent failures</div>
+        <div className="rounded-lg border border-line bg-card/40 p-4">
+          <div className="mb-3 text-sm font-medium text-fg-body">Recent failures</div>
           {data.recentFailures.length === 0 ? (
-            <div className="text-sm text-zinc-600">None in this window.</div>
+            <div className="text-sm text-muted-foreground">None in this window.</div>
           ) : (
             <ul className="space-y-2">
               {data.recentFailures.map((f) => (
                 <li key={f.id} className="flex items-center justify-between gap-3 text-sm">
-                  <Link to={`/executions/${f.id}`} className="truncate text-zinc-200 hover:text-white">
+                  <Link to={`/executions/${f.id}`} className="truncate text-fg-emphasis hover:text-white">
                     {f.name}
                   </Link>
-                  <span className="shrink-0 text-xs text-zinc-500">
+                  <span className="shrink-0 text-xs text-muted-foreground">
                     {new Date(f.startedAt).toLocaleString()}
                   </span>
                 </li>

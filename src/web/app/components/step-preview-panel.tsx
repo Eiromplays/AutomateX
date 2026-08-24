@@ -90,7 +90,7 @@ export function StepPreviewPanel({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 rounded-md border border-zinc-700 px-2.5 py-1 text-xs text-zinc-300 hover:bg-zinc-900"
+        className="mt-3 rounded-md border border-line-strong px-2.5 py-1 text-xs text-fg-body hover:bg-card"
       >
         Preview / test
       </button>
@@ -100,18 +100,18 @@ export function StepPreviewPanel({
   const controlFlow = CONTROL_FLOW.has(actionType);
 
   return (
-    <div className="mt-3 space-y-2 rounded-md border border-zinc-800 bg-zinc-950/40 p-3">
+    <div className="mt-3 space-y-2 rounded-md border border-line bg-background/40 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-zinc-400">Preview / test</span>
-        <button type="button" onClick={() => setOpen(false)} className="text-xs text-zinc-500 hover:text-zinc-300">
+        <span className="text-xs font-medium text-muted-foreground">Preview / test</span>
+        <button type="button" onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:text-fg-body">
           Close
         </button>
       </div>
 
-      <label className="block text-xs text-zinc-500">
+      <label className="block text-xs text-muted-foreground">
         Sample context (optional)
         <AutoTextarea
-          className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 font-mono text-xs"
+          className="mt-1 w-full rounded-md border border-line-strong bg-card px-2 py-1 font-mono text-xs"
           placeholder={SAMPLE_PLACEHOLDER}
           value={sample}
           onChange={(e) => setSample(e.target.value)}
@@ -123,7 +123,7 @@ export function StepPreviewPanel({
           type="button"
           disabled={busy !== null}
           onClick={runPreview}
-          className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
         >
           {busy === "preview" ? "Resolving…" : "Preview config"}
         </button>
@@ -136,16 +136,16 @@ export function StepPreviewPanel({
         >
           {busy === "test" ? "Running…" : "Run for real"}
         </button>
-        <span className="text-[11px] text-zinc-600">Real run has real side effects.</span>
+        <span className="text-[11px] text-muted-foreground">Real run has real side effects.</span>
       </div>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-danger">{error}</p>}
 
       {preview && (
         <div className="space-y-2">
           {preview.unresolved.length > 0 && (
             <div className="flex flex-wrap items-center gap-1">
-              <span className="text-xs text-zinc-500">Unresolved:</span>
+              <span className="text-xs text-muted-foreground">Unresolved:</span>
               {preview.unresolved.map((ref) => (
                 <span
                   key={ref}
@@ -158,12 +158,12 @@ export function StepPreviewPanel({
           )}
 
           {preview.connectionsUsed.length > 0 && (
-            <div className="text-xs text-zinc-500">
+            <div className="text-xs text-muted-foreground">
               Reads: {preview.connectionsUsed.map((c) => `${c.name} (${c.fields.join(", ")})`).join("; ")}
             </div>
           )}
 
-          <pre className="overflow-x-auto rounded-md border border-zinc-800 bg-zinc-900 p-2 font-mono text-[11px] text-zinc-300">
+          <pre className="overflow-x-auto rounded-md border border-line bg-card p-2 font-mono text-[11px] text-fg-body">
             {JSON.stringify(preview.resolvedConfig, null, 2)}
           </pre>
         </div>
@@ -172,11 +172,11 @@ export function StepPreviewPanel({
       {test && (
         <div className="space-y-1">
           <span
-            className={`text-xs font-medium ${test.ok ? "text-emerald-400" : "text-red-400"}`}
+            className={`text-xs font-medium ${test.ok ? "text-brand" : "text-danger"}`}
           >
             {test.ok ? "Ran successfully" : "Failed"}
           </span>
-          <pre className="overflow-x-auto rounded-md border border-zinc-800 bg-zinc-900 p-2 font-mono text-[11px] text-zinc-300">
+          <pre className="overflow-x-auto rounded-md border border-line bg-card p-2 font-mono text-[11px] text-fg-body">
             {test.ok ? JSON.stringify(test.output, null, 2) : test.error}
           </pre>
         </div>

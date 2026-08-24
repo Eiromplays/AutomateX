@@ -14,8 +14,8 @@ import {
 import { buildCreateKeyBody, describeKeyTarget, type KeyFormState } from "../lib/api-keys-form";
 
 const inputClass =
-  "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 const fmtDate = (value: string | null) => (value ? new Date(value).toLocaleDateString() : "—");
 const fmtDateTime = (value: string | null) => (value ? new Date(value).toLocaleString() : "never");
@@ -83,25 +83,25 @@ export default function ApiKeys() {
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-lg font-semibold">API keys</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Scoped, hashed, revocable credentials for scripts, integrations, and MCP.
         </p>
       </div>
 
-      <p className="rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 text-xs text-zinc-500">
-        The shared <code className="text-zinc-400">Auth__ApiKey</code> was removed in v4.6. API and script
-        access now uses the scoped keys below — send one as the <code className="text-zinc-400">X-Api-Key</code>{" "}
+      <p className="rounded-md border border-line bg-card/50 px-3 py-2 text-xs text-muted-foreground">
+        The shared <code className="text-muted-foreground">Auth__ApiKey</code> was removed in v4.6. API and script
+        access now uses the scoped keys below — send one as the <code className="text-muted-foreground">X-Api-Key</code>{" "}
         header, or sign in with it via the ⚿ button. The full token is shown once at creation.
       </p>
 
       {!canManage ? (
-        <p className="rounded-lg border border-zinc-800 px-4 py-6 text-center text-sm text-zinc-500">
+        <p className="rounded-lg border border-line px-4 py-6 text-center text-sm text-muted-foreground">
           Only workspace Owners and instance admins can manage API keys.
         </p>
       ) : (
         <>
-          <section className="space-y-3 rounded-lg border border-zinc-800 p-4">
-            <h2 className="text-sm font-medium text-zinc-300">Create a key</h2>
+          <section className="space-y-3 rounded-lg border border-line p-4">
+            <h2 className="text-sm font-medium text-fg-body">Create a key</h2>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <input
                 className={inputClass}
@@ -148,7 +148,7 @@ export default function ApiKeys() {
                 </select>
               )}
 
-              <label className="flex items-center gap-2 text-xs text-zinc-500">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 Expires
                 <input
                   type="date"
@@ -158,7 +158,7 @@ export default function ApiKeys() {
                 />
               </label>
 
-              <label className="flex items-center gap-2 text-xs text-zinc-500">
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
                 Rate limit
                 <input
                   type="number"
@@ -171,8 +171,8 @@ export default function ApiKeys() {
               </label>
             </div>
 
-            <label className="block text-xs text-zinc-500">
-              IP allowlist <span className="text-zinc-600">— one CIDR or IP per line; blank = any address</span>
+            <label className="block text-xs text-muted-foreground">
+              IP allowlist <span className="text-muted-foreground">— one CIDR or IP per line; blank = any address</span>
               <textarea
                 className={`${inputClass} mt-1 h-16 w-full font-mono`}
                 placeholder={"203.0.113.0/24\n198.51.100.7"}
@@ -182,7 +182,7 @@ export default function ApiKeys() {
             </label>
 
             <div className="flex items-center justify-between">
-              <p className="text-xs text-zinc-600">
+              <p className="text-xs text-muted-foreground">
                 {form.scope === "Instance"
                   ? "Instance keys are admin everywhere; role is ignored."
                   : `Scoped to ${current?.name ?? "this workspace"}.`}
@@ -191,7 +191,7 @@ export default function ApiKeys() {
                 type="button"
                 disabled={!form.name.trim() || create.isPending}
                 onClick={() => create.mutate()}
-                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+                className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
               >
                 {create.isPending ? "Creating…" : "Create key"}
               </button>
@@ -199,11 +199,11 @@ export default function ApiKeys() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-sm font-medium text-zinc-300">
+            <h2 className="text-sm font-medium text-fg-body">
               Keys {isAdmin ? "(all workspaces)" : `in ${current?.name ?? "this workspace"}`}
             </h2>
-            {listError && <p className="text-sm text-red-400">{String(listError)}</p>}
-            <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
+            {listError && <p className="text-sm text-danger">{String(listError)}</p>}
+            <ul className="divide-y divide-zinc-800 rounded-lg border border-line">
               {keys?.map((key: ApiKeySummary) => {
                 const revoked = key.revokedAt !== null;
                 const expired = key.expiresAt !== null && new Date(key.expiresAt) < new Date();
@@ -211,26 +211,26 @@ export default function ApiKeys() {
                   <li key={key.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
                     <div className="min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className={revoked ? "text-zinc-500 line-through" : ""}>{key.name}</span>
-                        <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">{key.role}</span>
-                        {revoked && <span className="text-xs text-zinc-500">revoked</span>}
-                        {!revoked && expired && <span className="text-xs text-amber-400">expired</span>}
+                        <span className={revoked ? "text-muted-foreground line-through" : ""}>{key.name}</span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{key.role}</span>
+                        {revoked && <span className="text-xs text-muted-foreground">revoked</span>}
+                        {!revoked && expired && <span className="text-xs text-warning">expired</span>}
                       </div>
-                      <div className="truncate text-xs text-zinc-500">
+                      <div className="truncate text-xs text-muted-foreground">
                         {describeKeyTarget(key.scope, workflowName(key.workflowId), workspaceName(key.workspaceId))}
                         {" · "}
-                        <code className="text-zinc-600">atx_{key.prefix}…</code>
+                        <code className="text-muted-foreground">atx_{key.prefix}…</code>
                       </div>
-                      <div className="text-xs text-zinc-600">
+                      <div className="text-xs text-muted-foreground">
                         last used {fmtDateTime(key.lastUsedAt)} · expires {fmtDate(key.expiresAt)} · by {key.createdBy}
                       </div>
                       {(key.rateLimitPerMinute !== null || key.ipAllowlist.length > 0) && (
-                        <div className="text-xs text-zinc-600">
+                        <div className="text-xs text-muted-foreground">
                           {key.rateLimitPerMinute !== null && <span>{key.rateLimitPerMinute} req/min</span>}
                           {key.rateLimitPerMinute !== null && key.ipAllowlist.length > 0 && " · "}
                           {key.ipAllowlist.length > 0 && (
                             <span>
-                              IPs <code className="text-zinc-500">{key.ipAllowlist.join(", ")}</code>
+                              IPs <code className="text-muted-foreground">{key.ipAllowlist.join(", ")}</code>
                             </span>
                           )}
                         </div>
@@ -251,7 +251,7 @@ export default function ApiKeys() {
                             revoke.mutate(key.id);
                           }
                         }}
-                        className="shrink-0 text-xs text-zinc-500 hover:text-red-400"
+                        className="shrink-0 text-xs text-muted-foreground hover:text-danger"
                       >
                         Revoke
                       </button>
@@ -260,7 +260,7 @@ export default function ApiKeys() {
                 );
               })}
               {keys?.length === 0 && (
-                <li className="px-4 py-6 text-center text-sm text-zinc-500">No keys yet.</li>
+                <li className="px-4 py-6 text-center text-sm text-muted-foreground">No keys yet.</li>
               )}
             </ul>
           </section>
@@ -274,11 +274,11 @@ export default function ApiKeys() {
               <DialogTitle>Copy your API key</DialogTitle>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="text-sm text-zinc-400">
-                This is the only time <span className="font-medium text-zinc-200">{created.name}</span> is shown.
+              <p className="text-sm text-muted-foreground">
+                This is the only time <span className="font-medium text-fg-emphasis">{created.name}</span> is shown.
                 Store it now — it can't be retrieved again.
               </p>
-              <code className="block w-full break-all rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs text-emerald-300">
+              <code className="block w-full break-all rounded-md border border-line-strong bg-background px-3 py-2 text-xs text-emerald-300">
                 {created.token}
               </code>
               <div className="flex justify-end gap-2">
@@ -290,14 +290,14 @@ export default function ApiKeys() {
                       () => toast.error("Couldn't copy — select and copy manually."),
                     );
                   }}
-                  className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+                  className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
                 >
                   Copy
                 </button>
                 <button
                   type="button"
                   onClick={() => setCreated(null)}
-                  className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+                  className="rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
                 >
                   Done
                 </button>

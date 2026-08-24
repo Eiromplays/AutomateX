@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { api, type CatalogEntry, type InstallRequest } from "../lib/api";
 import { toast } from "./toast";
+import { Lamp, Rack, Unit } from "./rack";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
 import {
@@ -15,13 +16,24 @@ import {
 import { useConfirm } from "./ui/confirm";
 
 const inputClass =
-  "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
+
+// Trust is state, so it lights a lamp; the label itself stays achromatic.
+const trustLamp: Record<string, string> = {
+  Verified: "Succeeded",
+  Blocked: "Failed",
+};
 
 function trustBadge(trust: string) {
-  if (trust === "Verified") return <Badge variant="default">Verified</Badge>;
-  if (trust === "Blocked") return <Badge variant="destructive">Blocked</Badge>;
-  return <Badge variant="outline">Untrusted</Badge>;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-[2px] border border-engrave px-1.5 py-0.5">
+      <Lamp status={trustLamp[trust] ?? "Pending"} />
+      <span className="text-[11px] font-medium tracking-wide text-fg-body">
+        {trust === "Verified" ? "Verified" : trust === "Blocked" ? "Blocked" : "Untrusted"}
+      </span>
+    </span>
+  );
 }
 
 function capabilitySummary(entry: CatalogEntry): string {
@@ -97,14 +109,14 @@ function CatalogCard({
   busy: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-zinc-800 p-4">
+    <div className="flex flex-col gap-2 py-3 pr-3">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-medium text-zinc-200">{entry.displayName}</span>
-            <span className="text-[10px] text-zinc-500">v{entry.version}</span>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="truncate text-lg font-medium text-fg-strong">{entry.displayName}</span>
+            <span className="font-mono text-[13px] text-muted-foreground">v{entry.version}</span>
           </div>
-          <div className="text-[11px] text-zinc-600">
+          <div className="text-sm text-muted-foreground">
             {entry.source}
             {entry.author && ` · ${entry.author}`}
           </div>
@@ -112,24 +124,26 @@ function CatalogCard({
         <div className="flex shrink-0 flex-col items-end gap-1">
           {trustBadge(entry.trust)}
           {entry.updateAvailable && (
-            <span className="text-[10px] text-emerald-400">update available</span>
+            <span className="text-[11px] text-brand">update available</span>
           )}
         </div>
       </div>
 
-      {entry.description && <p className="line-clamp-2 text-xs text-zinc-500">{entry.description}</p>}
+      {entry.description && (
+        <p className="line-clamp-2 max-w-[72ch] text-sm text-muted-foreground">{entry.description}</p>
+      )}
 
       {entry.categories.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {entry.categories.map((c) => (
-            <Badge key={c} variant="secondary" className="text-[10px]">
+            <Badge key={c} variant="secondary" className="text-[11px]">
               {c}
             </Badge>
           ))}
         </div>
       )}
 
-      <div className="text-[11px] text-zinc-500">
+      <div className="text-sm text-muted-foreground">
         {[capabilitySummary(entry), egressSummary(entry.egress)].filter(Boolean).join(" · ")}
       </div>
 
@@ -144,7 +158,7 @@ function CatalogCard({
             {busy ? "Installing…" : installLabel(entry)}
           </Button>
         ) : (
-          entry.installed && <span className="text-xs text-emerald-400">installed</span>
+          entry.installed && <span className="text-xs text-brand">installed</span>
         )}
         <Button size="sm" variant="ghost" onClick={onOpen}>
           Details
@@ -197,12 +211,12 @@ function CatalogDetail({
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
-          {entry.description && <p className="text-zinc-400">{entry.description}</p>}
+          {entry.description && <p className="text-muted-foreground">{entry.description}</p>}
 
           {entry.categories.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {entry.categories.map((c) => (
-                <Badge key={c} variant="secondary" className="text-[10px]">
+                <Badge key={c} variant="secondary" className="text-[11px]">
                   {c}
                 </Badge>
               ))}
@@ -210,19 +224,19 @@ function CatalogDetail({
           )}
 
           <dl className="grid grid-cols-[7rem_1fr] gap-x-3 gap-y-1 text-xs">
-            <dt className="text-zinc-600">Capabilities</dt>
-            <dd className="text-zinc-400">{capabilitySummary(entry) || "—"}</dd>
-            <dt className="text-zinc-600">Network</dt>
-            <dd className="text-zinc-400">{egressSummary(entry.egress)}</dd>
-            <dt className="text-zinc-600">Installed</dt>
-            <dd className="text-zinc-400">{entry.installedVersion ? `v${entry.installedVersion}` : "no"}</dd>
+            <dt className="text-muted-foreground">Capabilities</dt>
+            <dd className="text-muted-foreground">{capabilitySummary(entry) || "—"}</dd>
+            <dt className="text-muted-foreground">Network</dt>
+            <dd className="text-muted-foreground">{egressSummary(entry.egress)}</dd>
+            <dt className="text-muted-foreground">Installed</dt>
+            <dd className="text-muted-foreground">{entry.installedVersion ? `v${entry.installedVersion}` : "no"}</dd>
           </dl>
 
           {installEnabled && entry.installed && (
-            <div className="flex items-center justify-between rounded-md border border-zinc-800 px-3 py-2 text-xs">
-              <span className="text-zinc-400">
+            <div className="flex items-center justify-between rounded-md border border-line px-3 py-2 text-xs">
+              <span className="text-muted-foreground">
                 Auto-update
-                <span className="block text-[10px] text-zinc-600">
+                <span className="block text-sm text-muted-foreground">
                   Keep on the latest compatible, same-major version from a verified source.
                 </span>
               </span>
@@ -238,7 +252,7 @@ function CatalogDetail({
           )}
 
           {installEnabled && entry.versions.length > 1 && (
-            <label className="flex items-center gap-2 text-xs text-zinc-500">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
               Version
               <select
                 className={inputClass}
@@ -299,9 +313,9 @@ export function CatalogBrowser() {
   const installingId = (id: string) => install.isPending && install.variables?.id === id;
 
   return (
-    <div className="mt-3 rounded-lg border border-zinc-800 p-4">
+    <div className="mt-8">
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h3 className="mr-auto text-sm font-medium text-zinc-300">Catalog</h3>
+        <h2 className="mr-auto text-lg font-medium text-fg-strong">Catalog</h2>
         <input
           className={inputClass}
           placeholder="Search plugins…"
@@ -338,22 +352,23 @@ export function CatalogBrowser() {
       )}
 
       {error ? (
-        <p className="text-xs text-zinc-600">Plugin catalog unreachable — {String(error)}</p>
+        <p className="text-xs text-muted-foreground">Plugin catalog unreachable — {String(error)}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-xs text-zinc-600">No matching plugins.</p>
+        <p className="text-xs text-muted-foreground">No matching plugins.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {filtered.map((entry) => (
-            <CatalogCard
-              key={`${entry.source}:${entry.id}`}
-              entry={entry}
-              installEnabled={catalog?.installEnabled ?? false}
-              busy={installing(entry.name) || installingId(entry.id)}
-              onInstall={() => install.mutate({ id: entry.id })}
-              onOpen={() => setSelected(entry)}
-            />
+        <Rack>
+          {filtered.map((entry, i) => (
+            <Unit key={`${entry.source}:${entry.id}`} index={i + 1} align="start">
+              <CatalogCard
+                entry={entry}
+                installEnabled={catalog?.installEnabled ?? false}
+                busy={installing(entry.name) || installingId(entry.id)}
+                onInstall={() => install.mutate({ id: entry.id })}
+                onOpen={() => setSelected(entry)}
+              />
+            </Unit>
           ))}
-        </div>
+        </Rack>
       )}
 
       <SourcesPanel />
@@ -424,9 +439,9 @@ function SourcesPanel() {
   if (!sources) return null;
 
   return (
-    <div className="mt-4 border-t border-zinc-800 pt-3">
+    <div className="mt-4 border-t border-line pt-3">
       <div className="mb-2 flex items-center justify-between">
-        <h4 className="text-xs font-medium text-zinc-400">Catalog sources</h4>
+        <h3 className="text-xs font-medium text-muted-foreground">Catalog sources</h3>
         <Button size="sm" variant="ghost" onClick={() => setAdding((v) => !v)}>
           {adding ? "Cancel" : "Add source"}
         </Button>
@@ -457,17 +472,17 @@ function SourcesPanel() {
         {sources.map((s) => (
           <li key={s.id} className="flex items-center justify-between gap-3 text-xs">
             <span className="min-w-0">
-              <span className="text-zinc-300">{s.name}</span>{" "}
+              <span className="text-fg-body">{s.name}</span>{" "}
               {s.hasKey ? (
-                <Badge variant="default" className="text-[10px]">
+                <Badge variant="default" className="text-[11px]">
                   key pinned
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-[10px]">
+                <Badge variant="outline" className="text-[11px]">
                   no key
                 </Badge>
               )}
-              <span className="block truncate text-zinc-600">{s.url}</span>
+              <span className="block truncate text-muted-foreground">{s.url}</span>
             </span>
             <span className="flex shrink-0 items-center gap-2">
               <Button
@@ -479,7 +494,7 @@ function SourcesPanel() {
               </Button>
               <button
                 type="button"
-                className="text-zinc-600 hover:text-red-400"
+                className="text-muted-foreground hover:text-danger"
                 onClick={async () => {
                   if (await confirm({ title: `Remove “${s.name}”?`, confirmLabel: "Remove", destructive: true })) {
                     remove.mutate(s.id);
@@ -492,7 +507,7 @@ function SourcesPanel() {
           </li>
         ))}
         {sources.length === 0 && (
-          <li className="text-xs text-zinc-600">No extra sources — the first-party catalog is built in.</li>
+          <li className="text-xs text-muted-foreground">No extra sources — the first-party catalog is built in.</li>
         )}
       </ul>
     </div>

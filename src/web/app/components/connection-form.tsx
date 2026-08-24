@@ -15,8 +15,8 @@ import {
 import { toast } from "./toast";
 
 const inputClass =
-  "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none disabled:opacity-50";
+  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none disabled:opacity-50";
 
 type ConnectionFormProps = {
   // null = create mode. Set to a connection to edit it (name immutable, secrets merge).
@@ -104,7 +104,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
     <div className="space-y-3">
       <div className="flex gap-2">
         <label className="flex-1">
-          <span className="mb-1 block text-xs font-medium text-zinc-400">Name</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">Name</span>
           <input
             className={`${inputClass} w-full`}
             placeholder="my-matrix-bot"
@@ -115,7 +115,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           />
         </label>
         <label className="flex-1">
-          <span className="mb-1 block text-xs font-medium text-zinc-400">Type</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">Type</span>
           <select
             className={`${inputClass} w-full`}
             value={selectedType ? provider : "__custom__"}
@@ -131,10 +131,10 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
         </label>
       </div>
 
-      {selectedType?.description && <p className="text-xs text-zinc-500">{selectedType.description}</p>}
+      {selectedType?.description && <p className="text-xs text-muted-foreground">{selectedType.description}</p>}
 
       {selectedType?.isOAuth && (
-        <p className="text-xs text-sky-400">
+        <p className="text-xs text-info">
           After saving, click <strong>Connect</strong> on the connection in the list to authorize with the
           provider.
         </p>
@@ -142,8 +142,8 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
 
       {!selectedType && (
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-zinc-400">
-            Provider <span className="font-normal text-zinc-600">(optional label)</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">
+            Provider <span className="font-normal text-muted-foreground">(optional label)</span>
           </span>
           <input
             className={`${inputClass} w-full`}
@@ -154,11 +154,11 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
         </label>
       )}
 
-      <div className="space-y-3 rounded-md border border-zinc-800 bg-zinc-900/40 p-3">
+      <div className="space-y-3 rounded-md border border-line bg-card/40 p-3">
         {!selectedType && (
-          <div className="text-xs font-medium text-zinc-400">
+          <div className="text-xs font-medium text-muted-foreground">
             Secret fields{" "}
-            <span className="font-normal text-zinc-600">
+            <span className="font-normal text-muted-foreground">
               — each becomes {`{{connections.${name || "<name>"}.<field>}}`}
             </span>
           </div>
@@ -167,16 +167,16 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
         {rows.map((row) =>
           row.fixed ? (
             <label key={row.key} className="block">
-              <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
+              <span className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 {row.label ?? row.name}
-                {row.required && <span className="text-emerald-400">*</span>}
-                <code className="text-[10px] text-zinc-600">{row.name}</code>
+                {row.required && <span className="text-brand">*</span>}
+                <code className="text-[11px] text-muted-foreground">{row.name}</code>
                 {row.docsUrl && (
                   <a
                     href={row.docsUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[10px] text-emerald-400 hover:underline"
+                    className="text-[11px] text-brand hover:underline"
                   >
                     where to get it ↗
                   </a>
@@ -201,7 +201,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                 />
               )}
               {row.helpText && !(editing && row.existing) && (
-                <span className="mt-1 block text-[11px] text-zinc-600">{row.helpText}</span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">{row.helpText}</span>
               )}
             </label>
           ) : (
@@ -224,7 +224,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                 <button
                   type="button"
                   onClick={() => updateRow(row.key, { removed: !row.removed, value: "" })}
-                  className={`text-xs ${row.removed ? "text-amber-400" : "text-zinc-500 hover:text-red-400"}`}
+                  className={`text-xs ${row.removed ? "text-warning" : "text-muted-foreground hover:text-danger"}`}
                 >
                   {row.removed ? "restore" : "remove"}
                 </button>
@@ -233,7 +233,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                   <button
                     type="button"
                     onClick={() => setRows((current) => current.filter((r) => r.key !== row.key))}
-                    className="text-xs text-zinc-500 hover:text-red-400"
+                    className="text-xs text-muted-foreground hover:text-danger"
                   >
                     ✕
                   </button>
@@ -249,7 +249,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           type="button"
           disabled={rows.some((r) => !r.existing && !r.fixed && !r.name)}
           onClick={() => setRows((current) => [...current, emptyRow()])}
-          className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900 disabled:opacity-50"
+          className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:opacity-50"
         >
           {selectedType ? "Add custom field" : "Add field"}
         </button>
@@ -260,7 +260,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           type="button"
           disabled={saveDisabled}
           onClick={() => save.mutate()}
-          className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
         >
           {save.isPending ? "Saving…" : editing ? "Save changes" : "Create connection"}
         </button>
@@ -268,13 +268,13 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+            className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
           >
             Cancel
           </button>
         )}
       </div>
-      {save.error && <p className="text-sm text-red-400">{String(save.error)}</p>}
+      {save.error && <p className="text-sm text-danger">{String(save.error)}</p>}
     </div>
   );
 }

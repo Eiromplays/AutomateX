@@ -5,7 +5,7 @@ import { useConfirm } from "../components/ui/confirm";
 import { api, type EnvironmentSummary, type VariableSummary } from "../lib/api";
 
 const inputClass =
-  "rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "rounded-md border border-line-strong bg-card px-2 py-1 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 export default function Variables() {
   const queryClient = useQueryClient();
@@ -66,21 +66,21 @@ export default function Variables() {
     <div className="space-y-8">
       <div>
         <h1 className="text-lg font-semibold">Variables</h1>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           Reusable values referenced in step configs as{" "}
-          <code className="text-emerald-400">{"{{vars.<name>}}"}</code>. Each variable holds a value per
+          <code className="text-brand">{"{{vars.<name>}}"}</code>. Each variable holds a value per
           environment; the active environment is used at run time. Secret values are write-only and masked.
         </p>
       </div>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium text-zinc-300">Environments</h2>
+        <h2 className="text-sm font-medium text-fg-body">Environments</h2>
         <div className="flex flex-wrap items-center gap-2">
           {envs.map((env) => (
             <span
               key={env.id}
               className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
-                env.active ? "border-emerald-600 text-emerald-300" : "border-zinc-700 text-zinc-400"
+                env.active ? "border-emerald-600 text-emerald-300" : "border-line-strong text-muted-foreground"
               }`}
             >
               {env.active && <span title="Active">●</span>}
@@ -89,7 +89,7 @@ export default function Variables() {
                 <button
                   type="button"
                   onClick={() => setActive.mutate(env.id)}
-                  className="text-zinc-500 hover:text-emerald-400"
+                  className="text-muted-foreground hover:text-brand"
                   title="Set active"
                 >
                   ✓
@@ -106,7 +106,7 @@ export default function Variables() {
                       destructive: true,
                     }).then((ok) => ok && removeEnv.mutate(env.id))
                   }
-                  className="text-zinc-500 hover:text-red-400"
+                  className="text-muted-foreground hover:text-danger"
                   title="Delete"
                 >
                   ✕
@@ -125,11 +125,11 @@ export default function Variables() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium text-zinc-300">Workspace variables</h2>
-        <div className="overflow-x-auto rounded-lg border border-zinc-800">
+        <h2 className="text-sm font-medium text-fg-body">Workspace variables</h2>
+        <div className="overflow-x-auto rounded-lg border border-line">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 text-left text-xs text-zinc-500">
+              <tr className="border-b border-line text-left text-xs text-muted-foreground">
                 <th className="px-3 py-2 font-medium">Name</th>
                 {envs.map((env) => (
                   <th key={env.id} className="px-3 py-2 font-medium">
@@ -141,11 +141,11 @@ export default function Variables() {
             </thead>
             <tbody>
               {(variables ?? []).map((variable) => (
-                <tr key={variable.id} className="border-b border-zinc-900">
+                <tr key={variable.id} className="border-b border-card">
                   <td className="px-3 py-2">
                     <span className="font-medium">{variable.name}</span>
                     {variable.secret && (
-                      <span className="ml-2 rounded border border-zinc-700 px-1 text-[10px] text-amber-400">secret</span>
+                      <span className="ml-2 rounded border border-line-strong px-1 text-[11px] text-warning">secret</span>
                     )}
                   </td>
                   {envs.map((env) => (
@@ -163,7 +163,7 @@ export default function Variables() {
                           destructive: true,
                         }).then((ok) => ok && removeVar.mutate(variable.id))
                       }
-                      className="text-xs text-zinc-500 hover:text-red-400"
+                      className="text-xs text-muted-foreground hover:text-danger"
                     >
                       Delete
                     </button>
@@ -172,7 +172,7 @@ export default function Variables() {
               ))}
               {(variables?.length ?? 0) === 0 && (
                 <tr>
-                  <td colSpan={envs.length + 2} className="px-3 py-6 text-center text-zinc-500">
+                  <td colSpan={envs.length + 2} className="px-3 py-6 text-center text-muted-foreground">
                     No variables yet.
                   </td>
                 </tr>
@@ -188,7 +188,7 @@ export default function Variables() {
             value={newVar}
             onChange={(e) => setNewVar(e.target.value)}
           />
-          <label className="flex items-center gap-1.5 text-xs text-zinc-400">
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <input
               type="checkbox"
               className="accent-emerald-500"
@@ -201,7 +201,7 @@ export default function Variables() {
             type="button"
             disabled={!newVar.trim() || createVar.isPending}
             onClick={() => createVar.mutate()}
-            className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900 disabled:opacity-50"
+            className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:opacity-50"
           >
             Add variable
           </button>

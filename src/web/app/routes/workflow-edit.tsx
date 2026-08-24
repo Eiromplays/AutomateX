@@ -45,12 +45,12 @@ export default function WorkflowEdit() {
     },
   });
 
-  if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
   if (error || !workflow) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted-foreground">
         Workflow not found in this workspace —{" "}
-        <a href="/workflows" className="text-emerald-400 hover:underline">
+        <a href="/workflows" className="text-brand hover:underline">
           back to workflows
         </a>
         .
@@ -61,7 +61,7 @@ export default function WorkflowEdit() {
   return (
     <div className="max-w-5xl">
       <h1 className="mb-1 text-lg font-semibold">Edit workflow</h1>
-      <p className="mb-6 text-xs text-zinc-500">
+      <p className="mb-6 text-xs text-muted-foreground">
         Saving appends version v{workflow.latestVersion.version + 1} — past executions keep the version they
         ran.
       </p>

@@ -69,7 +69,7 @@ export default function WorkflowNew() {
         {importDoc ? "Import workflow" : "New workflow"}
       </h1>
       {importDoc && (
-        <p className="mb-6 text-xs text-zinc-500">
+        <p className="mb-6 text-xs text-muted-foreground">
           Review the imported steps, triggers, and connection placeholders (room ids, URLs, …) before
           creating.
         </p>

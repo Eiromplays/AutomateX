@@ -29,8 +29,8 @@ export type KeyEdge = {
 
 const SWITCH = "switch";
 const inputClass =
-  "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 // Distinct, non-empty case labels from a switch step's config — these are the routable paths.
 export function caseLabelsOf(config: Record<string, unknown>): string[] {
@@ -242,19 +242,19 @@ export function SwitchTargets({
   ];
 
   return (
-    <div className="space-y-2 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
-      <p className="text-xs font-medium text-zinc-400">Routes</p>
+    <div className="space-y-2 rounded-md border border-line bg-card/40 p-2">
+      <p className="text-xs font-medium text-muted-foreground">Routes</p>
       {labels.length === 0 && (
-        <p className="text-[11px] text-zinc-600">
+        <p className="text-[11px] text-muted-foreground">
           Add a case with a label above, then point it at a step here.
         </p>
       )}
       {rows.map((row) => (
         <div key={row.key} className="flex items-center gap-2">
-          <span className="w-16 shrink-0 truncate text-xs text-zinc-300" title={row.label}>
+          <span className="w-16 shrink-0 truncate text-xs text-fg-body" title={row.label}>
             {row.label}
           </span>
-          <span className="text-zinc-600">→</span>
+          <span className="text-muted-foreground">→</span>
           <select
             className={inputClass}
             value={row.value ?? ""}
@@ -269,7 +269,7 @@ export function SwitchTargets({
           </select>
         </div>
       ))}
-      <p className="text-[11px] text-zinc-600">
+      <p className="text-[11px] text-muted-foreground">
         Each label runs from its step up to the next branch target (or end). “— end —” stops that path.
       </p>
     </div>
@@ -300,11 +300,11 @@ export function FanOutTargets({
   };
 
   return (
-    <div className="space-y-2 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
-      <p className="text-xs font-medium text-zinc-400">Parallel branches</p>
-      {others.length === 0 && <p className="text-[11px] text-zinc-600">Add another step to branch into.</p>}
+    <div className="space-y-2 rounded-md border border-line bg-card/40 p-2">
+      <p className="text-xs font-medium text-muted-foreground">Parallel branches</p>
+      {others.length === 0 && <p className="text-[11px] text-muted-foreground">Add another step to branch into.</p>}
       {others.map((s) => (
-        <label key={s.key} className="flex items-center gap-2 text-xs text-zinc-300">
+        <label key={s.key} className="flex items-center gap-2 text-xs text-fg-body">
           <input
             type="checkbox"
             className="accent-emerald-500"
@@ -314,7 +314,7 @@ export function FanOutTargets({
           {optionLabel(s)}
         </label>
       ))}
-      <p className="text-[11px] text-zinc-600">
+      <p className="text-[11px] text-muted-foreground">
         Pick none to run the next step in order. Pick two or more to run them at once; point several steps at
         the same one to join.
       </p>
@@ -344,7 +344,7 @@ export function ErrorTarget({
     <div className="mt-2 space-y-2 rounded-md border border-red-900/50 bg-red-950/20 p-2">
       <p className="text-xs font-medium text-red-300/80">On error</p>
       <div className="flex items-center gap-2">
-        <span className="text-red-400/70">⚠→</span>
+        <span className="text-danger/70">⚠→</span>
         <select
           className={inputClass}
           value={value ?? ""}
@@ -358,7 +358,7 @@ export function ErrorTarget({
           ))}
         </select>
       </div>
-      <p className="text-[11px] text-zinc-600">
+      <p className="text-[11px] text-muted-foreground">
         If this step fails after its retries, jump to the chosen step instead of failing the run. The failure
         is available there as <code>{"{{steps.<name>.error.message}}"}</code>.
       </p>
