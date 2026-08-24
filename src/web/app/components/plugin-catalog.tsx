@@ -16,7 +16,7 @@ import {
 import { useConfirm } from "./ui/confirm";
 
 const inputClass =
-  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 // Trust is state, so it lights a lamp; the label itself stays achromatic.
@@ -130,7 +130,7 @@ function CatalogCard({
       </div>
 
       {entry.description && (
-        <p className="line-clamp-2 max-w-[72ch] text-sm text-muted-foreground">{entry.description}</p>
+        <p className="line-clamp-2 max-w-[38em] text-sm text-muted-foreground">{entry.description}</p>
       )}
 
       {entry.categories.length > 0 && (
@@ -211,7 +211,7 @@ function CatalogDetail({
         </DialogHeader>
 
         <div className="space-y-3 text-sm">
-          {entry.description && <p className="text-muted-foreground">{entry.description}</p>}
+          {entry.description && <p className="text-muted-foreground max-w-[38em]">{entry.description}</p>}
 
           {entry.categories.length > 0 && (
             <div className="flex flex-wrap gap-1">
@@ -233,7 +233,7 @@ function CatalogDetail({
           </dl>
 
           {installEnabled && entry.installed && (
-            <div className="flex items-center justify-between rounded-md border border-line px-3 py-2 text-xs">
+            <div className="flex items-center justify-between rounded-[2px] border border-line px-3 py-2 text-xs">
               <span className="text-muted-foreground">
                 Auto-update
                 <span className="block text-sm text-muted-foreground">
@@ -352,9 +352,9 @@ export function CatalogBrowser() {
       )}
 
       {error ? (
-        <p className="text-xs text-muted-foreground">Plugin catalog unreachable — {String(error)}</p>
+        <p className="text-xs text-muted-foreground max-w-[38em]">Plugin catalog unreachable — {String(error)}</p>
       ) : filtered.length === 0 ? (
-        <p className="text-xs text-muted-foreground">No matching plugins.</p>
+        <p className="text-xs text-muted-foreground max-w-[38em]">No matching plugins.</p>
       ) : (
         <Rack>
           {filtered.map((entry, i) => (

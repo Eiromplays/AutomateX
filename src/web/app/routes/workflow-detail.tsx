@@ -186,10 +186,10 @@ export default function WorkflowDetail() {
     onError: (error) => toast.error(`Failed — ${String(error)}`),
   });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground max-w-[38em]">Loading…</p>;
   if (error || !workflow) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground max-w-[38em]">
         Workflow not found in this workspace —{" "}
         <a href="/workflows" className="text-brand hover:underline">
           back to workflows
@@ -204,20 +204,20 @@ export default function WorkflowDetail() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-semibold">{workflow.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-[-0.01em]">{workflow.name}</h1>
             {!workflow.enabled && (
-              <span className="rounded-full border border-warning-solid/40 bg-warning-solid/10 px-1.5 py-0.5 text-[11px] text-warning">
+              <span className="rounded-[2px] border border-warning-solid/40 bg-warning-solid/10 px-1.5 py-0.5 text-[11px] text-warning">
                 ⏸ paused
               </span>
             )}
           </div>
-          {workflow.description && <p className="text-sm text-muted-foreground">{workflow.description}</p>}
+          {workflow.description && <p className="text-sm text-muted-foreground max-w-[38em]">{workflow.description}</p>}
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setRunOpen(true)}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
+            className="rounded-[2px] bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
           >
             Run now
           </button>
@@ -226,7 +226,7 @@ export default function WorkflowDetail() {
               <button
                 type="button"
                 aria-label="More actions"
-                className="rounded-md border border-line-strong px-2.5 py-1.5 text-sm text-fg-body hover:bg-card"
+                className="rounded-[2px] border border-line-strong px-2.5 py-1.5 text-sm text-fg-body hover:bg-card"
               >
                 ⋯
               </button>
@@ -274,12 +274,12 @@ export default function WorkflowDetail() {
           <DialogHeader>
             <DialogTitle>Run now</DialogTitle>
           </DialogHeader>
-          <p className="mb-2 text-xs text-muted-foreground">
+          <p className="mb-2 text-xs text-muted-foreground max-w-[38em]">
             Optional JSON payload — available in steps as{" "}
             <code className="text-muted-foreground">{"{{trigger.payload}}"}</code>.
           </p>
           <textarea
-            className="w-full rounded-md border border-line bg-card px-3 py-1.5 font-mono text-xs placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
+            className="w-full rounded-[2px] border border-line bg-card px-3 py-1.5 font-mono text-xs placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
             rows={4}
             placeholder="{ }"
             value={payload}
@@ -290,7 +290,7 @@ export default function WorkflowDetail() {
             type="button"
             onClick={() => execute.mutate()}
             disabled={execute.isPending}
-            className="mt-3 w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
+            className="mt-3 w-full rounded-[2px] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:bg-panel-recess disabled:text-muted-foreground disabled:hover:bg-panel-recess"
           >
             {execute.isPending ? "Starting…" : "Run"}
           </button>
@@ -371,7 +371,7 @@ export default function WorkflowDetail() {
       </Dialog>
 
       {(workflow.runsAfter.length > 0 || workflow.feeds.length > 0) && (
-        <div className="space-y-1 rounded-md border border-trigger-solid/30 bg-trigger-solid/5 px-3 py-2 text-sm">
+        <div className="space-y-1 rounded-[2px] border border-trigger-solid/30 bg-trigger-solid/5 px-3 py-2 text-sm">
           {workflow.runsAfter.map((link) => (
             <p key={`after-${link.workflowId}-${link.on}`}>
               ⛓ Runs after{" "}
@@ -434,7 +434,7 @@ export default function WorkflowDetail() {
             }}
             height="20rem"
           />
-          <p className="mt-1 text-[11px] text-muted-foreground">
+          <p className="mt-1 text-[11px] text-muted-foreground max-w-[38em]">
             Triggers feed the first step; branches show their labels. Edit steps &amp; config in the builder.
           </p>
         </div>
@@ -447,7 +447,7 @@ export default function WorkflowDetail() {
             {workflow.versions.map((version) => (
               <li
                 key={version.id}
-                className="flex items-center justify-between rounded-lg border border-line px-4 py-2 text-sm"
+                className="flex items-center justify-between rounded-[2px] border border-line px-4 py-2 text-sm"
               >
                 <div className="flex items-center gap-3">
                   <span className="font-medium">v{version.version}</span>
@@ -475,7 +475,7 @@ export default function WorkflowDetail() {
                           restoreVersion.mutate(version.version);
                         }
                       }}
-                      className="text-xs text-muted-foreground hover:text-brand disabled:opacity-50"
+                      className="text-xs text-muted-foreground hover:text-brand disabled:text-muted-foreground"
                     >
                       Restore
                     </button>
@@ -494,7 +494,7 @@ export default function WorkflowDetail() {
                           deleteVersion.mutate(version.version);
                         }
                       }}
-                      className="text-xs text-muted-foreground hover:text-danger disabled:opacity-50"
+                      className="text-xs text-muted-foreground hover:text-danger disabled:text-muted-foreground"
                     >
                       Delete
                     </button>
@@ -513,7 +513,7 @@ export default function WorkflowDetail() {
         <h2 className="mb-3 text-sm font-medium text-fg-body">Triggers</h2>
         <ul className="mb-4 space-y-2">
           {workflow.triggers.map((trigger) => (
-            <li key={trigger.id} className="rounded-lg border border-line px-4 py-2.5 text-sm">
+            <li key={trigger.id} className="rounded-[2px] border border-line px-4 py-2.5 text-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{trigger.type}</span>
@@ -586,7 +586,7 @@ export default function WorkflowDetail() {
           )}
         </ul>
 
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground max-w-[38em]">
           Add or change triggers in the{" "}
           <Link to={`/workflows/${id}/edit`} className="text-brand hover:underline">
             builder
@@ -614,7 +614,7 @@ export default function WorkflowDetail() {
                     ⚠ Copy this now — the secret is shown only once. If you lose it, rotate the secret to get
                     a new one.
                   </p>
-                  <code className="block break-all rounded-md border border-line bg-background p-2 text-xs text-fg-body">
+                  <code className="block break-all rounded-[2px] border border-line bg-background p-2 text-xs text-fg-body">
                     {url}
                   </code>
                   <button
@@ -625,7 +625,7 @@ export default function WorkflowDetail() {
                         () => toast.error("Copy failed — select and copy manually."),
                       );
                     }}
-                    className="w-full rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
+                    className="w-full rounded-[2px] bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
                   >
                     Copy URL
                   </button>
@@ -745,7 +745,7 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
             }
           }}
           disabled={clear.isPending}
-          className="text-xs text-muted-foreground hover:text-danger disabled:opacity-50"
+          className="text-xs text-muted-foreground hover:text-danger disabled:text-muted-foreground"
         >
           Clear all
         </button>
@@ -755,7 +755,7 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
         {[...groups.values()].map((group) => {
           const trigger = group.triggerId ? triggers.find((t) => t.id === group.triggerId) : undefined;
           return (
-            <details key={group.triggerId ?? "other"} className="rounded-lg border border-line">
+            <details key={group.triggerId ?? "other"} className="rounded-[2px] border border-line">
               <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm">
                 <span className="truncate text-fg-emphasis">
                   {group.triggerId ? triggerLabel(trigger) : "other"}

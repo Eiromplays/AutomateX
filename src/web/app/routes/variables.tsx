@@ -5,7 +5,7 @@ import { useConfirm } from "../components/ui/confirm";
 import { api, type EnvironmentSummary, type VariableSummary } from "../lib/api";
 
 const inputClass =
-  "rounded-md border border-line-strong bg-card px-2 py-1 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
+  "rounded-[2px] border border-line-strong bg-card px-2 py-1 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 export default function Variables() {
   const queryClient = useQueryClient();
@@ -65,8 +65,8 @@ export default function Variables() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-lg font-semibold">Variables</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Variables</h1>
+        <p className="text-sm text-muted-foreground max-w-[38em]">
           Reusable values referenced in step configs as{" "}
           <code className="text-brand">{"{{vars.<name>}}"}</code>. Each variable holds a value per
           environment; the active environment is used at run time. Secret values are write-only and masked.
@@ -79,7 +79,7 @@ export default function Variables() {
           {envs.map((env) => (
             <span
               key={env.id}
-              className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
+              className={`flex items-center gap-1.5 rounded-[2px] border px-2.5 py-1 text-xs ${
                 env.active ? "border-emerald-600 text-emerald-300" : "border-line-strong text-muted-foreground"
               }`}
             >
@@ -126,7 +126,7 @@ export default function Variables() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-fg-body">Workspace variables</h2>
-        <div className="overflow-x-auto rounded-lg border border-line">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs text-muted-foreground">
@@ -201,7 +201,7 @@ export default function Variables() {
             type="button"
             disabled={!newVar.trim() || createVar.isPending}
             onClick={() => createVar.mutate()}
-            className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:opacity-50"
+            className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:text-muted-foreground"
           >
             Add variable
           </button>

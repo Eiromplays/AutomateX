@@ -1,20 +1,23 @@
 import { cn } from "~/lib/utils";
+import { Rack, Unit } from "../rack";
 
 // Shimmer placeholders shown while a query loads, instead of a bare "Loading…".
 export function Skeleton({ className }: { className?: string }) {
-  return <div data-slot="skeleton" className={cn("animate-pulse rounded-md bg-accent", className)} />;
+  return <div data-slot="skeleton" className={cn("animate-pulse rounded-[2px] bg-accent", className)} />;
 }
 
-// Placeholder rows inside the standard bordered list.
+// Placeholder units on the rack, so loading has the same shape as loaded.
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <ul className="divide-y divide-border rounded-lg border border-border">
+    <Rack>
       {Array.from({ length: rows }).map((_, i) => (
-        <li key={i} className="flex items-center justify-between px-4 py-3">
-          <Skeleton className="h-4 w-48" />
-          <Skeleton className="h-3 w-12" />
-        </li>
+        <Unit key={i}>
+          <div className="flex items-center justify-between py-3 pr-3">
+            <Skeleton className="h-4 w-48" />
+            <Skeleton className="h-3 w-12" />
+          </div>
+        </Unit>
       ))}
-    </ul>
+    </Rack>
   );
 }

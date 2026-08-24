@@ -90,7 +90,7 @@ export function StepPreviewPanel({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 rounded-md border border-line-strong px-2.5 py-1 text-xs text-fg-body hover:bg-card"
+        className="mt-3 rounded-[2px] border border-line-strong px-2.5 py-1 text-xs text-fg-body hover:bg-card"
       >
         Preview / test
       </button>
@@ -100,7 +100,7 @@ export function StepPreviewPanel({
   const controlFlow = CONTROL_FLOW.has(actionType);
 
   return (
-    <div className="mt-3 space-y-2 rounded-md border border-line bg-background/40 p-3">
+    <div className="mt-3 space-y-2 rounded-[2px] border border-line bg-background/40 p-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Preview / test</span>
         <button type="button" onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:text-fg-body">
@@ -111,7 +111,7 @@ export function StepPreviewPanel({
       <label className="block text-xs text-muted-foreground">
         Sample context (optional)
         <AutoTextarea
-          className="mt-1 w-full rounded-md border border-line-strong bg-card px-2 py-1 font-mono text-xs"
+          className="mt-1 w-full rounded-[2px] border border-line-strong bg-card px-2 py-1 font-mono text-xs"
           placeholder={SAMPLE_PLACEHOLDER}
           value={sample}
           onChange={(e) => setSample(e.target.value)}
@@ -123,7 +123,7 @@ export function StepPreviewPanel({
           type="button"
           disabled={busy !== null}
           onClick={runPreview}
-          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
+          className="rounded-[2px] bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-brand-bright disabled:bg-panel-recess disabled:text-muted-foreground disabled:hover:bg-panel-recess"
         >
           {busy === "preview" ? "Resolving…" : "Preview config"}
         </button>
@@ -132,7 +132,7 @@ export function StepPreviewPanel({
           disabled={busy !== null || controlFlow}
           onClick={runForReal}
           title={controlFlow ? "Control-flow steps can't be run on their own." : "Executes the action for real."}
-          className="rounded-md border border-amber-700/60 px-3 py-1 text-xs text-amber-300 hover:bg-amber-950/40 disabled:opacity-40"
+          className="rounded-[2px] border border-engrave px-3 py-1 text-xs text-fg-body hover:bg-panel-recess disabled:text-muted-foreground"
         >
           {busy === "test" ? "Running…" : "Run for real"}
         </button>
@@ -163,7 +163,7 @@ export function StepPreviewPanel({
             </div>
           )}
 
-          <pre className="overflow-x-auto rounded-md border border-line bg-card p-2 font-mono text-[11px] text-fg-body">
+          <pre className="overflow-x-auto rounded-[2px] border border-line bg-card p-2 font-mono text-[11px] text-fg-body">
             {JSON.stringify(preview.resolvedConfig, null, 2)}
           </pre>
         </div>
@@ -176,7 +176,7 @@ export function StepPreviewPanel({
           >
             {test.ok ? "Ran successfully" : "Failed"}
           </span>
-          <pre className="overflow-x-auto rounded-md border border-line bg-card p-2 font-mono text-[11px] text-fg-body">
+          <pre className="overflow-x-auto rounded-[2px] border border-line bg-card p-2 font-mono text-[11px] text-fg-body">
             {test.ok ? JSON.stringify(test.output, null, 2) : test.error}
           </pre>
         </div>

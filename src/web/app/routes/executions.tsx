@@ -199,12 +199,12 @@ export default function Executions() {
             placeholder="Search by workflow…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full min-w-0 max-w-xs rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
+            className="w-full min-w-0 max-w-xs rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm focus:border-brand-bright focus:outline-none"
+            className="rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm focus:border-brand-bright focus:outline-none"
           >
             {["All", "Running", "Succeeded", "Failed"].map((status) => (
               <option key={status} value={status}>
@@ -230,7 +230,7 @@ export default function Executions() {
         <button
           type="button"
           onClick={() => setTake((current) => current + 50)}
-          className="mt-3 w-full rounded-md border border-line px-4 py-2 text-sm text-muted-foreground hover:bg-card"
+          className="mt-3 w-full rounded-[2px] border border-line px-4 py-2 text-sm text-muted-foreground hover:bg-card"
         >
           Load more
         </button>

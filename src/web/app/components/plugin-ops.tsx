@@ -88,7 +88,7 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
             type="button"
             disabled={restart.isPending}
             onClick={() => restart.mutate()}
-            className="inline-flex items-center gap-1 text-muted-foreground hover:text-fg-body disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-fg-body disabled:text-muted-foreground"
           >
             <RotateCw className="h-3 w-3" aria-hidden="true" /> Restart
           </button>
@@ -97,18 +97,18 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
           type="button"
           disabled={setEnabled.isPending}
           onClick={() => setEnabled.mutate(plugin.disabled)}
-          className="inline-flex items-center gap-1 text-muted-foreground hover:text-amber-300 disabled:opacity-50"
+          className="inline-flex items-center gap-1 text-muted-foreground hover:text-amber-300 disabled:text-muted-foreground"
         >
           <Power className="h-3 w-3" aria-hidden="true" /> {plugin.disabled ? "Enable" : "Disable"}
         </button>
       </div>
 
       {open && (
-        <div className="rounded-md border border-line bg-background p-2">
+        <div className="rounded-[2px] border border-line bg-background p-2">
           {error ? (
-            <p className="text-xs text-muted-foreground">Logs require instance-admin (or the plugin hasn&apos;t run yet).</p>
+            <p className="text-xs text-muted-foreground max-w-[38em]">Logs require instance-admin (or the plugin hasn&apos;t run yet).</p>
           ) : lines.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No log output yet.</p>
+            <p className="text-xs text-muted-foreground max-w-[38em]">No log output yet.</p>
           ) : (
             <pre className="max-h-60 overflow-auto font-mono text-[11px] leading-relaxed text-fg-body">
               {lines.map((l) => (

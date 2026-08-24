@@ -38,7 +38,7 @@ function formatTimestamp(iso: string): string {
 
 const fieldChip = "rounded border border-line bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground";
 const searchClass =
-  "mb-4 w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "mb-4 w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 function matches(query: string, ...fields: (string | null | undefined)[]) {
@@ -153,7 +153,7 @@ function PluginManager() {
           {scope === "global" ? "Global plugins" : "Workspace plugins"}
         </h2>
         {plugins.uploadEnabled && (
-          <label className="cursor-pointer rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card">
+          <label className="cursor-pointer rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card">
             Upload zip
             <input
               type="file"
@@ -168,7 +168,7 @@ function PluginManager() {
           </label>
         )}
       </div>
-      <p className="mb-3 text-sm text-muted-foreground">{hint}</p>
+      <p className="mb-3 text-sm text-muted-foreground max-w-[38em]">{hint}</p>
       <Rack empty="None installed.">
         {items.map((plugin, i) => {
           const summary = capabilities(scope, plugin.name);
@@ -225,7 +225,7 @@ function PluginManager() {
         {section("workspace", plugins.workspace, "Only this workspace — shadows global on name collisions.")}
       </div>
       {!plugins.uploadEnabled && (
-        <p className="mt-2 text-xs text-muted-foreground">
+        <p className="mt-2 text-xs text-muted-foreground max-w-[38em]">
           Uploads disabled — set <code>Engine__AllowPluginUpload=true</code> to manage plugins from here, or
           drop folders into <code>plugins/</code> and reload.
         </p>
@@ -263,7 +263,7 @@ function ActionsPanel({ actions }: { actions: ActionDescriptor[] }) {
                       <code className="font-mono text-[13px] text-muted-foreground">{action.type}</code>
                     </div>
                     {action.description && (
-                      <p className="mb-2 max-w-[72ch] text-sm text-muted-foreground">{action.description}</p>
+                      <p className="mb-2 max-w-[38em] text-sm text-muted-foreground">{action.description}</p>
                     )}
                     <FieldChips fields={configFields(action.configSchema)} />
                   </div>
@@ -272,7 +272,7 @@ function ActionsPanel({ actions }: { actions: ActionDescriptor[] }) {
             </Rack>
           </section>
         ))}
-        {filtered.length === 0 && <p className="text-sm text-muted-foreground">No matching actions.</p>}
+        {filtered.length === 0 && <p className="text-sm text-muted-foreground max-w-[38em]">No matching actions.</p>}
       </div>
     </div>
   );
@@ -313,7 +313,7 @@ function TriggerTypesPanel() {
                       <code className="font-mono text-[13px] text-muted-foreground">{trigger.type}</code>
                     </div>
                     {trigger.description && (
-                      <p className="mb-2 max-w-[72ch] text-sm text-muted-foreground">{trigger.description}</p>
+                      <p className="mb-2 max-w-[38em] text-sm text-muted-foreground">{trigger.description}</p>
                     )}
                     <FieldChips fields={configFields(trigger.configSchema)} />
                   </div>
@@ -323,7 +323,7 @@ function TriggerTypesPanel() {
           </section>
         ))}
       </div>
-      {filtered.length === 0 && <p className="text-sm text-muted-foreground">No matching trigger types.</p>}
+      {filtered.length === 0 && <p className="text-sm text-muted-foreground max-w-[38em]">No matching trigger types.</p>}
     </div>
   );
 }
@@ -348,7 +348,7 @@ function ConnectionTypesPanel() {
         onChange={(e) => setSearch(e.target.value)}
       />
       {types.length === 0 ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground max-w-[38em]">
           No connection types — plugins declare these to guide their setup.
         </p>
       ) : (
@@ -374,7 +374,7 @@ function ConnectionTypesPanel() {
                       </Link>
                     </div>
                     {type.description && (
-                      <p className="mb-2 max-w-[72ch] text-sm text-muted-foreground">{type.description}</p>
+                      <p className="mb-2 max-w-[38em] text-sm text-muted-foreground">{type.description}</p>
                     )}
                     <div className="flex flex-wrap gap-1.5">
                       {type.fields.map((field) => (
@@ -394,7 +394,7 @@ function ConnectionTypesPanel() {
         </div>
       )}
       {types.length > 0 && filtered.length === 0 && (
-        <p className="text-sm text-muted-foreground">No matching connection types.</p>
+        <p className="text-sm text-muted-foreground max-w-[38em]">No matching connection types.</p>
       )}
     </div>
   );
@@ -453,7 +453,7 @@ export default function Plugins() {
           type="button"
           onClick={() => reload.mutate()}
           disabled={reload.isPending}
-          className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:opacity-50"
+          className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:text-muted-foreground"
         >
           {reload.isPending ? "Reloading…" : "Reload plugins"}
         </button>
@@ -478,7 +478,7 @@ export default function Plugins() {
 
       {tab === "installed" && <PluginManager />}
       {tab === "actions" &&
-        (actions ? <ActionsPanel actions={actions} /> : <p className="text-sm text-muted-foreground">Loading…</p>)}
+        (actions ? <ActionsPanel actions={actions} /> : <p className="text-sm text-muted-foreground max-w-[38em]">Loading…</p>)}
       {tab === "triggers" && <TriggerTypesPanel />}
       {tab === "connections" && <ConnectionTypesPanel />}
     </div>

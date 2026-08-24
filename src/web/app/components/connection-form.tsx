@@ -15,8 +15,8 @@ import {
 import { toast } from "./toast";
 
 const inputClass =
-  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
-  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none disabled:opacity-50";
+  "rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none disabled:text-muted-foreground";
 
 type ConnectionFormProps = {
   // null = create mode. Set to a connection to edit it (name immutable, secrets merge).
@@ -131,7 +131,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
         </label>
       </div>
 
-      {selectedType?.description && <p className="text-xs text-muted-foreground">{selectedType.description}</p>}
+      {selectedType?.description && <p className="text-xs text-muted-foreground max-w-[38em]">{selectedType.description}</p>}
 
       {selectedType?.isOAuth && (
         <p className="text-xs text-info">
@@ -154,13 +154,12 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
         </label>
       )}
 
-      <div className="space-y-3 rounded-md border border-line bg-card/40 p-3">
+      <div className="space-y-3 border-t border-engrave pt-4">
         {!selectedType && (
-          <div className="text-xs font-medium text-muted-foreground">
-            Secret fields{" "}
-            <span className="font-normal text-muted-foreground">
-              — each becomes {`{{connections.${name || "<name>"}.<field>}}`}
-            </span>
+          <div className="text-sm text-muted-foreground">
+            {/* Only the label is silkscreen; caps on a whole sentence is shouting. */}
+            <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">Secret fields</span>{" "}
+            — each becomes {`{{connections.${name || "<name>"}.<field>}}`}
           </div>
         )}
 
@@ -249,7 +248,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           type="button"
           disabled={rows.some((r) => !r.existing && !r.fixed && !r.name)}
           onClick={() => setRows((current) => [...current, emptyRow()])}
-          className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:opacity-50"
+          className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:text-muted-foreground"
         >
           {selectedType ? "Add custom field" : "Add field"}
         </button>
@@ -260,7 +259,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           type="button"
           disabled={saveDisabled}
           onClick={() => save.mutate()}
-          className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
+          className="rounded-[2px] bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-brand-bright disabled:bg-panel-recess disabled:text-muted-foreground disabled:hover:bg-panel-recess"
         >
           {save.isPending ? "Saving…" : editing ? "Save changes" : "Create connection"}
         </button>
@@ -268,7 +267,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
+            className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
           >
             Cancel
           </button>

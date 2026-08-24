@@ -157,7 +157,7 @@ export function ConnectionAutocompleteField({
               left: pos.left,
               width: pos.width,
             }}
-            className="z-50 rounded-md border border-line-strong bg-card p-1 shadow-xl"
+            className="z-50 rounded-[2px] border border-line-strong bg-card p-1 shadow-xl"
           >
             {completions.map((c) => (
               <button

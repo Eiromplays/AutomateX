@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock } from "lucide-react";
+import { Rack, Unit } from "../components/rack";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { ConnectionForm } from "../components/connection-form";
@@ -101,15 +102,15 @@ export default function Connections() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-lg font-semibold">Connections</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Connections</h1>
+        <p className="text-sm text-muted-foreground max-w-[38em]">
           Encrypted secret bundles — reference them in step configs as{" "}
           <code className="text-brand">{"{{connections.<name>.<field>}}"}</code>. Values are write-only:
           never shown again after saving.
         </p>
       </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted-foreground max-w-[38em]">Loading…</p>}
 
       {(connections?.length ?? 0) > 0 && (
         <input
@@ -117,17 +118,27 @@ export default function Connections() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search connections…"
-          className="w-full max-w-xs rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
+          className="w-full max-w-xs rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
         />
       )}
 
-      <ul className="divide-y divide-zinc-800 rounded-lg border border-line">
-        {filterConnections(connections ?? [], search).map((connection) => (
-          <li key={connection.id} className="flex items-center justify-between px-4 py-3 text-sm">
-            <div className="flex items-center gap-3">
-              <span className="font-medium">{connection.name}</span>
+      <Rack
+        empty={
+          connections?.length === 0 ? "No connections yet." : `No connections match “${search}”.`
+        }
+      >
+        {filterConnections(connections ?? [], search).map((connection, i) => (
+          <Unit
+            key={connection.id}
+            index={i + 1}
+            status={connection.decryptable ? "running" : "exited"}
+            align="start"
+          >
+          <div className="flex flex-wrap items-center justify-between gap-3 py-3 pr-3 text-sm">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+              <span className="text-lg font-medium text-fg-strong">{connection.name}</span>
               {connection.provider && (
-                <span className="rounded-full border border-line-strong px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                <span className="rounded-[2px] border border-engrave px-1.5 py-0.5 text-[11px] text-muted-foreground">
                   {typeFor(connection.provider)?.displayName ?? connection.provider}
                 </span>
               )}
@@ -140,7 +151,7 @@ export default function Connections() {
                 ))}
               </span>
               {!connection.decryptable && (
-                <span className="text-xs text-danger">undecryptable — wrong encryption key?</span>
+                <span className="text-sm text-fg-body">undecryptable — wrong encryption key?</span>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -162,7 +173,7 @@ export default function Connections() {
                     type="button"
                     onClick={() => connect.mutate(connection.id)}
                     disabled={connect.isPending}
-                    className="text-xs text-muted-foreground hover:text-brand disabled:opacity-50"
+                    className="text-xs text-muted-foreground hover:text-brand disabled:text-muted-foreground"
                   >
                     {connection.secretKeys.includes("accessToken") ? "Reconnect" : "Connect"}
                   </button>
@@ -172,7 +183,7 @@ export default function Connections() {
                   type="button"
                   onClick={() => test.mutate(connection.id)}
                   disabled={test.isPending}
-                  className="text-xs text-muted-foreground hover:text-brand disabled:opacity-50"
+                  className="text-xs text-muted-foreground hover:text-brand disabled:text-muted-foreground"
                 >
                   {test.isPending && test.variables === connection.id ? "Testing…" : "Test"}
                 </button>
@@ -192,17 +203,12 @@ export default function Connections() {
                 Delete
               </button>
             </div>
-          </li>
+          </div>
+          </Unit>
         ))}
-        {connections?.length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-muted-foreground">No connections yet.</li>
-        )}
-        {(connections?.length ?? 0) > 0 && filterConnections(connections ?? [], search).length === 0 && (
-          <li className="px-4 py-6 text-center text-sm text-muted-foreground">No connections match “{search}”.</li>
-        )}
-      </ul>
+      </Rack>
 
-      <div className="max-w-xl space-y-3 rounded-lg border border-line p-4">
+      <div className="max-w-xl space-y-3 border-t border-engrave pt-4">
         <h2 className="text-sm font-medium text-fg-body">
           {editing ? `Edit ${editing.name}` : "New connection"}
         </h2>

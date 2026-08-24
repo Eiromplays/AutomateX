@@ -4,7 +4,7 @@ import { ListSkeleton } from "../components/ui/skeleton";
 import { api } from "../lib/api";
 
 const inputClass =
-  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 export default function Audit() {
@@ -21,8 +21,8 @@ export default function Audit() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-lg font-semibold">Audit log</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Audit log</h1>
+        <p className="text-sm text-muted-foreground max-w-[38em]">
           Who changed, ran, or deleted what. Instance admins see every workspace; others see their own.
         </p>
       </div>
@@ -45,9 +45,9 @@ export default function Audit() {
       {isLoading ? (
         <ListSkeleton />
       ) : !entries || entries.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No audit entries match.</p>
+        <p className="text-sm text-muted-foreground max-w-[38em]">No audit entries match.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b border-line text-left text-xs uppercase text-muted-foreground">
               <tr>
@@ -83,7 +83,7 @@ export default function Audit() {
         <button
           type="button"
           onClick={() => setTake((t) => t + 100)}
-          className="rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
+          className="rounded-[2px] border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
         >
           Load more
         </button>

@@ -55,7 +55,7 @@ function StepNode(props: NodeProps) {
     : ((data.status && STATUS_CLASS[data.status]) ?? "border-line-strong bg-card");
   return (
     <div
-      className={`min-w-44 rounded-lg border px-3 py-2 text-left ${base} ${
+      className={`min-w-44 rounded-[2px] border px-3 py-2 text-left ${base} ${
         data.unreachable ? "border-dashed opacity-50" : ""
       }`}
     >
@@ -77,7 +77,7 @@ function TriggerNode(props: NodeProps) {
   const data = props.data as { label?: string; selected?: boolean };
   return (
     <div
-      className={`max-w-56 rounded-lg border px-3 py-2 text-sm text-violet-200 ${
+      className={`max-w-56 rounded-[2px] border px-3 py-2 text-sm text-violet-200 ${
         data.selected ? "border-violet-400 bg-trigger-solid/20" : "border-trigger-solid/40 bg-trigger-solid/10"
       }`}
     >
@@ -214,7 +214,7 @@ export function WorkflowGraph({
   }, [steps, triggers, stepEdges]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-background" style={{ height }}>
+    <div className="overflow-hidden rounded-[2px] border border-line bg-background" style={{ height }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

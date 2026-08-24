@@ -22,7 +22,7 @@ type DraftStep = CreateWorkflowStep & {
 };
 
 const fieldClass =
-  "w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 export function WorkflowCanvas({
@@ -98,19 +98,19 @@ export function WorkflowCanvas({
         onSelect={setSelection}
       />
 
-      <div className="space-y-3 rounded-lg border border-line p-4">
+      <div className="space-y-3 rounded-[2px] border border-line p-4">
         <div className="flex gap-2">
           <button
             type="button"
             onClick={onAddStep}
-            className="flex-1 rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
+            className="flex-1 rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
           >
             + Add step
           </button>
           <button
             type="button"
             onClick={addTrigger}
-            className="flex-1 rounded-md border border-trigger-solid/40 px-2.5 py-1 text-xs text-violet-200 hover:bg-trigger-solid/10"
+            className="flex-1 rounded-[2px] border border-trigger-solid/40 px-2.5 py-1 text-xs text-violet-200 hover:bg-trigger-solid/10"
           >
             + Add trigger
           </button>
@@ -128,7 +128,7 @@ export function WorkflowCanvas({
               }}
               stepLabels={stepLabels}
             />
-            <p className="text-[11px] text-muted-foreground">Fires this workflow. Changes apply when you save.</p>
+            <p className="text-[11px] text-muted-foreground max-w-[38em]">Fires this workflow. Changes apply when you save.</p>
           </div>
         ) : selectedStep ? (
           <div className="space-y-3">
@@ -232,7 +232,7 @@ export function WorkflowCanvas({
             )}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground max-w-[38em]">
             Select a step to edit, a trigger node for info, or add a step.
           </p>
         )}

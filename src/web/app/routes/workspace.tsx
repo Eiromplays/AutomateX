@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Rack, Silkscreen, Unit } from "../components/rack";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { api, DEFAULT_WORKSPACE_ID, getWorkspaceId, setWorkspaceId, type WorkspaceSummary } from "../lib/api";
 
 const inputClass =
-  "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 export default function WorkspaceSettings() {
   const queryClient = useQueryClient();
@@ -79,14 +80,14 @@ export default function WorkspaceSettings() {
     onError: (error) => toast.error(`Re-wrap failed — ${String(error)}`),
   });
 
-  if (!current) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (!current) return <p className="text-sm text-muted-foreground max-w-[38em]">Loading…</p>;
 
   return (
     <div className="max-w-2xl space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">{current.name}</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-[-0.01em]">{current.name}</h1>
+          <p className="text-sm text-muted-foreground max-w-[38em]">
             Your role: <span className="text-fg-body">{current.role}</span>
           </p>
         </div>
@@ -105,7 +106,7 @@ export default function WorkspaceSettings() {
                 removeWorkspace.mutate();
               }
             }}
-            className="rounded-md border border-red-900 px-3 py-1.5 text-sm text-danger hover:bg-red-950/40"
+            className="rounded-[2px] border border-red-900 px-3 py-1.5 text-sm text-danger hover:bg-red-950/40"
           >
             Delete workspace
           </button>
@@ -114,39 +115,40 @@ export default function WorkspaceSettings() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-fg-body">Members</h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground max-w-[38em]">
           Invite by email — access starts the first time they sign in. A workspace with no members is open to
           every signed-in user; adding the first member claims it.
         </p>
-        <ul className="divide-y divide-zinc-800 rounded-lg border border-line">
-          {members?.map((member) => {
+        <Rack empty="No members — this workspace is unclaimed.">
+          {members?.map((member, i) => {
             const isSelf = !!me?.email && member.email === me.email.toLowerCase();
             return (
-              <li key={member.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <div className="flex items-center gap-3">
-                  <span>{member.email}</span>
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                    {member.role}
-                  </span>
-                  {!member.signedInBefore && <span className="text-xs text-warning">invited</span>}
-                  {isSelf && <span className="text-xs text-muted-foreground">you</span>}
+              <Unit
+                key={member.id}
+                index={i + 1}
+                status={member.signedInBefore ? "running" : "disabled"}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3 py-3 pr-3 text-sm">
+                  <div className="flex min-w-0 flex-wrap items-center gap-3">
+                    <span className="text-fg-strong">{member.email}</span>
+                    <span className="rounded-[2px] border border-engrave px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                      {member.role}
+                    </span>
+                    {!member.signedInBefore && <Silkscreen>invited</Silkscreen>}
+                    {isSelf && <Silkscreen>you</Silkscreen>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => remove.mutate({ memberId: member.id, self: isSelf })}
+                    className="shrink-0 text-sm text-muted-foreground hover:text-fg-strong"
+                  >
+                    {isSelf ? "Leave" : "Remove"}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => remove.mutate({ memberId: member.id, self: isSelf })}
-                  className="text-xs text-muted-foreground hover:text-danger"
-                >
-                  {isSelf ? "Leave" : "Remove"}
-                </button>
-              </li>
+              </Unit>
             );
           })}
-          {members?.length === 0 && (
-            <li className="px-4 py-4 text-center text-sm text-muted-foreground">
-              No members — this workspace is unclaimed.
-            </li>
-          )}
-        </ul>
+        </Rack>
 
         <div className="flex gap-2">
           <input
@@ -164,7 +166,7 @@ export default function WorkspaceSettings() {
             type="button"
             disabled={!email || upsert.isPending}
             onClick={() => upsert.mutate()}
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
+            className="rounded-[2px] bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:bg-panel-recess disabled:text-muted-foreground disabled:hover:bg-panel-recess"
           >
             Add / update
           </button>
@@ -179,7 +181,7 @@ export default function WorkspaceSettings() {
       {me?.isInstanceAdmin && (
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-fg-body">Encryption</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground max-w-[38em]">
             Rotate this workspace's data-encryption key (re-encrypts its connection secrets), or re-wrap
             every key under the current instance key after changing <code>Encryption__Key</code>.
           </p>
@@ -198,7 +200,7 @@ export default function WorkspaceSettings() {
                   rotateKey.mutate();
                 }
               }}
-              className="rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
+              className="rounded-[2px] border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
             >
               {rotateKey.isPending ? "Rotating…" : "Rotate workspace key"}
             </button>
@@ -216,7 +218,7 @@ export default function WorkspaceSettings() {
                   rewrap.mutate();
                 }
               }}
-              className="rounded-md border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
+              className="rounded-[2px] border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
             >
               {rewrap.isPending ? "Re-wrapping…" : "Re-wrap all keys"}
             </button>

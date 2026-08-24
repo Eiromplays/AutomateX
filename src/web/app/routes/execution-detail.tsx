@@ -205,10 +205,10 @@ export default function ExecutionDetail() {
     }
   });
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground max-w-[38em]">Loading…</p>;
   if (error || !execution) {
     return (
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground max-w-[38em]">
         Execution not found in this workspace —{" "}
         <a href="/executions" className="text-brand hover:underline">
           back to executions
@@ -222,7 +222,7 @@ export default function ExecutionDetail() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-lg font-semibold">Execution</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em]">Execution</h1>
           {execution.workflowVersion != null && (
             <span className="text-sm text-muted-foreground">v{execution.workflowVersion}</span>
           )}
@@ -236,7 +236,7 @@ export default function ExecutionDetail() {
               onClick={() => resume.mutate()}
               disabled={resume.isPending}
               title="Resume this paused run (the wait step continues)"
-              className="text-sm text-info hover:text-sky-300 disabled:opacity-50"
+              className="text-sm text-info hover:text-sky-300 disabled:text-muted-foreground"
             >
               {resume.isPending ? "Resuming…" : "▶ Resume"}
             </button>
@@ -247,7 +247,7 @@ export default function ExecutionDetail() {
               onClick={() => retry.mutate()}
               disabled={retry.isPending}
               title="Re-run on the latest version with the original trigger payload"
-              className="text-sm text-muted-foreground hover:text-brand disabled:opacity-50"
+              className="text-sm text-muted-foreground hover:text-brand disabled:text-muted-foreground"
             >
               {retry.isPending ? "Retrying…" : execution.status === "Failed" ? "↻ Retry" : "↻ Run again"}
             </button>
@@ -268,7 +268,7 @@ export default function ExecutionDetail() {
                 }
               }}
               disabled={remove.isPending}
-              className="text-sm text-muted-foreground hover:text-danger disabled:opacity-50"
+              className="text-sm text-muted-foreground hover:text-danger disabled:text-muted-foreground"
             >
               Delete
             </button>
@@ -319,7 +319,7 @@ export default function ExecutionDetail() {
       />
 
       {execution.triggerPayload && (
-        <details className="rounded-lg border border-line">
+        <details className="rounded-[2px] border border-line">
           <summary className="cursor-pointer px-4 py-2 text-sm text-muted-foreground hover:text-fg-emphasis">
             Trigger payload <span className="text-xs text-muted-foreground">· the data this run started with</span>
           </summary>
@@ -329,7 +329,7 @@ export default function ExecutionDetail() {
         </details>
       )}
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground max-w-[38em]">
         Click a step in the graph to inspect its output, errors and timing.
       </p>
 
@@ -381,7 +381,7 @@ function StepDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         {!step ? (
-          <p className="text-sm text-muted-foreground">This step did not run in this execution.</p>
+          <p className="text-sm text-muted-foreground max-w-[38em]">This step did not run in this execution.</p>
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
@@ -414,7 +414,7 @@ function StepDialog({
                 onClick={() => onRetryFrom(order)}
                 disabled={retrying}
                 title="Re-run from this step, reusing the earlier steps' outputs"
-                className="text-sm text-muted-foreground hover:text-brand disabled:opacity-50"
+                className="text-sm text-muted-foreground hover:text-brand disabled:text-muted-foreground"
               >
                 {retrying ? "Retrying…" : "↻ Retry from here"}
               </button>
@@ -499,7 +499,7 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
     return null;
 
   return (
-    <div className="space-y-1 rounded-md border border-trigger-solid/30 bg-trigger-solid/5 px-3 py-2 text-sm">
+    <div className="space-y-1 rounded-[2px] border border-trigger-solid/30 bg-trigger-solid/5 px-3 py-2 text-sm">
       {execution.parentExecutionId && (
         <p>
           ⮐ Called by execution{" "}

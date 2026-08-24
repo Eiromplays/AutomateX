@@ -131,7 +131,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <input
                   autoFocus
                   type={prompt.password ? "password" : "text"}
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-1.5 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                  className="w-full rounded-[2px] border border-input bg-transparent px-3 py-1.5 text-sm placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
                   placeholder={prompt.placeholder}
                   value={promptValue}
                   onChange={(e) => setPromptValue(e.target.value)}

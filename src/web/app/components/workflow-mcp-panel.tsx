@@ -4,7 +4,7 @@ import { api, type WorkflowDetail } from "../lib/api";
 import { toast } from "./toast";
 
 const inputClass =
-  "w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 // Expose a workflow as an MCP tool + show how to connect a client. The server itself is gated by
 // Engine__AllowMcpServer + an API key; this panel just manages the per-workflow opt-in.
@@ -30,9 +30,9 @@ export function WorkflowMcpPanel({ workflow }: { workflow: WorkflowDetail }) {
   X-Workspace-Id: <workspace id>`;
 
   return (
-    <section className="space-y-3 rounded-lg border border-line p-4">
+    <section className="space-y-3 rounded-[2px] border border-line p-4">
       <h2 className="text-sm font-medium text-fg-body">MCP tool</h2>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-muted-foreground max-w-[38em]">
         Expose this workflow as a tool for MCP clients (Claude, agents). They call it with a{" "}
         <code className="text-brand">payload</code> and get the final step&apos;s output back.
       </p>
@@ -75,7 +75,7 @@ export function WorkflowMcpPanel({ workflow }: { workflow: WorkflowDetail }) {
         type="button"
         disabled={save.isPending}
         onClick={() => save.mutate()}
-        className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
+        className="rounded-[2px] bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:bg-panel-recess disabled:text-muted-foreground disabled:hover:bg-panel-recess"
       >
         {save.isPending ? "Saving…" : "Save"}
       </button>
@@ -83,10 +83,10 @@ export function WorkflowMcpPanel({ workflow }: { workflow: WorkflowDetail }) {
       {workflow.mcpExposed && (
         <div className="space-y-1">
           <span className="text-xs text-muted-foreground">Connect a client to:</span>
-          <pre className="overflow-x-auto rounded-md border border-line bg-background p-2 font-mono text-[11px] text-fg-body">
+          <pre className="overflow-x-auto rounded-[2px] border border-line bg-background p-2 font-mono text-[11px] text-fg-body">
             {config}
           </pre>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground max-w-[38em]">
             Requires <code>Engine__AllowMcpServer=true</code> and a configured API key on the server.
           </p>
         </div>

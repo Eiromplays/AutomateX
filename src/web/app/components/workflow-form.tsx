@@ -25,7 +25,7 @@ type DraftStep = CreateWorkflowStep & {
 };
 
 const inputClass =
-  "w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 let nextKey = 1;
@@ -186,12 +186,12 @@ export function WorkflowForm({
                 type="button"
                 onClick={convertIndexRefs}
                 title="Rewrite {{steps.N.output…}} references to use step names — stable across reorder."
-                className="rounded-md border border-amber-700/60 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-950/40"
+                className="rounded-[2px] border border-amber-700/60 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-950/40"
               >
                 Convert index refs → names
               </button>
             )}
-            <div className="flex overflow-hidden rounded-md border border-line-strong text-xs">
+            <div className="flex overflow-hidden rounded-[2px] border border-line-strong text-xs">
               <button type="button" onClick={() => setMode("canvas")} className={tabClass(mode === "canvas")}>
                 Canvas
               </button>
@@ -203,7 +203,7 @@ export function WorkflowForm({
               <button
                 type="button"
                 onClick={addStep}
-                className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
+                className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
               >
                 Add step
               </button>
@@ -232,7 +232,7 @@ export function WorkflowForm({
 
         {mode === "form" &&
           steps.map((step, index) => (
-            <div key={step.key} className="rounded-lg border border-line p-4">
+            <div key={step.key} className="rounded-[2px] border border-line p-4">
               <div className="mb-3 flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">#{index + 1}</span>
                 <select
@@ -363,7 +363,7 @@ export function WorkflowForm({
               continueOnFailure,
             })
           }
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:opacity-50"
+          className="rounded-[2px] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:bg-panel-recess disabled:text-muted-foreground disabled:hover:bg-panel-recess"
         >
           {pending ? pendingLabel : submitLabel}
         </button>
@@ -372,7 +372,7 @@ export function WorkflowForm({
             type="button"
             disabled={pending}
             onClick={onCancel}
-            className="rounded-md border border-line-strong px-4 py-2 text-sm hover:bg-card disabled:opacity-50"
+            className="rounded-[2px] border border-line-strong px-4 py-2 text-sm hover:bg-card disabled:text-muted-foreground"
           >
             Cancel
           </button>

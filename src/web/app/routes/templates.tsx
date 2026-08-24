@@ -69,13 +69,13 @@ export default function Templates() {
   const builtIn = templates.filter(match);
 
   const inputClass =
-    "rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
+    "rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
   return (
     <div className="max-w-4xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold">Templates</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Templates</h1>
+        <p className="text-sm text-muted-foreground max-w-[38em]">
           Start from a ready-made workflow — you&apos;ll review and tweak it (URLs, connections, variables)
           before creating.
         </p>
@@ -166,17 +166,17 @@ function Card({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-lg border border-line bg-card/40 p-4">
+    <div className="flex flex-col rounded-[2px] border border-line bg-card/40 p-4">
       {template.category && (
         <div className="text-xs uppercase tracking-wide text-muted-foreground">{template.category}</div>
       )}
       <div className="mt-0.5 text-sm font-medium text-fg-strong">{template.name}</div>
-      <p className="mt-1 flex-1 text-sm text-muted-foreground">{template.description}</p>
+      <p className="mt-1 flex-1 text-sm text-muted-foreground max-w-[38em]">{template.description}</p>
       <div className="mt-3 flex items-center gap-3">
         <button
           type="button"
           onClick={onUse}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
+          className="rounded-[2px] bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
         >
           Use template →
         </button>

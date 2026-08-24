@@ -29,10 +29,10 @@ export const sourceKind = (source: string): SourceKind =>
   source === "builtin" ? "core" : source.startsWith("workspace:") ? "workspace" : "plugin";
 
 const kindClass: Record<SourceKind, string> = {
-  core: "rounded-full border border-brand-bright/40 bg-brand-bright/10 px-1.5 py-0.5 text-[11px] text-brand",
-  plugin: "rounded-full border border-info-solid/40 bg-info-solid/10 px-1.5 py-0.5 text-[11px] text-info",
+  core: "rounded-[2px] border border-brand-bright/40 bg-brand-bright/10 px-1.5 py-0.5 text-[11px] text-brand",
+  plugin: "rounded-[2px] border border-info-solid/40 bg-info-solid/10 px-1.5 py-0.5 text-[11px] text-info",
   workspace:
-    "rounded-full border border-warning-solid/40 bg-warning-solid/10 px-1.5 py-0.5 text-[11px] text-warning",
+    "rounded-[2px] border border-warning-solid/40 bg-warning-solid/10 px-1.5 py-0.5 text-[11px] text-warning",
 };
 
 export function SourceChip({ source }: { source: string }) {

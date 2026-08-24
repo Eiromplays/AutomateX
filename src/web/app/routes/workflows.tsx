@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link2, Pause } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { Rack, Unit } from "../components/rack";
 import { toast } from "../components/toast";
 import { ListSkeleton } from "../components/ui/skeleton";
 import { api } from "../lib/api";
@@ -26,7 +28,7 @@ export default function Workflows() {
   return (
     <div>
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-lg font-semibold">Workflows</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Workflows</h1>
         <div className="flex items-center gap-3">
           <label className="cursor-pointer text-sm text-muted-foreground hover:text-fg-emphasis">
             Import
@@ -60,7 +62,7 @@ export default function Workflows() {
           </Link>
           <Link
             to="/workflows/new"
-            className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
+            className="rounded-[2px] bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
           >
             New workflow
           </Link>
@@ -76,52 +78,69 @@ export default function Workflows() {
           placeholder="Search workflows…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="mb-3 w-full max-w-sm rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
+          className="mb-3 w-full max-w-sm rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
         />
       )}
 
       {!isLoading && (
-        <ul className="divide-y divide-zinc-800 rounded-lg border border-line">
-          {filtered.map((workflow) => (
-            <li key={workflow.id}>
+        <Rack
+          empty={
+            workflows?.length === 0 ? (
+              <>
+                No workflows yet — create the first one, or{" "}
+                <Link to="/templates" className="text-fg-body underline underline-offset-4">
+                  start from a template
+                </Link>
+                .
+              </>
+            ) : (
+              `No workflows match “${query}”.`
+            )
+          }
+        >
+          {filtered.map((workflow, i) => (
+            <Unit
+              key={workflow.id}
+              index={i + 1}
+              status={workflow.enabled ? "running" : "disabled"}
+              align="start"
+            >
               <Link
                 to={`/workflows/${workflow.id}`}
-                className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-card"
+                className="flex flex-col gap-1 py-3 pr-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
               >
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-medium">{workflow.name}</div>
+                  <div className="truncate text-lg font-medium text-fg-strong">{workflow.name}</div>
                   {workflow.description && (
-                    <div className="text-xs text-muted-foreground">{workflow.description}</div>
+                    <div className="max-w-[38em] text-sm text-muted-foreground">{workflow.description}</div>
                   )}
                   {workflow.runsAfter.length > 0 && (
-                    <div className="text-xs text-trigger">
-                      ⛓ runs after {workflow.runsAfter.join(", ")}
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      runs after {workflow.runsAfter.join(", ")}
                     </div>
                   )}
                   {workflow.feeds.length > 0 && (
-                    <div className="text-xs text-trigger">⛓ feeds {workflow.feeds.join(", ")}</div>
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      feeds {workflow.feeds.join(", ")}
+                    </div>
                   )}
                 </div>
-                <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-                  {!workflow.enabled && <span className="text-warning">⏸ paused</span>}v
-                  {workflow.latestVersion}
+                <span className="flex shrink-0 items-center gap-3 font-mono text-[13px] text-muted-foreground">
+                  {!workflow.enabled && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Pause className="h-3 w-3" aria-hidden="true" />
+                      paused
+                    </span>
+                  )}
+                  v{workflow.latestVersion}
                 </span>
               </Link>
-            </li>
+            </Unit>
           ))}
-          {workflows?.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-muted-foreground">
-              No workflows yet — create the first one, or{" "}
-              <Link to="/templates" className="text-brand hover:underline">
-                start from a template
-              </Link>
-              .
-            </li>
-          )}
-          {(workflows?.length ?? 0) > 0 && filtered.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-muted-foreground">No workflows match “{query}”.</li>
-          )}
-        </ul>
+
+        </Rack>
       )}
     </div>
   );

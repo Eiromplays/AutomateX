@@ -16,7 +16,7 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-lg border border-line bg-card/40 p-4" title={hint}>
+    <div className="rounded-[2px] border border-line bg-card/40 p-4" title={hint}>
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-1 text-2xl font-semibold text-fg-strong">{value}</div>
       {sub ? <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div> : null}
@@ -107,11 +107,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Dashboard</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Dashboard</h1>
         <select
           value={days}
           onChange={(e) => setDays(Number(e.target.value))}
-          className="rounded-md border border-line-strong bg-card px-2.5 py-1 text-xs text-fg-body focus:border-brand-bright focus:outline-none"
+          className="rounded-[2px] border border-line-strong bg-card px-2.5 py-1 text-xs text-fg-body focus:border-brand-bright focus:outline-none"
         >
           <option value={7}>Last 7 days</option>
           <option value={14}>Last 14 days</option>
@@ -142,7 +142,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="rounded-lg border border-line bg-card/40 p-4">
+      <div className="rounded-[2px] border border-line bg-card/40 p-4">
         <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
           <span>Executions per day</span>
           <span className="flex gap-3">
@@ -162,7 +162,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-lg border border-line bg-card/40 p-4">
+        <div className="rounded-[2px] border border-line bg-card/40 p-4">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-sm font-medium text-fg-body">Workflows</span>
             <Link to="/workflows/new" className="text-xs text-brand hover:underline">
@@ -203,7 +203,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-lg border border-line bg-card/40 p-4">
+        <div className="rounded-[2px] border border-line bg-card/40 p-4">
           <div className="mb-3 text-sm font-medium text-fg-body">Recent failures</div>
           {data.recentFailures.length === 0 ? (
             <div className="text-sm text-muted-foreground">None in this window.</div>

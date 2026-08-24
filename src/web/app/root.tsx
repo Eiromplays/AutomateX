@@ -66,7 +66,7 @@ const inlineNavClass = (active: boolean) =>
   `inline-flex items-center gap-1.5 ${active ? "text-fg-strong" : "text-muted-foreground hover:text-fg-strong"}`;
 
 const stackedNavClass = (active: boolean) =>
-  `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+  `flex items-center gap-2 rounded-[2px] px-3 py-2 text-sm ${
     active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
   }`;
 
@@ -225,7 +225,7 @@ function NewWorkspaceBanner() {
       {unseen.map((workspace) => (
         <div
           key={workspace.id}
-          className="flex items-center justify-between rounded-md border border-brand-bright/40 bg-brand-bright/10 px-3 py-2 text-sm"
+          className="flex items-center justify-between rounded-[2px] border border-brand-bright/40 bg-brand-bright/10 px-3 py-2 text-sm"
         >
           <span>
             You've been added to <span className="font-medium">{workspace.name}</span> as {workspace.role}.
@@ -285,7 +285,7 @@ function WorkspaceSwitcher() {
 
   return (
     <select
-      className="rounded-md border border-line bg-card px-2 py-1 text-xs text-fg-body focus:border-brand-bright focus:outline-none"
+      className="rounded-[2px] border border-line bg-card px-2 py-1 text-xs text-fg-body focus:border-brand-bright focus:outline-none"
       value={current}
       onChange={async (e) => {
         if (e.target.value === "__new__") {
@@ -318,14 +318,14 @@ function WorkspaceSwitcher() {
 function SignInGate() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="rounded-lg border border-line p-8 text-center">
+      <div className="rounded-[2px] border border-line p-8 text-center">
         <div className="mb-2 text-xl font-semibold tracking-tight">
           Automate<span className="text-brand">X</span>
         </div>
-        <p className="mb-6 text-sm text-muted-foreground">Sign in with your organization account to continue.</p>
+        <p className="mb-6 max-w-[38em] text-sm text-muted-foreground">Sign in with your organization account to continue.</p>
         <a
           href={`/auth/login?returnUrl=${encodeURIComponent(window.location.pathname)}`}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
+          className="rounded-[2px] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
         >
           Sign in
         </a>

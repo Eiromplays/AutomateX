@@ -31,7 +31,7 @@ type SchemaFormProps = {
 };
 
 const inputClass =
-  "w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 // Inserts {{connections.<name>.<field>}} so users don't hand-type (and mis-case) them.
@@ -160,7 +160,7 @@ function ReferenceInserter({
               left: pos.left,
               width: PANEL_WIDTH,
             }}
-            className="z-50 rounded-md border border-line-strong bg-card p-1 shadow-xl"
+            className="z-50 rounded-[2px] border border-line-strong bg-card p-1 shadow-xl"
           >
             {hasStepOptions && (
               <div className="mb-1 flex overflow-hidden rounded border border-line-strong text-xs">
@@ -201,7 +201,7 @@ function ReferenceInserter({
               {showSteps ? (
                 <>
                   {stepGroups.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-muted-foreground">No matches.</p>
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground max-w-[38em]">No matches.</p>
                   )}
                   {stepGroups.map((group) => (
                     <div key={group.key} className="mb-1">
@@ -224,7 +224,7 @@ function ReferenceInserter({
               ) : (
                 <>
                   {matches.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground max-w-[38em]">
                       {usable.length === 0 ? "No connections with secrets yet." : "No matches."}
                     </p>
                   )}
@@ -371,7 +371,7 @@ function SwitchCasesEditor({
         const label = c.label ?? "";
         const comparison = switchComparisonOf(c);
         return (
-          <div key={index} className="space-y-1.5 rounded-md border border-line p-2">
+          <div key={index} className="space-y-1.5 rounded-[2px] border border-line p-2">
             <div className="flex items-center gap-1.5">
               <input
                 className={`${inputClass} flex-1`}
@@ -414,11 +414,11 @@ function SwitchCasesEditor({
       <button
         type="button"
         onClick={add}
-        className="inline-flex items-center gap-1 rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
+        className="inline-flex items-center gap-1 rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
       >
         <Plus className="h-3 w-3" aria-hidden="true" /> Add case
       </button>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         Tried top to bottom; first match wins. No match falls through to{" "}
         <code className="text-muted-foreground">default</code>. On the Canvas, connect each label (and{" "}
         <code className="text-muted-foreground">default</code>) to the step it should run.
@@ -686,7 +686,7 @@ function LlmAgentEditor({
             .
           </span>
         ) : (
-          <div className="space-y-1 rounded-md border border-line bg-card/40 p-2">
+          <div className="space-y-1 rounded-[2px] border border-line bg-card/40 p-2">
             {mcpConnections.map((c) => (
               <label key={c.id} className="flex items-center gap-2 text-sm text-fg-body">
                 <input
@@ -748,7 +748,7 @@ function WorkflowCallEditor({
           onChange={(e) => set({ payload: e.target.value || undefined })}
         />
       </label>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         The run pauses here until the called workflow finishes; its result becomes this step's output
         (<code>{"{{steps.<name>.output.status}}"}</code>).
       </p>
@@ -811,7 +811,7 @@ function ForEachEditor({
           onChange={(e) => set({ concurrency: e.target.value === "" ? undefined : Number(e.target.value) })}
         />
       </label>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         Runs the workflow once per array item; each item is the child's
         <code> {"{{trigger.payload}}"}</code>. The step output is the array of results. Concurrency runs
         several items at once (default 1).
@@ -917,7 +917,7 @@ function KeyValueEditor({
       <button
         type="button"
         onClick={() => setRows([...rows, { key: "", value: "" }])}
-        className="inline-flex items-center gap-1 rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
+        className="inline-flex items-center gap-1 rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
       >
         <Plus className="h-3 w-3" aria-hidden="true" /> Add
       </button>

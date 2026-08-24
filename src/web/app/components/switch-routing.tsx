@@ -29,7 +29,7 @@ export type KeyEdge = {
 
 const SWITCH = "switch";
 const inputClass =
-  "w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 // Distinct, non-empty case labels from a switch step's config — these are the routable paths.
@@ -242,10 +242,10 @@ export function SwitchTargets({
   ];
 
   return (
-    <div className="space-y-2 rounded-md border border-line bg-card/40 p-2">
-      <p className="text-xs font-medium text-muted-foreground">Routes</p>
+    <div className="space-y-2 rounded-[2px] border border-line bg-card/40 p-2">
+      <p className="text-xs font-medium text-muted-foreground max-w-[38em]">Routes</p>
       {labels.length === 0 && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[11px] text-muted-foreground max-w-[38em]">
           Add a case with a label above, then point it at a step here.
         </p>
       )}
@@ -269,7 +269,7 @@ export function SwitchTargets({
           </select>
         </div>
       ))}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         Each label runs from its step up to the next branch target (or end). “— end —” stops that path.
       </p>
     </div>
@@ -300,9 +300,9 @@ export function FanOutTargets({
   };
 
   return (
-    <div className="space-y-2 rounded-md border border-line bg-card/40 p-2">
-      <p className="text-xs font-medium text-muted-foreground">Parallel branches</p>
-      {others.length === 0 && <p className="text-[11px] text-muted-foreground">Add another step to branch into.</p>}
+    <div className="space-y-2 rounded-[2px] border border-line bg-card/40 p-2">
+      <p className="text-xs font-medium text-muted-foreground max-w-[38em]">Parallel branches</p>
+      {others.length === 0 && <p className="text-[11px] text-muted-foreground max-w-[38em]">Add another step to branch into.</p>}
       {others.map((s) => (
         <label key={s.key} className="flex items-center gap-2 text-xs text-fg-body">
           <input
@@ -314,7 +314,7 @@ export function FanOutTargets({
           {optionLabel(s)}
         </label>
       ))}
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         Pick none to run the next step in order. Pick two or more to run them at once; point several steps at
         the same one to join.
       </p>
@@ -341,7 +341,7 @@ export function ErrorTarget({
   if (others.length === 0) return null;
 
   return (
-    <div className="mt-2 space-y-2 rounded-md border border-red-900/50 bg-red-950/20 p-2">
+    <div className="mt-2 space-y-2 rounded-[2px] border border-red-900/50 bg-red-950/20 p-2">
       <p className="text-xs font-medium text-red-300/80">On error</p>
       <div className="flex items-center gap-2">
         <span className="text-danger/70">⚠→</span>
@@ -358,7 +358,7 @@ export function ErrorTarget({
           ))}
         </select>
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         If this step fails after its retries, jump to the chosen step instead of failing the run. The failure
         is available there as <code>{"{{steps.<name>.error.message}}"}</code>.
       </p>

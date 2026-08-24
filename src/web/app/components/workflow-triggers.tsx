@@ -16,7 +16,7 @@ export type DraftTrigger = {
 let nextTriggerKey = 1;
 
 const inputClass =
-  "w-full rounded-md border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
   "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 const BUILTIN_TYPES = [
@@ -182,7 +182,7 @@ export function TriggerEditor({
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         {draft.id ? (
-          <span className="rounded-full border border-line-strong px-2 py-0.5 text-xs text-fg-body">
+          <span className="rounded-[2px] border border-line-strong px-2 py-0.5 text-xs text-fg-body">
             {draft.type}
           </span>
         ) : (
@@ -332,21 +332,21 @@ export function TriggersSection({
         <button
           type="button"
           onClick={() => onChange([...triggers, newDraftTrigger()])}
-          className="rounded-md border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
+          className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
         >
           Add trigger
         </button>
       </div>
-      <p className="text-xs text-muted-foreground">What starts this workflow. Changes apply when you save.</p>
+      <p className="text-xs text-muted-foreground max-w-[38em]">What starts this workflow. Changes apply when you save.</p>
 
       {triggers.length === 0 && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground max-w-[38em]">
           No triggers yet — add one, or run the workflow manually with “Run now”.
         </p>
       )}
 
       {triggers.map((trigger) => (
-        <div key={trigger.key} className="rounded-lg border border-line p-3">
+        <div key={trigger.key} className="rounded-[2px] border border-line p-3">
           <TriggerEditor
             draft={trigger}
             onChange={(d) => update(trigger.key, d)}
