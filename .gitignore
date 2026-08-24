@@ -21,3 +21,7 @@ TestResults/
 # Claude Code per-machine local settings (permissions/overrides) — never shared.
 # Keep shared .claude/ config (settings.json, commands, etc.) trackable.
 **/.claude/settings.local.json
+# Vendored impeccable skills — reinstall with `npx impeccable install`.
+**/.claude/skills/impeccable/
+# Transient decision-page session logs.
+.impeccable/questions/
