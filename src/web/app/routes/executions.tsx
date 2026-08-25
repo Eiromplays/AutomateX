@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CornerDownRight, Link2, RotateCw, X } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { Link } from "react-router";
-import { StatusBadge } from "../components/status-badge";
+import { Lamp, Rack, Silkscreen, Unit } from "../components/rack";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { ListSkeleton } from "../components/ui/skeleton";
@@ -85,23 +85,19 @@ export default function Executions() {
 
   const { roots, children } = buildTree(filteredExecutions);
 
-  const renderRow = (execution: ExecutionSummary, depth: number): ReactNode => (
-    <li key={execution.id}>
+  const renderRow = (execution: ExecutionSummary, depth: number, index?: number): ReactNode => (
+    <Unit key={execution.id} index={index} status={execution.status}>
       <div
-        className="flex items-center hover:bg-zinc-900"
+        className="flex min-w-0 items-center"
         style={depth > 0 ? { paddingLeft: `${depth * 1.5}rem` } : undefined}
       >
         <Link
           to={`/executions/${execution.id}`}
-          className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3 text-sm"
+          className="flex min-w-0 flex-1 flex-col gap-1 py-3 pr-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
         >
           <div className="flex min-w-0 items-center gap-3">
             {depth > 0 && (
-              <span
-                className={
-                  execution.triggeredBy.startsWith("retry:") ? "text-emerald-400/70" : "text-violet-400/70"
-                }
-              >
+              <span className="text-muted-foreground">
                 {execution.triggeredBy.startsWith("retry:") ? (
                   <RotateCw className="h-3.5 w-3.5" aria-label="retry" />
                 ) : (
@@ -109,12 +105,14 @@ export default function Executions() {
                 )}
               </span>
             )}
-            <StatusBadge status={execution.status} />
-            <span className="min-w-0 truncate font-medium text-zinc-200">{execution.workflowName}</span>
+            <span className="min-w-0 truncate text-lg font-medium text-fg-strong">{execution.workflowName}</span>
+          </div>
+          <div className="flex min-w-0 items-center gap-3 sm:shrink-0">
+            <Silkscreen className="shrink-0">{execution.status}</Silkscreen>
             {execution.triggeredBy === "workflow" ? (
               depth === 0 && (
                 <span
-                  className="inline-flex items-center gap-1 rounded-full border border-violet-500/40 bg-violet-500/10 px-1.5 py-0.5 text-[10px] text-violet-400"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-[2px] border border-engrave px-1.5 py-0.5 text-[11px] text-muted-foreground"
                   title="Started by another workflow (parent outside this page)"
                 >
                   <Link2 className="h-3 w-3" aria-hidden="true" /> chained
@@ -123,19 +121,35 @@ export default function Executions() {
             ) : execution.triggeredBy.startsWith("retry:") ? (
               depth === 0 && (
                 <span
-                  className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-[2px] border border-engrave px-1.5 py-0.5 text-[11px] text-muted-foreground"
                   title="Retry (original outside this page)"
                 >
                   <RotateCw className="h-3 w-3" aria-hidden="true" /> retry
                 </span>
               )
             ) : (
-              <span className="text-xs text-zinc-500">{execution.triggeredBy.split(":")[0]}</span>
+              <span className="shrink-0 font-mono text-[13px] text-muted-foreground">
+                {execution.triggeredBy.split(":")[0]}
+              </span>
             )}
+            {/* Narrow widths get the clock time, which is what distinguishes one run
+                from the next; the date only earns its space once there is room. */}
+            <time
+              dateTime={execution.startedAt}
+              className="shrink-0 whitespace-nowrap font-mono text-[13px] text-muted-foreground"
+            >
+              <span className="sm:hidden">
+                {new Date(execution.startedAt).toLocaleTimeString([], {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+              </span>
+              <span className="hidden sm:inline">
+                {new Date(execution.startedAt).toLocaleString()}
+              </span>
+            </time>
           </div>
-          <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500">
-            {new Date(execution.startedAt).toLocaleString()}
-          </span>
         </Link>
         {(execution.status === "Succeeded" || execution.status === "Failed") && (
           <button
@@ -153,7 +167,7 @@ export default function Executions() {
                 remove.mutate(execution.id);
               }
             }}
-            className="px-3 py-3 text-xs text-zinc-600 hover:text-red-400"
+            className="px-3 py-3 text-xs text-muted-foreground hover:text-danger"
             aria-label="Delete execution"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
@@ -163,13 +177,17 @@ export default function Executions() {
       {(children.get(execution.id) ?? []).length > 0 && (
         <ul>{children.get(execution.id)!.map((child) => renderRow(child, depth + 1))}</ul>
       )}
-    </li>
+    </Unit>
   );
 
   return (
     <div>
-      <h1 className="mb-6 text-lg font-semibold">
-        Executions <span className="ml-2 text-xs font-normal text-emerald-400">● live</span>
+      <h1 className="mb-6 flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]">
+        Executions
+        <span className="flex items-center gap-1.5">
+          <Lamp status="Running" />
+          <Silkscreen>live</Silkscreen>
+        </span>
       </h1>
 
       {isLoading && <ListSkeleton />}
@@ -181,12 +199,12 @@ export default function Executions() {
             placeholder="Search by workflow…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full min-w-0 max-w-xs rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+            className="w-full min-w-0 max-w-xs rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
           />
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm focus:border-emerald-500 focus:outline-none"
+            className="rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm focus:border-brand-bright focus:outline-none"
           >
             {["All", "Running", "Succeeded", "Failed"].map((status) => (
               <option key={status} value={status}>
@@ -198,15 +216,13 @@ export default function Executions() {
       )}
 
       {!isLoading && (
-        <ul className="divide-y divide-zinc-800 rounded-lg border border-zinc-800">
-          {roots.map((execution) => renderRow(execution, 0))}
-          {executions?.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions yet.</li>
-          )}
-          {(executions?.length ?? 0) > 0 && filteredExecutions.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-zinc-500">No executions match your filter.</li>
-          )}
-        </ul>
+        <Rack
+          empty={
+            executions?.length === 0 ? "No executions yet." : "No executions match your filter."
+          }
+        >
+          {roots.map((execution, i) => renderRow(execution, 0, i + 1))}
+        </Rack>
       )}
 
       {/* The list is capped server-side (newest first); reveal older runs on demand. */}
@@ -214,7 +230,7 @@ export default function Executions() {
         <button
           type="button"
           onClick={() => setTake((current) => current + 50)}
-          className="mt-3 w-full rounded-md border border-zinc-800 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-900"
+          className="mt-3 w-full rounded-[2px] border border-line px-4 py-2 text-sm text-muted-foreground hover:bg-card"
         >
           Load more
         </button>

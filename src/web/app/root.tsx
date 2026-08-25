@@ -62,11 +62,18 @@ function isEntryActive(pathname: string, entry: NavEntry): boolean {
   return (entry.match ?? [entry.to]).some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+// A destination is a label printed on the panel, not a button. The active one
+// is the only one lit, and it is the only place the brand lamp appears in the
+// chrome — which is why the labels themselves carry no icon up here.
 const inlineNavClass = (active: boolean) =>
-  `inline-flex items-center gap-1.5 ${active ? "text-zinc-100" : "text-zinc-400 hover:text-zinc-100"}`;
+  `-mb-px border-b-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors ${
+    active
+      ? "border-lamp-clear text-fg-strong"
+      : "border-transparent text-muted-foreground hover:text-fg-strong"
+  }`;
 
 const stackedNavClass = (active: boolean) =>
-  `flex items-center gap-2 rounded-md px-3 py-2 text-sm ${
+  `flex items-center gap-2 rounded-[2px] px-3 py-2 text-sm ${
     active ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground"
   }`;
 
@@ -85,7 +92,7 @@ function NavItems({ variant, onNavigate }: { variant: "inline" | "stacked"; onNa
             aria-current={active ? "page" : undefined}
             className={variant === "inline" ? inlineNavClass(active) : stackedNavClass(active)}
           >
-            <Icon className="h-4 w-4" aria-hidden="true" />
+            {variant === "stacked" && <Icon className="h-4 w-4" aria-hidden="true" />}
             {entry.label}
           </Link>
         );
@@ -98,9 +105,9 @@ function AuthActions({ me }: { me: AuthMe }) {
   if (me.mode === "apikey") return <ApiKeyButton />;
   if (me.mode === "oidc" && me.authenticated) {
     return (
-      <span className="flex items-center gap-3 text-xs text-zinc-500">
-        {me.name ?? me.email}
-        <a href="/auth/logout" className="hover:text-zinc-100">
+      <span className="flex min-w-0 items-center gap-3 text-xs text-muted-foreground">
+        <span className="min-w-0 truncate">{me.name ?? me.email}</span>
+        <a href="/auth/logout" className="shrink-0 whitespace-nowrap hover:text-fg-strong">
           Sign out
         </a>
       </span>
@@ -121,7 +128,7 @@ function MobileNav({ me }: { me: AuthMe }) {
       </SheetTrigger>
       <SheetContent side="right" className="w-72 sm:w-80">
         <SheetTitle className="px-4 pt-4 text-base">
-          Automate<span className="text-emerald-400">X</span>
+          Automate<span className="text-brand">X</span>
         </SheetTitle>
         <div className="flex flex-col gap-1 px-2">
           <div className="px-2 pb-2">
@@ -144,7 +151,7 @@ function ApiKeyButton() {
       type="button"
       title="Sign in with API key"
       aria-label="Sign in with API key"
-      className="text-zinc-600 hover:text-zinc-100"
+      className="text-muted-foreground hover:text-fg-strong"
       onClick={async () => {
         const key = await prompt({
           title: "Sign in with API key",
@@ -225,7 +232,7 @@ function NewWorkspaceBanner() {
       {unseen.map((workspace) => (
         <div
           key={workspace.id}
-          className="flex items-center justify-between rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm"
+          className="flex items-center justify-between rounded-[2px] border border-brand-bright/40 bg-brand-bright/10 px-3 py-2 text-sm"
         >
           <span>
             You've been added to <span className="font-medium">{workspace.name}</span> as {workspace.role}.
@@ -233,7 +240,7 @@ function NewWorkspaceBanner() {
           <span className="flex gap-3">
             <button
               type="button"
-              className="text-emerald-400 hover:underline"
+              className="text-brand hover:underline"
               onClick={() => {
                 markSeen([workspace.id]);
                 setWorkspaceId(workspace.id);
@@ -244,7 +251,7 @@ function NewWorkspaceBanner() {
             </button>
             <button
               type="button"
-              className="text-zinc-500 hover:text-zinc-200"
+              className="text-muted-foreground hover:text-fg-emphasis"
               onClick={() => {
                 markSeen([workspace.id]);
                 setTick((t) => t + 1);
@@ -285,7 +292,7 @@ function WorkspaceSwitcher() {
 
   return (
     <select
-      className="rounded-md border border-zinc-800 bg-zinc-900 px-2 py-1 text-xs text-zinc-300 focus:border-emerald-500 focus:outline-none"
+      className="rounded-[2px] border border-line bg-card px-2 py-1 text-xs text-fg-body focus:border-brand-bright focus:outline-none"
       value={current}
       onChange={async (e) => {
         if (e.target.value === "__new__") {
@@ -318,14 +325,14 @@ function WorkspaceSwitcher() {
 function SignInGate() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <div className="rounded-lg border border-zinc-800 p-8 text-center">
+      <div className="rounded-[2px] border border-line p-8 text-center">
         <div className="mb-2 text-xl font-semibold tracking-tight">
-          Automate<span className="text-emerald-400">X</span>
+          Automate<span className="text-brand">X</span>
         </div>
-        <p className="mb-6 text-sm text-zinc-500">Sign in with your organization account to continue.</p>
+        <p className="mb-6 max-w-[38em] text-sm text-muted-foreground">Sign in with your organization account to continue.</p>
         <a
           href={`/auth/login?returnUrl=${encodeURIComponent(window.location.pathname)}`}
-          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+          className="rounded-[2px] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
         >
           Sign in
         </a>
@@ -350,26 +357,41 @@ function Shell() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-8 flex items-center justify-between gap-3 border-b border-zinc-800 pb-4">
-        <Link to="/" className="text-xl font-semibold tracking-tight">
-          Automate<span className="text-emerald-400">X</span>
-        </Link>
+      <header className="mb-8">
+        {/* Register one: which instance, as whom. */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link to="/" className="shrink-0 text-xl font-semibold tracking-tight">
+              Automate<span className="text-brand">X</span>
+            </Link>
+            {!gated && me && (
+              <div className="hidden md:block">
+                <WorkspaceSwitcher />
+              </div>
+            )}
+          </div>
+          {!gated && me && (
+            <>
+              <div className="hidden md:block">
+                <AuthActions me={me} />
+              </div>
+              <div className="md:hidden">
+                <MobileNav me={me} />
+              </div>
+            </>
+          )}
+        </div>
+        {/* Register two: where to go. Its own line, so six destinations breathe. */}
         {!gated && me && (
-          <>
-            <nav className="hidden items-center gap-5 text-sm md:flex">
-              <WorkspaceSwitcher />
-              <NavItems variant="inline" />
-              <AuthActions me={me} />
-            </nav>
-            <div className="md:hidden">
-              <MobileNav me={me} />
-            </div>
-          </>
+          <nav className="mt-4 hidden items-center gap-6 border-b border-line md:flex">
+            <NavItems variant="inline" />
+          </nav>
         )}
+        {(gated || !me) && <div className="mt-4 border-b border-line" />}
       </header>
       {!gated && <NewWorkspaceBanner />}
       {gated ? <SignInGate /> : <Outlet />}
-      <footer className="mt-10 border-t border-zinc-800 pt-3 text-center text-xs text-zinc-600">
+      <footer className="mt-10 border-t border-line pt-3 text-center text-xs text-muted-foreground">
         <VersionBadge />
       </footer>
       <Toasts />

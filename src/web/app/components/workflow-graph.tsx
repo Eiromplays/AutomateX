@@ -43,30 +43,30 @@ type StepNodeData = {
 // Execution-status tint (inspector graph). Selection still wins when both apply.
 const STATUS_CLASS: Record<string, string> = {
   Succeeded: "border-green-500/70 bg-green-500/10",
-  Failed: "border-red-500/70 bg-red-500/10",
-  Skipped: "border-zinc-700 bg-zinc-900 opacity-50",
-  Running: "border-amber-500/70 bg-amber-500/10",
+  Failed: "border-danger-solid/70 bg-danger-solid/10",
+  Skipped: "border-line-strong bg-card opacity-50",
+  Running: "border-warning-solid/70 bg-warning-solid/10",
 };
 
 function StepNode(props: NodeProps) {
   const data = props.data as StepNodeData;
   const base = data.selected
-    ? "border-emerald-500 bg-zinc-800"
-    : ((data.status && STATUS_CLASS[data.status]) ?? "border-zinc-700 bg-zinc-900");
+    ? "border-brand-bright bg-muted"
+    : ((data.status && STATUS_CLASS[data.status]) ?? "border-line-strong bg-card");
   return (
     <div
-      className={`min-w-44 rounded-lg border px-3 py-2 text-left ${base} ${
+      className={`min-w-44 rounded-[2px] border px-3 py-2 text-left ${base} ${
         data.unreachable ? "border-dashed opacity-50" : ""
       }`}
     >
       <Handle type="target" position={Position.Top} className="!bg-zinc-600" />
       <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500">#{data.index + 1}</span>
-        <span className="truncate text-sm text-zinc-100">{data.label}</span>
+        <span className="text-xs text-muted-foreground">#{data.index + 1}</span>
+        <span className="truncate text-sm text-fg-strong">{data.label}</span>
       </div>
-      <div className="mt-0.5 truncate text-xs text-zinc-500">{data.actionType}</div>
+      <div className="mt-0.5 truncate text-xs text-muted-foreground">{data.actionType}</div>
       {data.unreachable && (
-        <div className="mt-0.5 text-[10px] text-amber-500/80">⚠ not reached — won’t run</div>
+        <div className="mt-0.5 text-[11px] text-amber-500/80">⚠ not reached — won’t run</div>
       )}
       <Handle type="source" position={Position.Bottom} className="!bg-zinc-600" />
     </div>
@@ -77,12 +77,12 @@ function TriggerNode(props: NodeProps) {
   const data = props.data as { label?: string; selected?: boolean };
   return (
     <div
-      className={`max-w-56 rounded-lg border px-3 py-2 text-sm text-violet-200 ${
-        data.selected ? "border-violet-400 bg-violet-500/20" : "border-violet-500/40 bg-violet-500/10"
+      className={`max-w-56 rounded-[2px] border px-3 py-2 text-sm text-violet-200 ${
+        data.selected ? "border-violet-400 bg-trigger-solid/20" : "border-trigger-solid/40 bg-trigger-solid/10"
       }`}
     >
       <span className="block truncate">▶ {data.label ?? "Trigger"}</span>
-      <Handle type="source" position={Position.Bottom} className="!bg-violet-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-trigger-solid" />
     </div>
   );
 }
@@ -129,6 +129,25 @@ function layoutPositions(steps: GraphStep[], stepEdges: KeyEdge[]) {
       x: orphanColumn++ * COLUMN,
       y: (maxDepth + 3) * ROW,
     });
+  }
+
+  // Siblings whose lanes rejoin at the same step average to the same x and land
+  // exactly on top of each other — the parallel-fan-out case draws as one node.
+  // Spread any row whose nodes sit closer together than a full column.
+  const byRow = new Map<number, number[]>();
+  for (const [key, p] of positions) {
+    const row = byRow.get(p.y);
+    if (row) row.push(key);
+    else byRow.set(p.y, [key]);
+  }
+  for (const keys of byRow.values()) {
+    if (keys.length < 2) continue;
+    keys.sort((a, b) => positions.get(a)!.x - positions.get(b)!.x);
+    for (let i = 1; i < keys.length; i++) {
+      const prev = positions.get(keys[i - 1])!;
+      const cur = positions.get(keys[i])!;
+      if (cur.x - prev.x < COLUMN) cur.x = prev.x + COLUMN;
+    }
   }
 
   return { positions, unreachable };
@@ -213,8 +232,10 @@ export function WorkflowGraph({
     return list;
   }, [steps, triggers, stepEdges]);
 
+  // The canvas is a recessed well, not a box: a bordered frame around bordered
+  // nodes is a container inside a container, which the design system bans.
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950" style={{ height }}>
+    <div className="overflow-hidden rounded-[2px] bg-rack-void" style={{ height }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

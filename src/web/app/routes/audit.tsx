@@ -4,8 +4,8 @@ import { ListSkeleton } from "../components/ui/skeleton";
 import { api } from "../lib/api";
 
 const inputClass =
-  "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 export default function Audit() {
   const [actor, setActor] = useState("");
@@ -21,8 +21,8 @@ export default function Audit() {
   return (
     <section className="space-y-4">
       <div>
-        <h1 className="text-lg font-semibold">Audit log</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Audit log</h1>
+        <p className="text-sm text-muted-foreground max-w-[38em]">
           Who changed, ran, or deleted what. Instance admins see every workspace; others see their own.
         </p>
       </div>
@@ -45,11 +45,11 @@ export default function Audit() {
       {isLoading ? (
         <ListSkeleton />
       ) : !entries || entries.length === 0 ? (
-        <p className="text-sm text-zinc-600">No audit entries match.</p>
+        <p className="text-sm text-muted-foreground max-w-[38em]">No audit entries match.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-800">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-800 text-left text-xs uppercase text-zinc-500">
+            <thead className="border-b border-line text-left text-xs uppercase text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-medium">When</th>
                 <th className="px-3 py-2 font-medium">Actor</th>
@@ -60,18 +60,18 @@ export default function Audit() {
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.id} className="border-b border-zinc-900 last:border-0">
-                  <td className="whitespace-nowrap px-3 py-2 text-zinc-400">
+                <tr key={entry.id} className="border-b border-card last:border-0">
+                  <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                     {new Date(entry.at).toLocaleString()}
                   </td>
-                  <td className="px-3 py-2 text-zinc-300">{entry.actor}</td>
+                  <td className="px-3 py-2 text-fg-body">{entry.actor}</td>
                   <td className="px-3 py-2">
-                    <code className="text-xs text-emerald-400">{entry.action}</code>
+                    <code className="text-xs text-brand">{entry.action}</code>
                   </td>
-                  <td className="px-3 py-2 text-zinc-500">
+                  <td className="px-3 py-2 text-muted-foreground">
                     {entry.targetType ? `${entry.targetType} ${entry.targetId ?? ""}`.trim() : "—"}
                   </td>
-                  <td className="px-3 py-2 text-zinc-400">{entry.summary ?? "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{entry.summary ?? "—"}</td>
                 </tr>
               ))}
             </tbody>
@@ -83,7 +83,7 @@ export default function Audit() {
         <button
           type="button"
           onClick={() => setTake((t) => t + 100)}
-          className="rounded-md border border-zinc-700 px-3 py-1.5 text-sm hover:bg-zinc-900"
+          className="rounded-[2px] border border-line-strong px-3 py-1.5 text-sm hover:bg-card"
         >
           Load more
         </button>

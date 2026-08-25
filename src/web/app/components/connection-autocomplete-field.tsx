@@ -157,7 +157,7 @@ export function ConnectionAutocompleteField({
               left: pos.left,
               width: pos.width,
             }}
-            className="z-50 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-xl"
+            className="z-50 rounded-[2px] border border-line-strong bg-card p-1 shadow-xl"
           >
             {completions.map((c) => (
               <button
@@ -168,9 +168,9 @@ export function ConnectionAutocompleteField({
                   e.preventDefault();
                   pick(c.token);
                 }}
-                className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
+                className="block w-full rounded px-2 py-1 text-left text-xs text-fg-body hover:bg-muted"
               >
-                {c.name && <span className="text-zinc-500">{c.name}.</span>}
+                {c.name && <span className="text-muted-foreground">{c.name}.</span>}
                 {c.key}
               </button>
             ))}

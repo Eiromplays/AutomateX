@@ -29,10 +29,10 @@ export const sourceKind = (source: string): SourceKind =>
   source === "builtin" ? "core" : source.startsWith("workspace:") ? "workspace" : "plugin";
 
 const kindClass: Record<SourceKind, string> = {
-  core: "rounded-full border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400",
-  plugin: "rounded-full border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-400",
+  core: "rounded-[2px] border border-brand-bright/40 bg-brand-bright/10 px-1.5 py-0.5 text-[11px] text-brand",
+  plugin: "rounded-[2px] border border-info-solid/40 bg-info-solid/10 px-1.5 py-0.5 text-[11px] text-info",
   workspace:
-    "rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-400",
+    "rounded-[2px] border border-warning-solid/40 bg-warning-solid/10 px-1.5 py-0.5 text-[11px] text-warning",
 };
 
 export function SourceChip({ source }: { source: string }) {
@@ -63,7 +63,7 @@ export function DriftWarning({ actionType, configJson }: { actionType: string; c
     );
     if (unknown.length === 0) return null;
     return (
-      <p className="mt-2 text-xs text-amber-400">
+      <p className="mt-2 text-xs text-warning">
         ⚠ {unknown.join(", ")} — not used by the current <code>{actionType}</code> (plugin version drift?)
       </p>
     );

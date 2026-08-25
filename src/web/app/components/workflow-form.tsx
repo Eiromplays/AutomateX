@@ -25,8 +25,8 @@ type DraftStep = CreateWorkflowStep & {
 };
 
 const inputClass =
-  "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 let nextKey = 1;
 
@@ -148,16 +148,16 @@ export function WorkflowForm({
 
   const [mode, setMode] = useState<"canvas" | "form">("canvas");
   const tabClass = (active: boolean) =>
-    `px-2 py-1 ${active ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`;
+    `px-2 py-1 ${active ? "bg-muted text-fg-strong" : "text-muted-foreground hover:text-fg-emphasis"}`;
 
   return (
     <div className="space-y-4">
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">Name *</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Name *</span>
         <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">Description</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Description</span>
         <input className={inputClass} value={description} onChange={(e) => setDescription(e.target.value)} />
       </label>
 
@@ -169,8 +169,8 @@ export function WorkflowForm({
           onChange={(e) => setContinueOnFailure(e.target.checked)}
         />
         <span>
-          <span className="block text-sm text-zinc-300">Continue on step failure</span>
-          <span className="block text-[11px] text-zinc-500">
+          <span className="block text-sm text-fg-body">Continue on step failure</span>
+          <span className="block text-sm text-muted-foreground">
             On by default a failed step fails the whole run. Enable to let independent parallel lanes finish;
             the run still ends Failed.
           </span>
@@ -179,19 +179,19 @@ export function WorkflowForm({
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-zinc-300">Steps</h2>
+          <h2 className="text-sm font-medium text-fg-body">Steps</h2>
           <div className="flex items-center gap-2">
             {hasIndexRefs && (
               <button
                 type="button"
                 onClick={convertIndexRefs}
                 title="Rewrite {{steps.N.output…}} references to use step names — stable across reorder."
-                className="rounded-md border border-amber-700/60 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-950/40"
+                className="rounded-[2px] border border-amber-700/60 px-2.5 py-1 text-xs text-amber-300 hover:bg-amber-950/40"
               >
                 Convert index refs → names
               </button>
             )}
-            <div className="flex overflow-hidden rounded-md border border-zinc-700 text-xs">
+            <div className="flex overflow-hidden rounded-[2px] border border-line-strong text-xs">
               <button type="button" onClick={() => setMode("canvas")} className={tabClass(mode === "canvas")}>
                 Canvas
               </button>
@@ -203,7 +203,7 @@ export function WorkflowForm({
               <button
                 type="button"
                 onClick={addStep}
-                className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+                className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
               >
                 Add step
               </button>
@@ -232,9 +232,9 @@ export function WorkflowForm({
 
         {mode === "form" &&
           steps.map((step, index) => (
-            <div key={step.key} className="rounded-lg border border-zinc-800 p-4">
+            <div key={step.key} className="rounded-[2px] border border-line p-4">
               <div className="mb-3 flex items-center gap-2">
-                <span className="text-xs text-zinc-500">#{index + 1}</span>
+                <span className="text-xs text-muted-foreground">#{index + 1}</span>
                 <select
                   className={`${inputClass} flex-1`}
                   value={step.actionType}
@@ -267,21 +267,21 @@ export function WorkflowForm({
                 <button
                   type="button"
                   onClick={() => moveStep(index, -1)}
-                  className="px-1 text-zinc-500 hover:text-zinc-200"
+                  className="px-1 text-muted-foreground hover:text-fg-emphasis"
                 >
                   ↑
                 </button>
                 <button
                   type="button"
                   onClick={() => moveStep(index, 1)}
-                  className="px-1 text-zinc-500 hover:text-zinc-200"
+                  className="px-1 text-muted-foreground hover:text-fg-emphasis"
                 >
                   ↓
                 </button>
                 <button
                   type="button"
                   onClick={() => setSteps((current) => current.filter((s) => s.key !== step.key))}
-                  className="px-1 text-zinc-500 hover:text-red-400"
+                  className="px-1 text-muted-foreground hover:text-danger"
                 >
                   ✕
                 </button>
@@ -300,7 +300,7 @@ export function WorkflowForm({
                 stepOrder={index}
                 onChange={(config) => updateStep(step.key, { config })}
               />
-              <label className="mt-3 block text-xs text-zinc-400">
+              <label className="mt-3 block text-xs text-muted-foreground">
                 Idempotency key (optional)
                 <input
                   className={`${inputClass} mt-1`}
@@ -342,12 +342,12 @@ export function WorkflowForm({
       </div>
 
       {!hideTriggers && mode === "form" && (
-        <div className="border-t border-zinc-800 pt-4">
+        <div className="border-t border-line pt-4">
           <TriggersSection triggers={triggerDrafts} onChange={setTriggerDrafts} stepLabels={stepLabels} />
         </div>
       )}
 
-      {error != null && <p className="text-sm text-red-400">{String(error)}</p>}
+      {error != null && <p className="text-sm text-danger">{String(error)}</p>}
 
       <div className="flex gap-2">
         <button
@@ -363,7 +363,7 @@ export function WorkflowForm({
               continueOnFailure,
             })
           }
-          className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          className="rounded-[2px] bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-brand-bright disabled:bg-panel-recess disabled:text-muted-foreground disabled:hover:bg-panel-recess"
         >
           {pending ? pendingLabel : submitLabel}
         </button>
@@ -372,7 +372,7 @@ export function WorkflowForm({
             type="button"
             disabled={pending}
             onClick={onCancel}
-            className="rounded-md border border-zinc-700 px-4 py-2 text-sm hover:bg-zinc-900 disabled:opacity-50"
+            className="rounded-[2px] border border-line-strong px-4 py-2 text-sm hover:bg-card disabled:text-muted-foreground"
           >
             Cancel
           </button>

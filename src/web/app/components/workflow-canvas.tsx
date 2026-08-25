@@ -22,8 +22,8 @@ type DraftStep = CreateWorkflowStep & {
 };
 
 const fieldClass =
-  "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 export function WorkflowCanvas({
   steps,
@@ -98,19 +98,19 @@ export function WorkflowCanvas({
         onSelect={setSelection}
       />
 
-      <div className="space-y-3 rounded-lg border border-zinc-800 p-4">
+      <div className="space-y-3 rounded-[2px] border border-line p-4">
         <div className="flex gap-2">
           <button
             type="button"
             onClick={onAddStep}
-            className="flex-1 rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+            className="flex-1 rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
           >
             + Add step
           </button>
           <button
             type="button"
             onClick={addTrigger}
-            className="flex-1 rounded-md border border-violet-500/40 px-2.5 py-1 text-xs text-violet-200 hover:bg-violet-500/10"
+            className="flex-1 rounded-[2px] border border-trigger-solid/40 px-2.5 py-1 text-xs text-violet-200 hover:bg-trigger-solid/10"
           >
             + Add trigger
           </button>
@@ -128,24 +128,24 @@ export function WorkflowCanvas({
               }}
               stepLabels={stepLabels}
             />
-            <p className="text-[11px] text-zinc-600">Fires this workflow. Changes apply when you save.</p>
+            <p className="text-[11px] text-muted-foreground max-w-[38em]">Fires this workflow. Changes apply when you save.</p>
           </div>
         ) : selectedStep ? (
           <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs text-zinc-500">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Step #{selectedIndex + 1}</span>
               <span className="flex gap-1">
                 <button
                   type="button"
                   onClick={() => onMoveStep(selectedIndex, -1)}
-                  className="px-1 hover:text-zinc-200"
+                  className="px-1 hover:text-fg-emphasis"
                 >
                   ↑
                 </button>
                 <button
                   type="button"
                   onClick={() => onMoveStep(selectedIndex, 1)}
-                  className="px-1 hover:text-zinc-200"
+                  className="px-1 hover:text-fg-emphasis"
                 >
                   ↓
                 </button>
@@ -155,7 +155,7 @@ export function WorkflowCanvas({
                     onRemoveStep(selectedStep.key);
                     setSelection(null);
                   }}
-                  className="px-1 hover:text-red-400"
+                  className="px-1 hover:text-danger"
                 >
                   ✕
                 </button>
@@ -232,7 +232,7 @@ export function WorkflowCanvas({
             )}
           </div>
         ) : (
-          <p className="text-xs text-zinc-600">
+          <p className="text-xs text-muted-foreground max-w-[38em]">
             Select a step to edit, a trigger node for info, or add a step.
           </p>
         )}

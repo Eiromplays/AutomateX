@@ -90,12 +90,12 @@ function triggerNodes(execution: ExecutionDetailData, triggers: WorkflowTrigger[
 
 const STEP_COLOR: Record<string, string> = {
   Succeeded: "bg-green-500/70",
-  Failed: "bg-red-500/70",
+  Failed: "bg-danger-solid/70",
   // Caught: failed but handled by an error edge — amber, distinct from a hard failure.
   Caught: "bg-orange-500/70",
-  Waiting: "bg-sky-500/70",
+  Waiting: "bg-info-solid/70",
   Skipped: "bg-zinc-600/60",
-  Running: "bg-amber-500/70",
+  Running: "bg-warning-solid/70",
   Pending: "bg-zinc-700/50",
 };
 
@@ -119,7 +119,7 @@ function Timeline({ execution }: { execution: ExecutionDetailData }) {
   const total = Math.max(1, end - start);
 
   return (
-    <div className="relative h-6 w-full overflow-hidden rounded border border-zinc-800 bg-zinc-900">
+    <div className="relative h-6 w-full overflow-hidden rounded border border-line bg-card">
       {execution.steps.map((s) => {
         const segStart = new Date(s.startedAt).getTime();
         const segEnd = s.completedAt ? new Date(s.completedAt).getTime() : end;
@@ -205,12 +205,12 @@ export default function ExecutionDetail() {
     }
   });
 
-  if (isLoading) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-muted-foreground max-w-[38em]">Loading…</p>;
   if (error || !execution) {
     return (
-      <p className="text-sm text-zinc-500">
+      <p className="text-sm text-muted-foreground max-w-[38em]">
         Execution not found in this workspace —{" "}
-        <a href="/executions" className="text-emerald-400 hover:underline">
+        <a href="/executions" className="text-brand hover:underline">
           back to executions
         </a>
         .
@@ -222,12 +222,12 @@ export default function ExecutionDetail() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-lg font-semibold">Execution</h1>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em]">Execution</h1>
           {execution.workflowVersion != null && (
-            <span className="text-sm text-zinc-500">v{execution.workflowVersion}</span>
+            <span className="text-sm text-muted-foreground">v{execution.workflowVersion}</span>
           )}
           <StatusBadge status={execution.status} />
-          <span className="text-xs font-normal text-emerald-400">● live</span>
+          <span className="text-xs font-normal text-brand">● live</span>
         </div>
         <div className="flex flex-wrap items-center gap-4">
           {execution.status === "Waiting" && (
@@ -236,7 +236,7 @@ export default function ExecutionDetail() {
               onClick={() => resume.mutate()}
               disabled={resume.isPending}
               title="Resume this paused run (the wait step continues)"
-              className="text-sm text-sky-400 hover:text-sky-300 disabled:opacity-50"
+              className="text-sm text-info hover:text-sky-300 disabled:text-muted-foreground"
             >
               {resume.isPending ? "Resuming…" : "▶ Resume"}
             </button>
@@ -247,7 +247,7 @@ export default function ExecutionDetail() {
               onClick={() => retry.mutate()}
               disabled={retry.isPending}
               title="Re-run on the latest version with the original trigger payload"
-              className="text-sm text-zinc-400 hover:text-emerald-400 disabled:opacity-50"
+              className="text-sm text-muted-foreground hover:text-brand disabled:text-muted-foreground"
             >
               {retry.isPending ? "Retrying…" : execution.status === "Failed" ? "↻ Retry" : "↻ Run again"}
             </button>
@@ -268,45 +268,45 @@ export default function ExecutionDetail() {
                 }
               }}
               disabled={remove.isPending}
-              className="text-sm text-zinc-500 hover:text-red-400 disabled:opacity-50"
+              className="text-sm text-muted-foreground hover:text-danger disabled:text-muted-foreground"
             >
               Delete
             </button>
           )}
           <Link
             to={`/workflows/${execution.workflowId}`}
-            className="text-sm text-zinc-400 hover:text-zinc-100"
+            className="text-sm text-muted-foreground hover:text-fg-strong"
           >
             View workflow →
           </Link>
         </div>
       </div>
-      {remove.error && <p className="text-sm text-red-400">{String(remove.error)}</p>}
+      {remove.error && <p className="text-sm text-danger">{String(remove.error)}</p>}
 
       <ChainLineage execution={execution} />
 
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
         <div>
-          <dt className="text-xs text-zinc-500">Triggered by</dt>
+          <dt className="text-xs text-muted-foreground">Triggered by</dt>
           <dd>{describeTriggeredBy(execution.triggeredBy, workflow?.triggers ?? [])}</dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500">Started</dt>
+          <dt className="text-xs text-muted-foreground">Started</dt>
           <dd>{new Date(execution.startedAt).toLocaleString()}</dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500">Completed</dt>
+          <dt className="text-xs text-muted-foreground">Completed</dt>
           <dd>{execution.completedAt ? new Date(execution.completedAt).toLocaleString() : "—"}</dd>
         </div>
         <div>
-          <dt className="text-xs text-zinc-500">Duration</dt>
+          <dt className="text-xs text-muted-foreground">Duration</dt>
           <dd>{fmtMs(diffMs(execution.startedAt, execution.completedAt))}</dd>
         </div>
       </dl>
 
       {execution.steps.length > 0 && (
         <div className="space-y-1">
-          <div className="text-xs text-zinc-500">Timeline</div>
+          <div className="text-xs text-muted-foreground">Timeline</div>
           <Timeline execution={execution} />
         </div>
       )}
@@ -319,9 +319,9 @@ export default function ExecutionDetail() {
       />
 
       {execution.triggerPayload && (
-        <details className="rounded-lg border border-zinc-800">
-          <summary className="cursor-pointer px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200">
-            Trigger payload <span className="text-xs text-zinc-600">· the data this run started with</span>
+        <details className="border-y border-engrave">
+          <summary className="cursor-pointer px-4 py-2 text-sm text-muted-foreground hover:text-fg-emphasis">
+            Trigger payload <span className="text-xs text-muted-foreground">· the data this run started with</span>
           </summary>
           <div className="px-4 pb-3">
             <CodeBlock text={prettyJson(execution.triggerPayload)} />
@@ -329,7 +329,7 @@ export default function ExecutionDetail() {
         </details>
       )}
 
-      <p className="text-xs text-zinc-600">
+      <p className="text-xs text-muted-foreground max-w-[38em]">
         Click a step in the graph to inspect its output, errors and timing.
       </p>
 
@@ -381,25 +381,25 @@ function StepDialog({
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         {!step ? (
-          <p className="text-sm text-zinc-500">This step did not run in this execution.</p>
+          <p className="text-sm text-muted-foreground max-w-[38em]">This step did not run in this execution.</p>
         ) : (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">
+              <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                 {step.actionType}
               </span>
               <SourceBadge actionType={step.actionType} />
               <StatusBadge status={step.status} />
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-muted-foreground">
                 {step.attempts} attempt{step.attempts === 1 ? "" : "s"}
                 {step.failedAttempts > 0 && ` (${step.failedAttempts} failed)`}
               </span>
-              <span className="text-xs text-zinc-500">{fmtMs(diffMs(step.startedAt, step.completedAt))}</span>
+              <span className="text-xs text-muted-foreground">{fmtMs(diffMs(step.startedAt, step.completedAt))}</span>
             </div>
             {gate ? (
               <div
                 className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs ${
-                  gate.open ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400"
+                  gate.open ? "bg-green-500/15 text-green-400" : "bg-warning-solid/15 text-warning"
                 }`}
               >
                 {gate.open ? "⛩ Gate open — workflow continued" : `⛩ Gate closed — ${gate.reason}`}
@@ -414,7 +414,7 @@ function StepDialog({
                 onClick={() => onRetryFrom(order)}
                 disabled={retrying}
                 title="Re-run from this step, reusing the earlier steps' outputs"
-                className="text-sm text-zinc-400 hover:text-emerald-400 disabled:opacity-50"
+                className="text-sm text-muted-foreground hover:text-brand disabled:text-muted-foreground"
               >
                 {retrying ? "Retrying…" : "↻ Retry from here"}
               </button>
@@ -459,7 +459,7 @@ function ExecutionGraph({
 
   return (
     <div className="space-y-1">
-      <div className="text-xs text-zinc-500">Run graph</div>
+      <div className="text-xs text-muted-foreground">Run graph</div>
       <WorkflowGraph
         steps={graphSteps}
         triggers={triggers}
@@ -499,11 +499,11 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
     return null;
 
   return (
-    <div className="space-y-1 rounded-md border border-violet-500/30 bg-violet-500/5 px-3 py-2 text-sm">
+    <div className="space-y-1 rounded-[2px] border border-trigger-solid/30 bg-trigger-solid/5 px-3 py-2 text-sm">
       {execution.parentExecutionId && (
         <p>
           ⮐ Called by execution{" "}
-          <Link to={`/executions/${execution.parentExecutionId}`} className="text-violet-400 hover:underline">
+          <Link to={`/executions/${execution.parentExecutionId}`} className="text-trigger hover:underline">
             {execution.parentExecutionId.slice(0, 13)}…
           </Link>
         </p>
@@ -511,19 +511,19 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
       {retryOf && (
         <p>
           ↻ Retry of execution{" "}
-          <Link to={`/executions/${retryOf}`} className="text-violet-400 hover:underline">
+          <Link to={`/executions/${retryOf}`} className="text-trigger hover:underline">
             {retryOf.slice(0, 13)}…
           </Link>{" "}
-          <span className="text-xs text-zinc-500">(same payload, latest version)</span>
+          <span className="text-xs text-muted-foreground">(same payload, latest version)</span>
         </p>
       )}
       {lineage && (
         <p>
           ⛓ Chained from execution{" "}
-          <Link to={`/executions/${lineage.executionId}`} className="text-violet-400 hover:underline">
+          <Link to={`/executions/${lineage.executionId}`} className="text-trigger hover:underline">
             {lineage.executionId?.slice(0, 13)}…
           </Link>{" "}
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-muted-foreground">
             (source {lineage.status} · depth {lineage.depth})
           </span>
         </p>
@@ -531,19 +531,19 @@ function ChainLineage({ execution }: { execution: ExecutionDetailData }) {
       {execution.retries.map((r) => (
         <p key={r.executionId}>
           ↻ Retried as execution{" "}
-          <Link to={`/executions/${r.executionId}`} className="text-violet-400 hover:underline">
+          <Link to={`/executions/${r.executionId}`} className="text-trigger hover:underline">
             {r.executionId.slice(0, 13)}…
           </Link>{" "}
-          <span className="text-xs text-zinc-500">({r.status})</span>
+          <span className="text-xs text-muted-foreground">({r.status})</span>
         </p>
       ))}
       {execution.chained.map((child) => (
         <p key={child.executionId}>
           ⛓ Chained into execution{" "}
-          <Link to={`/executions/${child.executionId}`} className="text-violet-400 hover:underline">
+          <Link to={`/executions/${child.executionId}`} className="text-trigger hover:underline">
             {child.executionId.slice(0, 13)}…
           </Link>{" "}
-          <span className="text-xs text-zinc-500">({child.status})</span>
+          <span className="text-xs text-muted-foreground">({child.status})</span>
         </p>
       ))}
     </div>

@@ -4,19 +4,20 @@ import { useEffect, useRef, useState } from "react";
 import { api, type PluginInfo, type PluginLogLine } from "../lib/api";
 import { mergeLogLines } from "../lib/plugin-logs";
 import { usePluginLogs } from "../lib/use-plugin-logs";
-import { pluginStateIcon } from "./icons";
+import { Lamp } from "./rack";
 import { toast } from "./toast";
 
 function stateStyle(state: string): { label: string; className: string } {
   switch (state) {
+    // The lamp carries the state; the label stays achromatic (DESIGN.md).
     case "running":
-      return { label: "running", className: "border-emerald-700/60 text-emerald-300" };
+      return { label: "running", className: "border-engrave text-fg-body" };
     case "exited":
-      return { label: "crashed", className: "border-red-800/60 text-red-300" };
+      return { label: "crashed", className: "border-engrave text-fg-body" };
     case "disabled":
-      return { label: "disabled", className: "border-amber-700/60 text-amber-300" };
+      return { label: "disabled", className: "border-engrave text-fg-body" };
     default:
-      return { label: "idle", className: "border-zinc-700 text-zinc-400" };
+      return { label: "idle", className: "border-engrave text-fg-body" };
   }
 }
 
@@ -31,7 +32,6 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
   const [lines, setLines] = useState<PluginLogLine[]>([]);
   const cursor = useRef(0);
   const state = stateStyle(plugin.state);
-  const StateIcon = pluginStateIcon[plugin.state] ?? pluginStateIcon.idle;
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["plugins"] });
 
@@ -74,13 +74,13 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
 
   return (
     <div className="mt-2 space-y-2">
-      <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-        <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${state.className}`}>
-          <StateIcon className="h-3 w-3" aria-hidden="true" /> {state.label}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className={`inline-flex items-center gap-1.5 rounded-[2px] border px-1.5 py-0.5 ${state.className}`}>
+          <Lamp status={plugin.state} /> {state.label}
         </span>
         {plugin.state === "running" && <span>{mb(plugin.memoryBytes)}</span>}
         {plugin.restarts > 0 && <span>{plugin.restarts} restart{plugin.restarts === 1 ? "" : "s"}</span>}
-        <button type="button" onClick={() => setOpen((o) => !o)} className="text-zinc-500 hover:text-zinc-300">
+        <button type="button" onClick={() => setOpen((o) => !o)} className="text-muted-foreground hover:text-fg-body">
           {open ? "Hide logs" : "Logs"}
         </button>
         {!plugin.disabled && (
@@ -88,7 +88,7 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
             type="button"
             disabled={restart.isPending}
             onClick={() => restart.mutate()}
-            className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-fg-body disabled:text-muted-foreground"
           >
             <RotateCw className="h-3 w-3" aria-hidden="true" /> Restart
           </button>
@@ -97,24 +97,24 @@ export function PluginOps({ plugin }: { plugin: PluginInfo }) {
           type="button"
           disabled={setEnabled.isPending}
           onClick={() => setEnabled.mutate(plugin.disabled)}
-          className="inline-flex items-center gap-1 text-zinc-500 hover:text-amber-300 disabled:opacity-50"
+          className="inline-flex items-center gap-1 text-muted-foreground hover:text-amber-300 disabled:text-muted-foreground"
         >
           <Power className="h-3 w-3" aria-hidden="true" /> {plugin.disabled ? "Enable" : "Disable"}
         </button>
       </div>
 
       {open && (
-        <div className="rounded-md border border-zinc-800 bg-zinc-950 p-2">
+        <div className="rounded-[2px] border border-line bg-background p-2">
           {error ? (
-            <p className="text-xs text-zinc-500">Logs require instance-admin (or the plugin hasn&apos;t run yet).</p>
+            <p className="text-xs text-muted-foreground max-w-[38em]">Logs require instance-admin (or the plugin hasn&apos;t run yet).</p>
           ) : lines.length === 0 ? (
-            <p className="text-xs text-zinc-600">No log output yet.</p>
+            <p className="text-xs text-muted-foreground max-w-[38em]">No log output yet.</p>
           ) : (
-            <pre className="max-h-60 overflow-auto font-mono text-[11px] leading-relaxed text-zinc-300">
+            <pre className="max-h-60 overflow-auto font-mono text-[11px] leading-relaxed text-fg-body">
               {lines.map((l) => (
-                <div key={l.seq} className={l.level === "Error" ? "text-red-400" : undefined}>
-                  <span className="text-zinc-600">{new Date(l.at).toLocaleTimeString()} </span>
-                  {l.source ? <span className="text-zinc-500">[{l.source}] </span> : null}
+                <div key={l.seq} className={l.level === "Error" ? "text-danger" : undefined}>
+                  <span className="text-muted-foreground">{new Date(l.at).toLocaleTimeString()} </span>
+                  {l.source ? <span className="text-muted-foreground">[{l.source}] </span> : null}
                   {l.message}
                 </div>
               ))}

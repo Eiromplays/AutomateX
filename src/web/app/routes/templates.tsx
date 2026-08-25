@@ -69,13 +69,13 @@ export default function Templates() {
   const builtIn = templates.filter(match);
 
   const inputClass =
-    "rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+    "rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
   return (
     <div className="max-w-4xl space-y-8">
       <div>
-        <h1 className="text-lg font-semibold">Templates</h1>
-        <p className="text-sm text-zinc-500">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Templates</h1>
+        <p className="text-sm text-muted-foreground max-w-[38em]">
           Start from a ready-made workflow — you&apos;ll review and tweak it (URLs, connections, variables)
           before creating.
         </p>
@@ -100,7 +100,7 @@ export default function Templates() {
 
       {yours.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-zinc-300">Your templates</h2>
+          <h2 className="text-sm font-medium text-fg-body">Your templates</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {yours.map((template) => (
               <Card key={template.id} template={template} onUse={() => use(template.doc)}>
@@ -113,7 +113,7 @@ export default function Templates() {
                       destructive: true,
                     }).then((ok) => ok && remove.mutate(template.id))
                   }
-                  className="text-xs text-zinc-500 hover:text-red-400"
+                  className="text-xs text-muted-foreground hover:text-danger"
                 >
                   Delete
                 </button>
@@ -125,14 +125,14 @@ export default function Templates() {
 
       {fromCommunity.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-zinc-300">Community</h2>
+          <h2 className="text-sm font-medium text-fg-body">Community</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {fromCommunity.map((template) => (
               <Card key={template.name} template={template} onUse={() => use(template.doc)}>
                 <button
                   type="button"
                   onClick={() => saveFromCommunity.mutate(template)}
-                  className="text-xs text-zinc-500 hover:text-emerald-400"
+                  className="text-xs text-muted-foreground hover:text-brand"
                 >
                   Save to my templates
                 </button>
@@ -144,7 +144,7 @@ export default function Templates() {
 
       {builtIn.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-zinc-300">Built-in</h2>
+          <h2 className="text-sm font-medium text-fg-body">Built-in</h2>
           <div className="grid gap-3 md:grid-cols-2">
             {builtIn.map((template) => (
               <Card key={template.id} template={template} onUse={() => use(template.doc)} />
@@ -166,17 +166,17 @@ function Card({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col rounded-lg border border-zinc-800 bg-zinc-900/40 p-4">
+    <div className="flex flex-col rounded-[2px] border border-line bg-card/40 p-4">
       {template.category && (
-        <div className="text-xs uppercase tracking-wide text-zinc-600">{template.category}</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">{template.category}</div>
       )}
-      <div className="mt-0.5 text-sm font-medium text-zinc-100">{template.name}</div>
-      <p className="mt-1 flex-1 text-sm text-zinc-400">{template.description}</p>
+      <div className="mt-0.5 text-sm font-medium text-fg-strong">{template.name}</div>
+      <p className="mt-1 flex-1 text-sm text-muted-foreground max-w-[38em]">{template.description}</p>
       <div className="mt-3 flex items-center gap-3">
         <button
           type="button"
           onClick={onUse}
-          className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          className="rounded-[2px] bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-brand-bright"
         >
           Use template →
         </button>

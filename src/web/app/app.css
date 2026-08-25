@@ -1,3 +1,14 @@
+/*
+ * IBM Plex, self-hosted. PRODUCT.md principle 1 is that nothing may require a
+ * hosted service or phone home, so these are vendored through @fontsource and
+ * served from our own origin — never linked from a font CDN. Latin subset only,
+ * and only the three sans weights and one mono weight the type ramp uses.
+ */
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -8,10 +19,12 @@
  * dark block is the live palette; the light block exists so a theme toggle is a
  * later freebie. Base is Tailwind's zinc scale — `--background` is zinc-950
  * exactly — so shadcn surfaces match the existing hand-rolled zinc chrome. The
- * accent stays emerald (primary = emerald-600, ring = emerald-500).
+ * accent stays emerald (primary = emerald-600, ring = emerald-500). Labels on
+ * emerald are zinc-950, not white: white on emerald-600 is 3.7:1 and fails WCAG
+ * AA for body text, while zinc-950 clears it at 4.9:1 (7.1:1 on the -500 hover).
  */
 :root {
-  --radius: 0.625rem;
+  --radius: 0.25rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -19,7 +32,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.141 0.005 285.823);
   --primary: oklch(0.596 0.145 163.225);
-  --primary-foreground: oklch(1 0 0);
+  --primary-foreground: oklch(0.141 0.005 285.823);
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
   --muted: oklch(0.967 0.001 286.375);
@@ -35,33 +48,89 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
+
+  /* Text ramp. `--muted-foreground` (zinc-400) is the fourth, busiest step and
+   * already exists above; these three sit brighter than it. */
+  --fg-strong: oklch(0.21 0.006 285.885);
+  --fg-emphasis: oklch(0.274 0.006 286.033);
+  --fg-body: oklch(0.37 0.013 285.805);
+  --fg-placeholder: oklch(0.705 0.015 286.067);
+  --line: oklch(0.92 0.004 286.32);
+  --line-strong: oklch(0.871 0.006 286.286);
+  --brand-bright: oklch(0.508 0.118 165.612);
+  --brand: oklch(0.508 0.118 165.612);
+  --danger: oklch(0.577 0.245 27.325);
+  --danger-solid: oklch(0.637 0.237 25.331);
+  --warning: oklch(0.666 0.179 58.318);
+  --warning-solid: oklch(0.769 0.188 70.08);
+  --info: oklch(0.588 0.158 241.966);
+  --info-solid: oklch(0.685 0.169 237.323);
+  --trigger: oklch(0.541 0.281 293.009);
+  --trigger-solid: oklch(0.606 0.25 292.717);
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.596 0.145 163.225);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.696 0.17 162.48);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  /* The Rack Elevation. Values are the normative hex from DESIGN.md; colour is
+   * illumination, so only the lamp tokens carry hue. Everything a surface is
+   * made of — void, face, recess, engrave, rail — is achromatic steel. */
+  --background: #0E1113;
+  --foreground: #EBF0F3;
+  --card: #161A1D;
+  --card-foreground: #EBF0F3;
+  --popover: #161A1D;
+  --popover-foreground: #EBF0F3;
+  --primary: #3DD68C;
+  --primary-foreground: #0E1113;
+  --secondary: #1D2225;
+  --secondary-foreground: #EBF0F3;
+  --muted: #1D2225;
+  --muted-foreground: #93A0A8;
+  --accent: #1D2225;
+  --accent-foreground: #EBF0F3;
+  --destructive: #FF5C4D;
+  --border: #272E33;
+  --input: #272E33;
+  --ring: #4DA3FF;
+  --chart-1: #3DD68C;
+  --chart-2: #4DA3FF;
+  --chart-3: #F2B233;
+  --chart-4: #FF5C4D;
+  --chart-5: #7E8B93;
+
+  /* Rack surfaces */
+  --rack-void: #0E1113;
+  --panel-face: #161A1D;
+  --panel-recess: #1D2225;
+  --engrave: #272E33;
+  --rail: #39434A;
+  --rail-num: #7E8B93;
+
+  /* Text ramp: stencil > legend > silkscreen. All clear AA on the panel face. */
+  --fg-strong: #EBF0F3;
+  --fg-emphasis: #EBF0F3;
+  --fg-body: #C3CDD4;
+  --fg-placeholder: #93A0A8;
+  --line: #272E33;
+  --line-strong: #39434A;
+
+  /* Lamps — the only hue in the system, each with one reserved meaning. */
+  --brand: #3DD68C;
+  --brand-bright: #3DD68C;
+  --lamp-clear: #3DD68C;
+  --lamp-active: #4DA3FF;
+  --lamp-hold: #F2B233;
+  --lamp-fault: #FF5C4D;
+  --lamp-dark: #39434A;
+  --danger: #FF5C4D;
+  --danger-solid: #FF5C4D;
+  --warning: #F2B233;
+  --warning-solid: #F2B233;
+  --info: #4DA3FF;
+  --info-solid: #4DA3FF;
+  --trigger: #7E8B93;
+  --trigger-solid: #39434A;
 }
+
 
 @theme inline {
   --color-background: var(--background);
@@ -87,6 +156,35 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-rack-void: var(--rack-void);
+  --color-panel-face: var(--panel-face);
+  --color-panel-recess: var(--panel-recess);
+  --color-engrave: var(--engrave);
+  --color-rail: var(--rail);
+  --color-rail-num: var(--rail-num);
+  --color-lamp-clear: var(--lamp-clear);
+  --color-lamp-active: var(--lamp-active);
+  --color-lamp-hold: var(--lamp-hold);
+  --color-lamp-fault: var(--lamp-fault);
+  --color-lamp-dark: var(--lamp-dark);
+  --color-fg-strong: var(--fg-strong);
+  --color-fg-emphasis: var(--fg-emphasis);
+  --color-fg-body: var(--fg-body);
+  --color-fg-placeholder: var(--fg-placeholder);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-bright: var(--brand-bright);
+  --color-danger: var(--danger);
+  --color-danger-solid: var(--danger-solid);
+  --color-warning: var(--warning);
+  --color-warning-solid: var(--warning-solid);
+  --color-info: var(--info);
+  --color-info-solid: var(--info-solid);
+  --color-trigger: var(--trigger);
+  --color-trigger-solid: var(--trigger-solid);
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -98,6 +196,39 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans text-foreground;
   }
+
+  /*
+   * Browser-owned surfaces. These ship with defaults belonging to no design
+   * system, so the rack palette claims them explicitly.
+   */
+  ::selection {
+    background: var(--lamp-clear);
+    color: var(--rack-void);
+  }
+  :root {
+    caret-color: var(--lamp-active);
+    scrollbar-color: var(--rail) var(--rack-void);
+    scrollbar-width: thin;
+  }
+  :focus-visible {
+    outline: 1px solid var(--lamp-active);
+    outline-offset: 1px;
+  }
+  /* Numbers that sit in a column must not wobble as they tick. */
+  .font-mono,
+  time,
+  [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@utility silkscreen {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--silkscreen, var(--fg-placeholder));
 }

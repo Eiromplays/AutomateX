@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Lock } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { groupBySource, SourceChip, sourceLabel } from "../components/action-source";
+import { Rack, Unit } from "../components/rack";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { PluginOps } from "../components/plugin-ops";
@@ -34,11 +36,10 @@ function formatTimestamp(iso: string): string {
     : date.toLocaleString();
 }
 
-const fieldChip = "rounded border border-zinc-800 bg-zinc-900 px-1.5 py-0.5 text-[11px] text-zinc-400";
-const cardGrid = "grid grid-cols-1 gap-2 md:grid-cols-2";
+const fieldChip = "rounded border border-line bg-card px-1.5 py-0.5 text-[11px] text-muted-foreground";
 const searchClass =
-  "mb-4 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "mb-4 w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 function matches(query: string, ...fields: (string | null | undefined)[]) {
   const q = query.trim().toLowerCase();
@@ -52,7 +53,7 @@ function FieldChips({ fields }: { fields: { name: string; required: boolean }[] 
       {fields.map((field) => (
         <span key={field.name} className={fieldChip}>
           {field.name}
-          {field.required && <span className="text-emerald-400"> *</span>}
+          {field.required && <span className="text-brand"> *</span>}
         </span>
       ))}
     </div>
@@ -145,13 +146,14 @@ function PluginManager() {
   if (!plugins) return null;
 
   const section = (scope: "global" | "workspace", items: PluginInfo[], hint: string) => (
-    <div className="flex-1 rounded-lg border border-zinc-800 p-4">
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-zinc-300">
+    <div className="flex-1">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        {/* h2: a direct child of the page h1, not a level deeper. */}
+        <h2 className="text-lg font-medium text-fg-strong">
           {scope === "global" ? "Global plugins" : "Workspace plugins"}
-        </h3>
+        </h2>
         {plugins.uploadEnabled && (
-          <label className="cursor-pointer rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900">
+          <label className="cursor-pointer rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card">
             Upload zip
             <input
               type="file"
@@ -166,24 +168,26 @@ function PluginManager() {
           </label>
         )}
       </div>
-      <p className="mb-3 text-xs text-zinc-500">{hint}</p>
-      <ul className="space-y-2">
-        {items.map((plugin) => {
+      <p className="mb-3 text-sm text-muted-foreground max-w-[38em]">{hint}</p>
+      <Rack empty="None installed.">
+        {items.map((plugin, i) => {
           const summary = capabilities(scope, plugin.name);
           return (
-            <li key={plugin.name} className="flex items-start justify-between gap-3 text-sm">
+            <Unit key={plugin.name} index={i + 1} status={plugin.state} align="start">
+              <div className="flex min-w-0 items-start justify-between gap-3 py-3 pr-3 text-sm">
               <div className="min-w-0">
-                <div className="text-zinc-300">
-                  {plugin.name} <span className="text-[10px] text-zinc-500">v{plugin.version}</span>
+                <div className="text-fg-strong">
+                  {plugin.name}{" "}
+                  <span className="font-mono text-[13px] text-muted-foreground">v{plugin.version}</span>
                 </div>
                 <div
-                  className="text-[10px] text-zinc-600"
+                  className="font-mono text-[13px] text-muted-foreground"
                   title="Build fingerprint (changes every compilation) · DLL write time"
                 >
                   {plugin.fingerprint}
                   {plugin.modifiedAt && ` · ${formatTimestamp(plugin.modifiedAt)}`}
                 </div>
-                {summary && <div className="text-[11px] text-zinc-500">{summary}</div>}
+                {summary && <div className="text-sm text-muted-foreground">{summary}</div>}
                 {scope === "global" && <PluginOps plugin={plugin} />}
               </div>
               {plugins.uploadEnabled && (
@@ -201,16 +205,16 @@ function PluginManager() {
                       remove.mutate({ scope, name: plugin.name });
                     }
                   }}
-                  className="shrink-0 text-xs text-zinc-600 hover:text-red-400"
+                  className="shrink-0 text-xs text-muted-foreground hover:text-danger"
                 >
                   Delete
                 </button>
               )}
-            </li>
+              </div>
+            </Unit>
           );
         })}
-        {items.length === 0 && <li className="text-xs text-zinc-600">None installed.</li>}
-      </ul>
+      </Rack>
     </div>
   );
 
@@ -221,7 +225,7 @@ function PluginManager() {
         {section("workspace", plugins.workspace, "Only this workspace — shadows global on name collisions.")}
       </div>
       {!plugins.uploadEnabled && (
-        <p className="mt-2 text-xs text-zinc-600">
+        <p className="mt-2 text-xs text-muted-foreground max-w-[38em]">
           Uploads disabled — set <code>Engine__AllowPluginUpload=true</code> to manage plugins from here, or
           drop folders into <code>plugins/</code> and reload.
         </p>
@@ -246,27 +250,29 @@ function ActionsPanel({ actions }: { actions: ActionDescriptor[] }) {
       <div className="space-y-6">
         {groupBySource(filtered).map(([source, items]) => (
           <section key={source}>
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-300">
+            <h2 className="mb-3 flex items-center gap-2 text-lg font-medium text-fg-strong">
               {sourceLabel(source)}
               <SourceChip source={source} />
             </h2>
-            <div className={cardGrid}>
-              {items.map((action) => (
-                <div key={action.type} className="rounded-lg border border-zinc-800 p-4">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="text-sm font-medium">{action.displayName}</span>
-                    <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">
-                      {action.type}
-                    </code>
+            <Rack>
+              {items.map((action, i) => (
+                <Unit key={action.type} index={i + 1} align="start">
+                  <div className="min-w-0 py-3 pr-3">
+                    <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="text-lg font-medium text-fg-strong">{action.displayName}</span>
+                      <code className="font-mono text-[13px] text-muted-foreground">{action.type}</code>
+                    </div>
+                    {action.description && (
+                      <p className="mb-2 max-w-[38em] text-sm text-muted-foreground">{action.description}</p>
+                    )}
+                    <FieldChips fields={configFields(action.configSchema)} />
                   </div>
-                  {action.description && <p className="mb-2 text-xs text-zinc-500">{action.description}</p>}
-                  <FieldChips fields={configFields(action.configSchema)} />
-                </div>
+                </Unit>
               ))}
-            </div>
+            </Rack>
           </section>
         ))}
-        {filtered.length === 0 && <p className="text-sm text-zinc-500">No matching actions.</p>}
+        {filtered.length === 0 && <p className="text-sm text-muted-foreground max-w-[38em]">No matching actions.</p>}
       </div>
     </div>
   );
@@ -294,28 +300,30 @@ function TriggerTypesPanel() {
       <div className="space-y-6">
         {groupBySource(filtered).map(([source, items]) => (
           <section key={source}>
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-300">
+            <h2 className="mb-3 flex items-center gap-2 text-lg font-medium text-fg-strong">
               {sourceLabel(source)}
               <SourceChip source={source} />
             </h2>
-            <div className={cardGrid}>
-              {items.map((trigger) => (
-                <div key={trigger.type} className="rounded-lg border border-zinc-800 p-4">
-                  <div className="mb-1 flex items-center gap-2">
-                    <span className="text-sm font-medium">{trigger.displayName}</span>
-                    <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">
-                      {trigger.type}
-                    </code>
+            <Rack>
+              {items.map((trigger, i) => (
+                <Unit key={trigger.type} index={i + 1} align="start">
+                  <div className="min-w-0 py-3 pr-3">
+                    <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="text-lg font-medium text-fg-strong">{trigger.displayName}</span>
+                      <code className="font-mono text-[13px] text-muted-foreground">{trigger.type}</code>
+                    </div>
+                    {trigger.description && (
+                      <p className="mb-2 max-w-[38em] text-sm text-muted-foreground">{trigger.description}</p>
+                    )}
+                    <FieldChips fields={configFields(trigger.configSchema)} />
                   </div>
-                  {trigger.description && <p className="mb-2 text-xs text-zinc-500">{trigger.description}</p>}
-                  <FieldChips fields={configFields(trigger.configSchema)} />
-                </div>
+                </Unit>
               ))}
-            </div>
+            </Rack>
           </section>
         ))}
       </div>
-      {filtered.length === 0 && <p className="text-sm text-zinc-500">No matching trigger types.</p>}
+      {filtered.length === 0 && <p className="text-sm text-muted-foreground max-w-[38em]">No matching trigger types.</p>}
     </div>
   );
 }
@@ -340,51 +348,53 @@ function ConnectionTypesPanel() {
         onChange={(e) => setSearch(e.target.value)}
       />
       {types.length === 0 ? (
-        <p className="text-xs text-zinc-600">
+        <p className="text-xs text-muted-foreground max-w-[38em]">
           No connection types — plugins declare these to guide their setup.
         </p>
       ) : (
         <div className="space-y-6">
           {groupBySource(filtered).map(([source, items]) => (
             <section key={source}>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-medium text-zinc-300">
+              <h2 className="mb-3 flex items-center gap-2 text-lg font-medium text-fg-strong">
                 {sourceLabel(source)}
                 <SourceChip source={source} />
               </h2>
-              <div className={cardGrid}>
-                {items.map((type) => (
-                  <div key={type.type} className="rounded-lg border border-zinc-800 p-4">
-                    <div className="mb-1 flex items-center gap-2">
-                      <span className="text-sm font-medium">{type.displayName}</span>
-                      <code className="rounded bg-zinc-900 px-1.5 py-0.5 text-xs text-zinc-400">
-                        {type.type}
-                      </code>
+              <Rack>
+                {items.map((type, i) => (
+                  <Unit key={type.type} index={i + 1} align="start">
+                    <div className="min-w-0 py-3 pr-3">
+                    <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="text-lg font-medium text-fg-strong">{type.displayName}</span>
+                      <code className="font-mono text-[13px] text-muted-foreground">{type.type}</code>
                       <Link
                         to={`/connections?type=${type.type}`}
-                        className="ml-auto text-xs text-emerald-400 hover:underline"
+                        className="ml-auto text-sm text-fg-body underline-offset-4 hover:underline"
                       >
                         + Add
                       </Link>
                     </div>
-                    {type.description && <p className="mb-2 text-xs text-zinc-500">{type.description}</p>}
+                    {type.description && (
+                      <p className="mb-2 max-w-[38em] text-sm text-muted-foreground">{type.description}</p>
+                    )}
                     <div className="flex flex-wrap gap-1.5">
                       {type.fields.map((field) => (
                         <span key={field.key} className={fieldChip} title={field.helpText ?? undefined}>
-                          {field.secret ? "🔒 " : ""}
+                          {field.secret ? <Lock className="mr-1 inline h-3 w-3" aria-label="secret" /> : null}
                           {field.label}
-                          {field.required && <span className="text-emerald-400"> *</span>}
+                          {field.required && <span className="text-fg-strong"> *</span>}
                         </span>
                       ))}
                     </div>
-                  </div>
+                    </div>
+                  </Unit>
                 ))}
-              </div>
+              </Rack>
             </section>
           ))}
         </div>
       )}
       {types.length > 0 && filtered.length === 0 && (
-        <p className="text-sm text-zinc-500">No matching connection types.</p>
+        <p className="text-sm text-muted-foreground max-w-[38em]">No matching connection types.</p>
       )}
     </div>
   );
@@ -438,18 +448,18 @@ export default function Plugins() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Plugins</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em]">Plugins</h1>
         <button
           type="button"
           onClick={() => reload.mutate()}
           disabled={reload.isPending}
-          className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900 disabled:opacity-50"
+          className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card disabled:text-muted-foreground"
         >
           {reload.isPending ? "Reloading…" : "Reload plugins"}
         </button>
       </div>
 
-      <div className="mb-6 flex gap-1 border-b border-zinc-800 text-sm">
+      <div className="mb-6 flex gap-1 border-b border-line text-sm">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -457,8 +467,8 @@ export default function Plugins() {
             onClick={() => setTab(t.id)}
             className={
               tab === t.id
-                ? "-mb-px border-b-2 border-emerald-500 px-3 py-2 text-zinc-100"
-                : "-mb-px border-b-2 border-transparent px-3 py-2 text-zinc-500 hover:text-zinc-200"
+                ? "-mb-px border-b-2 border-brand-bright px-3 py-2 text-fg-strong"
+                : "-mb-px border-b-2 border-transparent px-3 py-2 text-muted-foreground hover:text-fg-emphasis"
             }
           >
             {t.label}
@@ -468,7 +478,7 @@ export default function Plugins() {
 
       {tab === "installed" && <PluginManager />}
       {tab === "actions" &&
-        (actions ? <ActionsPanel actions={actions} /> : <p className="text-sm text-zinc-500">Loading…</p>)}
+        (actions ? <ActionsPanel actions={actions} /> : <p className="text-sm text-muted-foreground max-w-[38em]">Loading…</p>)}
       {tab === "triggers" && <TriggerTypesPanel />}
       {tab === "connections" && <ConnectionTypesPanel />}
     </div>

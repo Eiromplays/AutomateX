@@ -31,8 +31,8 @@ type SchemaFormProps = {
 };
 
 const inputClass =
-  "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 // Inserts {{connections.<name>.<field>}} so users don't hand-type (and mis-case) them.
 // Always available — even with no connections, it offers a path to create one without
@@ -144,7 +144,7 @@ function ReferenceInserter({
         title="Insert a step output or connection reference"
         aria-label="Insert a step output or connection reference"
         onClick={toggle}
-        className="flex w-6 items-center justify-center text-zinc-500 hover:text-emerald-400 focus:outline-none"
+        className="flex w-6 items-center justify-center text-muted-foreground hover:text-brand focus:outline-none"
       >
         <Braces className="h-4 w-4" aria-hidden="true" />
       </button>
@@ -160,16 +160,16 @@ function ReferenceInserter({
               left: pos.left,
               width: PANEL_WIDTH,
             }}
-            className="z-50 rounded-md border border-zinc-700 bg-zinc-900 p-1 shadow-xl"
+            className="z-50 rounded-[2px] border border-line-strong bg-card p-1 shadow-xl"
           >
             {hasStepOptions && (
-              <div className="mb-1 flex overflow-hidden rounded border border-zinc-700 text-xs">
+              <div className="mb-1 flex overflow-hidden rounded border border-line-strong text-xs">
                 {(["steps", "connections"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setTab(t)}
-                    className={`flex flex-1 items-center justify-center gap-1 px-2 py-1 ${tab === t ? "bg-zinc-800 text-zinc-100" : "text-zinc-400 hover:text-zinc-200"}`}
+                    className={`flex flex-1 items-center justify-center gap-1 px-2 py-1 ${tab === t ? "bg-muted text-fg-strong" : "text-muted-foreground hover:text-fg-emphasis"}`}
                   >
                     {t === "steps" ? (
                       <>
@@ -195,17 +195,17 @@ function ReferenceInserter({
                 }
               }}
               placeholder={showSteps ? "Search step outputs…" : "Search connections…"}
-              className="mb-1 w-full rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none"
+              className="mb-1 w-full rounded border border-line-strong bg-background px-2 py-1 text-xs placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none"
             />
             <div className="max-h-56 overflow-y-auto">
               {showSteps ? (
                 <>
                   {stepGroups.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-zinc-600">No matches.</p>
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground max-w-[38em]">No matches.</p>
                   )}
                   {stepGroups.map((group) => (
                     <div key={group.key} className="mb-1">
-                      <div className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                      <div className="flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                         <Waypoints className="h-3 w-3" aria-hidden="true" /> {group.name || group.key}
                       </div>
                       {group.items.map((item) => (
@@ -213,7 +213,7 @@ function ReferenceInserter({
                           type="button"
                           key={item.token}
                           onClick={() => insert(item.token)}
-                          className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
+                          className="block w-full rounded px-2 py-1 text-left text-xs text-fg-body hover:bg-muted"
                         >
                           {item.label}
                         </button>
@@ -224,13 +224,13 @@ function ReferenceInserter({
               ) : (
                 <>
                   {matches.length === 0 && (
-                    <p className="px-2 py-1.5 text-xs text-zinc-600">
+                    <p className="px-2 py-1.5 text-xs text-muted-foreground max-w-[38em]">
                       {usable.length === 0 ? "No connections with secrets yet." : "No matches."}
                     </p>
                   )}
                   {matches.map((c) => (
                     <div key={c.id} className="mb-1">
-                      <div className="px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                      <div className="px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                         {c.name}
                       </div>
                       {c.secretKeys.map((k) => (
@@ -238,7 +238,7 @@ function ReferenceInserter({
                           type="button"
                           key={k}
                           onClick={() => insert(`{{connections.${c.name}.${k}}}`)}
-                          className="block w-full rounded px-2 py-1 text-left text-xs text-zinc-300 hover:bg-zinc-800"
+                          className="block w-full rounded px-2 py-1 text-left text-xs text-fg-body hover:bg-muted"
                         >
                           {k}
                         </button>
@@ -255,7 +255,7 @@ function ReferenceInserter({
                   setOpen(false);
                   setCreating(true);
                 }}
-                className="mt-1 block w-full rounded border-t border-zinc-800 px-2 py-1.5 text-left text-xs text-emerald-400 hover:bg-zinc-800"
+                className="mt-1 block w-full rounded border-t border-line px-2 py-1.5 text-left text-xs text-brand hover:bg-muted"
               >
                 ＋ New connection…
               </button>
@@ -371,7 +371,7 @@ function SwitchCasesEditor({
         const label = c.label ?? "";
         const comparison = switchComparisonOf(c);
         return (
-          <div key={index} className="space-y-1.5 rounded-md border border-zinc-800 p-2">
+          <div key={index} className="space-y-1.5 rounded-[2px] border border-line p-2">
             <div className="flex items-center gap-1.5">
               <input
                 className={`${inputClass} flex-1`}
@@ -382,7 +382,7 @@ function SwitchCasesEditor({
               <button
                 type="button"
                 onClick={() => remove(index)}
-                className="px-1 text-zinc-500 hover:text-red-400"
+                className="px-1 text-muted-foreground hover:text-danger"
                 title="Remove case"
                 aria-label="Remove case"
               >
@@ -414,14 +414,14 @@ function SwitchCasesEditor({
       <button
         type="button"
         onClick={add}
-        className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+        className="inline-flex items-center gap-1 rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
       >
         <Plus className="h-3 w-3" aria-hidden="true" /> Add case
       </button>
-      <p className="text-[11px] text-zinc-600">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         Tried top to bottom; first match wins. No match falls through to{" "}
-        <code className="text-zinc-400">default</code>. On the Canvas, connect each label (and{" "}
-        <code className="text-zinc-400">default</code>) to the step it should run.
+        <code className="text-muted-foreground">default</code>. On the Canvas, connect each label (and{" "}
+        <code className="text-muted-foreground">default</code>) to the step it should run.
       </p>
     </div>
   );
@@ -488,7 +488,7 @@ function McpCallEditor({
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">MCP server</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">MCP server</span>
         <select
           className={inputClass}
           value={selectedName ?? ""}
@@ -502,13 +502,13 @@ function McpCallEditor({
           ))}
         </select>
         {mcpConnections.length === 0 && (
-          <span className="mt-1 block text-[11px] text-zinc-600">
+          <span className="mt-1 block text-sm text-muted-foreground">
             No MCP connections yet — create one (type “MCP server”) on the{" "}
             <a
               href="/connections"
               target="_blank"
               rel="noopener"
-              className="text-emerald-400 hover:underline"
+              className="text-brand hover:underline"
             >
               Connections page
             </a>
@@ -519,11 +519,11 @@ function McpCallEditor({
 
       {selectedConn && (
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-zinc-400">Tool</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">Tool</span>
           {tools.isLoading ? (
-            <span className="text-xs text-zinc-500">Loading tools…</span>
+            <span className="text-xs text-muted-foreground">Loading tools…</span>
           ) : tools.error ? (
-            <span className="text-xs text-red-400">Couldn’t list tools — {String(tools.error)}</span>
+            <span className="text-xs text-danger">Couldn’t list tools — {String(tools.error)}</span>
           ) : (
             <select
               className={inputClass}
@@ -539,14 +539,14 @@ function McpCallEditor({
             </select>
           )}
           {selectedTool?.description && (
-            <span className="mt-1 block text-[11px] text-zinc-600">{selectedTool.description}</span>
+            <span className="mt-1 block text-sm text-muted-foreground">{selectedTool.description}</span>
           )}
         </label>
       )}
 
       {selectedTool && (
         <div className="block">
-          <span className="mb-1 block text-xs font-medium text-zinc-400">Arguments</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">Arguments</span>
           <SchemaForm
             schema={argSchema}
             value={(value.arguments as Record<string, unknown>) ?? {}}
@@ -611,7 +611,7 @@ function LlmAgentEditor({
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">Goal *</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Goal *</span>
         <textarea
           className={`${inputClass} font-normal`}
           rows={2}
@@ -621,7 +621,7 @@ function LlmAgentEditor({
         />
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">System prompt</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">System prompt</span>
         <textarea
           className={inputClass}
           rows={2}
@@ -631,7 +631,7 @@ function LlmAgentEditor({
       </label>
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-zinc-400">Model *</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">Model *</span>
           <input
             className={inputClass}
             placeholder="gpt-4o-mini"
@@ -640,7 +640,7 @@ function LlmAgentEditor({
           />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs font-medium text-zinc-400">Max iterations</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">Max iterations</span>
           <input
             type="number"
             className={inputClass}
@@ -654,7 +654,7 @@ function LlmAgentEditor({
         </label>
       </div>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">Base URL</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Base URL</span>
         <input
           className={inputClass}
           value={str("baseUrl", "https://api.openai.com")}
@@ -662,7 +662,7 @@ function LlmAgentEditor({
         />
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">API key</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">API key</span>
         <input
           className={inputClass}
           placeholder="{{connections.openai.apiKey}}"
@@ -671,24 +671,24 @@ function LlmAgentEditor({
         />
       </label>
       <div className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">Tool servers (MCP)</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Tool servers (MCP)</span>
         {mcpConnections.length === 0 ? (
-          <span className="text-[11px] text-zinc-600">
+          <span className="text-[11px] text-muted-foreground">
             No MCP connections yet — create one (type “MCP server”) on the{" "}
             <a
               href="/connections"
               target="_blank"
               rel="noopener"
-              className="text-emerald-400 hover:underline"
+              className="text-brand hover:underline"
             >
               Connections page
             </a>
             .
           </span>
         ) : (
-          <div className="space-y-1 rounded-md border border-zinc-800 bg-zinc-900/40 p-2">
+          <div className="space-y-1 rounded-[2px] border border-line bg-card/40 p-2">
             {mcpConnections.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 text-sm text-zinc-300">
+              <label key={c.id} className="flex items-center gap-2 text-sm text-fg-body">
                 <input
                   type="checkbox"
                   className="size-4 accent-emerald-500"
@@ -722,8 +722,8 @@ function WorkflowCallEditor({
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
-          Workflow to call <span className="text-emerald-400">*</span>
+        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          Workflow to call <span className="text-brand">*</span>
         </span>
         <select
           className={inputClass}
@@ -739,7 +739,7 @@ function WorkflowCallEditor({
         </select>
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">Payload (optional)</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Payload (optional)</span>
         <textarea
           className={`${inputClass} font-mono`}
           rows={3}
@@ -748,7 +748,7 @@ function WorkflowCallEditor({
           onChange={(e) => set({ payload: e.target.value || undefined })}
         />
       </label>
-      <p className="text-[11px] text-zinc-600">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         The run pauses here until the called workflow finishes; its result becomes this step's output
         (<code>{"{{steps.<name>.output.status}}"}</code>).
       </p>
@@ -773,8 +773,8 @@ function ForEachEditor({
   return (
     <div className="space-y-3">
       <label className="block">
-        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
-          Items (array) <span className="text-emerald-400">*</span>
+        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          Items (array) <span className="text-brand">*</span>
         </span>
         <input
           className={inputClass}
@@ -784,8 +784,8 @@ function ForEachEditor({
         />
       </label>
       <label className="block">
-        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
-          Run workflow per item <span className="text-emerald-400">*</span>
+        <span className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          Run workflow per item <span className="text-brand">*</span>
         </span>
         <select
           className={inputClass}
@@ -801,7 +801,7 @@ function ForEachEditor({
         </select>
       </label>
       <label className="block">
-        <span className="mb-1 block text-xs font-medium text-zinc-400">Concurrency</span>
+        <span className="mb-1 block text-xs font-medium text-muted-foreground">Concurrency</span>
         <input
           type="number"
           min={1}
@@ -811,7 +811,7 @@ function ForEachEditor({
           onChange={(e) => set({ concurrency: e.target.value === "" ? undefined : Number(e.target.value) })}
         />
       </label>
-      <p className="text-[11px] text-zinc-600">
+      <p className="text-[11px] text-muted-foreground max-w-[38em]">
         Runs the workflow once per array item; each item is the child's
         <code> {"{{trigger.payload}}"}</code>. The step output is the array of results. Concurrency runs
         several items at once (default 1).
@@ -906,7 +906,7 @@ function KeyValueEditor({
           <button
             type="button"
             onClick={() => emit(rows.filter((_, i) => i !== index))}
-            className="px-1 py-1.5 text-zinc-500 hover:text-red-400"
+            className="px-1 py-1.5 text-muted-foreground hover:text-danger"
             title="Remove"
             aria-label="Remove"
           >
@@ -917,7 +917,7 @@ function KeyValueEditor({
       <button
         type="button"
         onClick={() => setRows([...rows, { key: "", value: "" }])}
-        className="inline-flex items-center gap-1 rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+        className="inline-flex items-center gap-1 rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
       >
         <Plus className="h-3 w-3" aria-hidden="true" /> Add
       </button>
@@ -991,9 +991,9 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
         if (actionType === "switch" && key === "cases") {
           return (
             <div key={key} className="block">
-              <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
+              <span className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
                 {key}
-                {required.has(key) && <span className="text-emerald-400">*</span>}
+                {required.has(key) && <span className="text-brand">*</span>}
               </span>
               <SwitchCasesEditor value={value[key]} onChange={(cases) => set(key, cases)} />
             </div>
@@ -1006,13 +1006,13 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
           required.has(key) && kind !== "boolean" && (value[key] === undefined || value[key] === "");
         return (
           <label key={key} className="block">
-            <span className="mb-1 flex items-center gap-2 text-xs font-medium text-zinc-400">
+            <span className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
               {key}
-              {required.has(key) && <span className="text-emerald-400">*</span>}
-              {isEmptyRequired && <span className="text-[10px] text-amber-400">required</span>}
+              {required.has(key) && <span className="text-brand">*</span>}
+              {isEmptyRequired && <span className="text-[11px] text-warning">required</span>}
               {connections == null && hasConnectionRef(value[key]) && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px] text-sky-400"
+                  className="inline-flex items-center gap-1 text-[11px] text-info"
                   title="Uses a connection reference"
                 >
                   <Link2 className="h-3 w-3" aria-hidden="true" /> connection
@@ -1020,7 +1020,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
               )}
               {refCheck?.status === "ok" && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px] text-emerald-400"
+                  className="inline-flex items-center gap-1 text-[11px] text-brand"
                   title="Connection reference resolves"
                 >
                   <Link2 className="h-3 w-3" aria-hidden="true" /> connection
@@ -1028,7 +1028,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
               )}
               {refCheck?.status === "unknown" && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px] text-amber-400"
+                  className="inline-flex items-center gap-1 text-[11px] text-warning"
                   title={`Unknown connection or key: ${refCheck.unknown.join(", ")}`}
                 >
                   <Link2 className="h-3 w-3" aria-hidden="true" /> unknown: {refCheck.unknown.join(", ")}
@@ -1036,7 +1036,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
               )}
               {stepCheck?.status === "ok" && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px] text-emerald-400"
+                  className="inline-flex items-center gap-1 text-[11px] text-brand"
                   title="Step reference resolves"
                 >
                   <Waypoints className="h-3 w-3" aria-hidden="true" /> step
@@ -1044,7 +1044,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
               )}
               {stepCheck?.status === "fragile" && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px] text-amber-400"
+                  className="inline-flex items-center gap-1 text-[11px] text-warning"
                   title={`Index-based step reference (#${stepCheck.fragile.join(", #")}) — breaks on reorder. Convert to names.`}
                 >
                   <Waypoints className="h-3 w-3" aria-hidden="true" /> index — convert to name
@@ -1052,7 +1052,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
               )}
               {stepCheck?.status === "unknown" && (
                 <span
-                  className="inline-flex items-center gap-1 text-[10px] text-red-400"
+                  className="inline-flex items-center gap-1 text-[11px] text-danger"
                   title={`Unknown step: ${stepCheck.unknown.join(", ")}`}
                 >
                   <Waypoints className="h-3 w-3" aria-hidden="true" /> unknown step: {stepCheck.unknown.join(", ")}
@@ -1139,7 +1139,7 @@ export function SchemaForm({ schema, value, onChange, actionType, stepRefs, step
         );
       })}
       {unknownKeys.length > 0 && (
-        <p className="text-xs text-amber-400">
+        <p className="text-xs text-warning">
           ⚠ Not in the current action's schema: {unknownKeys.join(", ")} — kept in the config but ignored at
           execution (plugin version drift?).
         </p>

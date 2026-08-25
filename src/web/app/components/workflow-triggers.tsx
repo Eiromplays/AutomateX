@@ -16,8 +16,8 @@ export type DraftTrigger = {
 let nextTriggerKey = 1;
 
 const inputClass =
-  "w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm " +
-  "placeholder:text-zinc-600 focus:border-emerald-500 focus:outline-none";
+  "w-full rounded-[2px] border border-line-strong bg-card px-3 py-1.5 text-sm " +
+  "placeholder:text-fg-placeholder focus:border-brand-bright focus:outline-none";
 
 const BUILTIN_TYPES = [
   { type: "cron", label: "Cron schedule" },
@@ -182,7 +182,7 @@ export function TriggerEditor({
     <div className="space-y-2">
       <div className="flex items-center gap-2">
         {draft.id ? (
-          <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-xs text-zinc-300">
+          <span className="rounded-[2px] border border-line-strong px-2 py-0.5 text-xs text-fg-body">
             {draft.type}
           </span>
         ) : (
@@ -203,7 +203,7 @@ export function TriggerEditor({
             ))}
           </select>
         )}
-        <label className="flex items-center gap-1 text-xs text-zinc-400">
+        <label className="flex items-center gap-1 text-xs text-muted-foreground">
           <input
             type="checkbox"
             className="size-4 accent-emerald-500"
@@ -212,7 +212,7 @@ export function TriggerEditor({
           />
           enabled
         </label>
-        <button type="button" onClick={onRemove} className="px-1 text-zinc-500 hover:text-red-400">
+        <button type="button" onClick={onRemove} className="px-1 text-muted-foreground hover:text-danger">
           ✕
         </button>
       </div>
@@ -272,7 +272,7 @@ export function TriggerEditor({
               </option>
             ))}
           </select>
-          <label className="flex items-center gap-2 text-xs text-zinc-400">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
               className="size-4 accent-emerald-500"
@@ -287,7 +287,7 @@ export function TriggerEditor({
       )}
 
       {stepLabels.length > 1 && (
-        <label className="flex items-center gap-2 text-xs text-zinc-400">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="shrink-0">Starts at</span>
           <select
             className={inputClass}
@@ -328,25 +328,25 @@ export function TriggersSection({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-zinc-300">Triggers</h2>
+        <h2 className="text-sm font-medium text-fg-body">Triggers</h2>
         <button
           type="button"
           onClick={() => onChange([...triggers, newDraftTrigger()])}
-          className="rounded-md border border-zinc-700 px-2.5 py-1 text-xs hover:bg-zinc-900"
+          className="rounded-[2px] border border-line-strong px-2.5 py-1 text-xs hover:bg-card"
         >
           Add trigger
         </button>
       </div>
-      <p className="text-xs text-zinc-500">What starts this workflow. Changes apply when you save.</p>
+      <p className="text-xs text-muted-foreground max-w-[38em]">What starts this workflow. Changes apply when you save.</p>
 
       {triggers.length === 0 && (
-        <p className="text-xs text-zinc-600">
+        <p className="text-xs text-muted-foreground max-w-[38em]">
           No triggers yet — add one, or run the workflow manually with “Run now”.
         </p>
       )}
 
       {triggers.map((trigger) => (
-        <div key={trigger.key} className="rounded-lg border border-zinc-800 p-3">
+        <div key={trigger.key} className="border-b border-engrave last:border-b-0 p-3">
           <TriggerEditor
             draft={trigger}
             onChange={(d) => update(trigger.key, d)}
