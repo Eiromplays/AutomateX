@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { CodeBlock } from "../components/code-block";
 import { backboneEdges } from "../components/switch-routing";
+import { Rack, Unit } from "../components/rack";
 import { toast } from "../components/toast";
 import { useConfirm } from "../components/ui/confirm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../components/ui/dialog";
@@ -362,7 +364,8 @@ export default function WorkflowDetail() {
                     </span>
                   )}
                 </div>
-                {trigger.lastError && <p className="text-warning/80">⚠ {trigger.lastError}</p>}
+                {trigger.lastError && <p className="text-warning/80"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
+                  {trigger.lastError}</p>}
                 <CodeBlock text={prettyJson(trigger.configJson)} />
               </div>
             );
@@ -394,7 +397,7 @@ export default function WorkflowDetail() {
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-fg-body">
+        <h2 className="mb-3 text-lg font-medium text-fg-strong">
           Overview <span className="text-muted-foreground">(v{workflow.latestVersion.version})</span>
         </h2>
         <div className="mb-4">
@@ -434,7 +437,7 @@ export default function WorkflowDetail() {
             }}
             height="20rem"
           />
-          <p className="mt-1 text-[11px] text-muted-foreground max-w-[38em]">
+          <p className="mt-1 text-sm text-muted-foreground max-w-[38em]">
             Triggers feed the first step; branches show their labels. Edit steps &amp; config in the builder.
           </p>
         </div>
@@ -442,13 +445,11 @@ export default function WorkflowDetail() {
 
       {workflow.versions.length > 1 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-fg-body">Versions</h2>
-          <ul className="space-y-1.5">
-            {workflow.versions.map((version) => (
-              <li
-                key={version.id}
-                className="flex items-center justify-between rounded-[2px] border border-line px-4 py-2 text-sm"
-              >
+          <h2 className="mb-3 text-lg font-medium text-fg-strong">Versions</h2>
+          <Rack>
+            {workflow.versions.map((version, vi) => (
+              <Unit key={version.id} index={vi + 1}>
+              <div className="flex items-center justify-between py-2.5 pr-3 text-sm">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">v{version.version}</span>
                   {version.version === workflow.latestVersion.version && (
@@ -500,9 +501,10 @@ export default function WorkflowDetail() {
                     </button>
                   </div>
                 )}
-              </li>
+              </div>
+              </Unit>
             ))}
-          </ul>
+          </Rack>
           {restoreVersion.error && (
             <p className="mt-2 text-sm text-danger">{String(restoreVersion.error)}</p>
           )}
@@ -510,10 +512,11 @@ export default function WorkflowDetail() {
       )}
 
       <section>
-        <h2 className="mb-3 text-sm font-medium text-fg-body">Triggers</h2>
-        <ul className="mb-4 space-y-2">
-          {workflow.triggers.map((trigger) => (
-            <li key={trigger.id} className="rounded-[2px] border border-line px-4 py-2.5 text-sm">
+        <h2 className="mb-3 text-lg font-medium text-fg-strong">Triggers</h2>
+        <Rack className="mb-4" empty="No triggers — runs manually only.">
+          {workflow.triggers.map((trigger, ti) => (
+            <Unit key={trigger.id} index={ti + 1} status={trigger.enabled ? "running" : "disabled"} align="start">
+            <div className="py-2.5 pr-3 text-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="font-medium">{trigger.type}</span>
@@ -576,15 +579,14 @@ export default function WorkflowDetail() {
                       : undefined
                   }
                 >
-                  ⚠ {trigger.lastError}
+                  <AlertTriangle className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
+                  {trigger.lastError}
                 </p>
               )}
-            </li>
+            </div>
+            </Unit>
           ))}
-          {workflow.triggers.length === 0 && (
-            <li className="text-sm text-muted-foreground">No triggers — runs manually only.</li>
-          )}
-        </ul>
+        </Rack>
 
         <p className="text-xs text-muted-foreground max-w-[38em]">
           Add or change triggers in the{" "}
@@ -755,7 +757,7 @@ function WorkflowStateSection({ workflowId, triggers }: { workflowId: string; tr
         {[...groups.values()].map((group) => {
           const trigger = group.triggerId ? triggers.find((t) => t.id === group.triggerId) : undefined;
           return (
-            <details key={group.triggerId ?? "other"} className="rounded-[2px] border border-line">
+            <details key={group.triggerId ?? "other"} className="border-b border-engrave last:border-b-0">
               <summary className="flex cursor-pointer items-center justify-between gap-3 px-4 py-2 text-sm">
                 <span className="truncate text-fg-emphasis">
                   {group.triggerId ? triggerLabel(trigger) : "other"}

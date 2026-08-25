@@ -346,7 +346,7 @@ export function TriggersSection({
       )}
 
       {triggers.map((trigger) => (
-        <div key={trigger.key} className="rounded-[2px] border border-line p-3">
+        <div key={trigger.key} className="border-b border-engrave last:border-b-0 p-3">
           <TriggerEditor
             draft={trigger}
             onChange={(d) => update(trigger.key, d)}

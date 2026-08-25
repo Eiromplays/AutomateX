@@ -30,7 +30,7 @@ export function WorkflowMcpPanel({ workflow }: { workflow: WorkflowDetail }) {
   X-Workspace-Id: <workspace id>`;
 
   return (
-    <section className="space-y-3 rounded-[2px] border border-line p-4">
+    <section className="space-y-3 border-t border-engrave pt-4">
       <h2 className="text-sm font-medium text-fg-body">MCP tool</h2>
       <p className="text-xs text-muted-foreground max-w-[38em]">
         Expose this workflow as a tool for MCP clients (Claude, agents). They call it with a{" "}

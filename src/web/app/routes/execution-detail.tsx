@@ -319,7 +319,7 @@ export default function ExecutionDetail() {
       />
 
       {execution.triggerPayload && (
-        <details className="rounded-[2px] border border-line">
+        <details className="border-y border-engrave">
           <summary className="cursor-pointer px-4 py-2 text-sm text-muted-foreground hover:text-fg-emphasis">
             Trigger payload <span className="text-xs text-muted-foreground">· the data this run started with</span>
           </summary>

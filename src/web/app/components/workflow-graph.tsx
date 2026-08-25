@@ -131,6 +131,25 @@ function layoutPositions(steps: GraphStep[], stepEdges: KeyEdge[]) {
     });
   }
 
+  // Siblings whose lanes rejoin at the same step average to the same x and land
+  // exactly on top of each other — the parallel-fan-out case draws as one node.
+  // Spread any row whose nodes sit closer together than a full column.
+  const byRow = new Map<number, number[]>();
+  for (const [key, p] of positions) {
+    const row = byRow.get(p.y);
+    if (row) row.push(key);
+    else byRow.set(p.y, [key]);
+  }
+  for (const keys of byRow.values()) {
+    if (keys.length < 2) continue;
+    keys.sort((a, b) => positions.get(a)!.x - positions.get(b)!.x);
+    for (let i = 1; i < keys.length; i++) {
+      const prev = positions.get(keys[i - 1])!;
+      const cur = positions.get(keys[i])!;
+      if (cur.x - prev.x < COLUMN) cur.x = prev.x + COLUMN;
+    }
+  }
+
   return { positions, unreachable };
 }
 
@@ -213,8 +232,10 @@ export function WorkflowGraph({
     return list;
   }, [steps, triggers, stepEdges]);
 
+  // The canvas is a recessed well, not a box: a bordered frame around bordered
+  // nodes is a container inside a container, which the design system bans.
   return (
-    <div className="overflow-hidden rounded-[2px] border border-line bg-background" style={{ height }}>
+    <div className="overflow-hidden rounded-[2px] bg-rack-void" style={{ height }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
