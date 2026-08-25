@@ -502,7 +502,7 @@ function McpCallEditor({
           ))}
         </select>
         {mcpConnections.length === 0 && (
-          <span className="mt-1 block text-[11px] text-muted-foreground">
+          <span className="mt-1 block text-sm text-muted-foreground">
             No MCP connections yet — create one (type “MCP server”) on the{" "}
             <a
               href="/connections"
@@ -539,7 +539,7 @@ function McpCallEditor({
             </select>
           )}
           {selectedTool?.description && (
-            <span className="mt-1 block text-[11px] text-muted-foreground">{selectedTool.description}</span>
+            <span className="mt-1 block text-sm text-muted-foreground">{selectedTool.description}</span>
           )}
         </label>
       )}

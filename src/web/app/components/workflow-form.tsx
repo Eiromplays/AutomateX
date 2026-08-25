@@ -170,7 +170,7 @@ export function WorkflowForm({
         />
         <span>
           <span className="block text-sm text-fg-body">Continue on step failure</span>
-          <span className="block text-[11px] text-muted-foreground">
+          <span className="block text-sm text-muted-foreground">
             On by default a failed step fails the whole run. Enable to let independent parallel lanes finish;
             the run still ends Failed.
           </span>

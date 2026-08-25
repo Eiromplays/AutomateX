@@ -200,7 +200,7 @@ export function ConnectionForm({ editing = null, initialType, onSaved, onCancel 
                 />
               )}
               {row.helpText && !(editing && row.existing) && (
-                <span className="mt-1 block text-[11px] text-muted-foreground">{row.helpText}</span>
+                <span className="mt-1 block text-sm text-muted-foreground">{row.helpText}</span>
               )}
             </label>
           ) : (

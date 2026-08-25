@@ -65,7 +65,9 @@ export default function WorkflowNew() {
 
   return (
     <div className="max-w-5xl">
-      <h1 className={importDoc ? "mb-1 text-lg font-semibold" : "mb-6 text-lg font-semibold"}>
+      <h1 className={importDoc
+            ? "mb-1 text-2xl font-semibold tracking-[-0.01em]"
+            : "mb-6 text-2xl font-semibold tracking-[-0.01em]"}>
         {importDoc ? "Import workflow" : "New workflow"}
       </h1>
       {importDoc && (

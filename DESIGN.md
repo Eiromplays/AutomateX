@@ -286,6 +286,16 @@ workflows, executions, connections, and plugins.
 - Theme the browser's own surfaces — selection, caret, scrollbar, focus ring — from this
   palette.
 
+### Known and rejected
+
+**`clipped-overflow-container` on the workflow canvas (8 findings).** The detector
+flags `div.react-flow.dark` and the canvas well for clipping a positioned child.
+Both are correct and both are structural: a pan/zoom canvas works by clipping a
+transformed viewport. Verified that no graph node renders outside the frame (0 of
+7 on the branching demo). Left visible rather than suppressed — `ignoreValues`
+does not apply to this rule, and silencing the rule project-wide would also hide
+a genuinely clipped dropdown or tooltip later.
+
 ### Don't:
 
 - Nest a container inside a container.
