@@ -258,9 +258,24 @@ Focus is a 1px `lamp-active` ring with a 1px offset — not a 3px glow.
 
 ### Navigation
 
-A single top rail carrying the wordmark, the workspace selector, and destinations in
-`silkscreen` caps. The active destination is the only one in `stencil`, with a 2px
-`lamp-clear` underline. No pills, no filled tabs.
+The rail runs in **two registers**, because identity, destinations and account are
+three different kinds of thing and one row made them compete:
+
+1. Wordmark and workspace selector on the left, account on the right — which
+   instance, as whom.
+2. Destinations on their own line, in `silkscreen` caps. The active destination is
+   the only one in `stencil`, with a 2px `lamp-clear` underline — the only place the
+   brand lamp appears in the chrome. No pills, no filled tabs, and no icons up here;
+   icons belong in the touch menu where they aid scanning.
+
+Six destinations fit at 768px in two registers where one row needed ~1050px.
+
+### Readout strip
+
+The dashboard's figures sit on one strip divided by `engrave` rules, labels in
+`silkscreen` caps above `data`-step mono values with `tabular-nums`. Not four cards:
+the strip reads as one instrument, and it avoids the hero-metric template (big
+number, small label, supporting stat, accent) that this category ships by default.
 
 ### Signature component: the Unit
 

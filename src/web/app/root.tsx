@@ -62,8 +62,15 @@ function isEntryActive(pathname: string, entry: NavEntry): boolean {
   return (entry.match ?? [entry.to]).some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+// A destination is a label printed on the panel, not a button. The active one
+// is the only one lit, and it is the only place the brand lamp appears in the
+// chrome — which is why the labels themselves carry no icon up here.
 const inlineNavClass = (active: boolean) =>
-  `inline-flex items-center gap-1.5 ${active ? "text-fg-strong" : "text-muted-foreground hover:text-fg-strong"}`;
+  `-mb-px border-b-2 pb-2 text-[11px] font-semibold uppercase tracking-[0.1em] transition-colors ${
+    active
+      ? "border-lamp-clear text-fg-strong"
+      : "border-transparent text-muted-foreground hover:text-fg-strong"
+  }`;
 
 const stackedNavClass = (active: boolean) =>
   `flex items-center gap-2 rounded-[2px] px-3 py-2 text-sm ${
@@ -85,7 +92,7 @@ function NavItems({ variant, onNavigate }: { variant: "inline" | "stacked"; onNa
             aria-current={active ? "page" : undefined}
             className={variant === "inline" ? inlineNavClass(active) : stackedNavClass(active)}
           >
-            <Icon className="h-4 w-4" aria-hidden="true" />
+            {variant === "stacked" && <Icon className="h-4 w-4" aria-hidden="true" />}
             {entry.label}
           </Link>
         );
@@ -350,22 +357,37 @@ function Shell() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
-      <header className="mb-8 flex items-center justify-between gap-3 border-b border-line pb-4">
-        <Link to="/" className="text-xl font-semibold tracking-tight">
-          Automate<span className="text-brand">X</span>
-        </Link>
+      <header className="mb-8">
+        {/* Register one: which instance, as whom. */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link to="/" className="shrink-0 text-xl font-semibold tracking-tight">
+              Automate<span className="text-brand">X</span>
+            </Link>
+            {!gated && me && (
+              <div className="hidden md:block">
+                <WorkspaceSwitcher />
+              </div>
+            )}
+          </div>
+          {!gated && me && (
+            <>
+              <div className="hidden md:block">
+                <AuthActions me={me} />
+              </div>
+              <div className="md:hidden">
+                <MobileNav me={me} />
+              </div>
+            </>
+          )}
+        </div>
+        {/* Register two: where to go. Its own line, so six destinations breathe. */}
         {!gated && me && (
-          <>
-            <nav className="hidden items-center gap-5 text-sm lg:flex">
-              <WorkspaceSwitcher />
-              <NavItems variant="inline" />
-              <AuthActions me={me} />
-            </nav>
-            <div className="lg:hidden">
-              <MobileNav me={me} />
-            </div>
-          </>
+          <nav className="mt-4 hidden items-center gap-6 border-b border-line md:flex">
+            <NavItems variant="inline" />
+          </nav>
         )}
+        {(gated || !me) && <div className="mt-4 border-b border-line" />}
       </header>
       {!gated && <NewWorkspaceBanner />}
       {gated ? <SignInGate /> : <Outlet />}

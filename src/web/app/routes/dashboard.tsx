@@ -1,10 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router";
+import { Lamp } from "../components/rack";
 import { Skeleton } from "../components/ui/skeleton";
 import { api, type ExecutionStats } from "../lib/api";
 
-function StatCard({
+/**
+ * One gauge on the readout strip. Not a card: the strip is divided by engraved
+ * rules, so the four figures read as one instrument rather than four objects.
+ */
+function Readout({
   label,
   value,
   sub,
@@ -16,10 +21,12 @@ function StatCard({
   hint?: string;
 }) {
   return (
-    <div className="rounded-[2px] border border-line bg-card/40 p-4" title={hint}>
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-fg-strong">{value}</div>
-      {sub ? <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div> : null}
+    <div className="px-4 py-3 first:pl-0" title={hint}>
+      <div className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 font-mono text-2xl text-fg-strong tabular-nums">{value}</div>
+      {sub ? <div className="mt-0.5 text-sm text-muted-foreground">{sub}</div> : null}
     </div>
   );
 }
@@ -57,9 +64,9 @@ function DayChart({ perDay }: { perDay: ExecutionStats["perDay"] }) {
               y={chartH - totalH}
               width={w}
               height={Math.max(0, totalH - failH)}
-              fill="rgb(34 197 94 / 0.7)"
+              fill="var(--lamp-clear)"
             />
-            <rect x={x} y={chartH - failH} width={w} height={failH} fill="rgb(239 68 68 / 0.7)" />
+            <rect x={x} y={chartH - failH} width={w} height={failH} fill="var(--lamp-fault)" />
           </g>
         );
       })}
@@ -120,21 +127,21 @@ export default function Dashboard() {
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatCard label="Executions" value={String(data.total)} sub={`${data.running} running`} />
-        <StatCard
+      <div className="grid grid-cols-2 divide-x divide-engrave border-y border-engrave md:grid-cols-4">
+        <Readout label="Executions" value={String(data.total)} sub={`${data.running} running`} />
+        <Readout
           label="Success rate"
           value={`${Math.round(data.successRate * 100)}%`}
           sub={`${data.succeeded} ok · ${data.failed} failed`}
           hint="Succeeded divided by terminal runs (still-running are excluded)."
         />
-        <StatCard
+        <Readout
           label="Duration p50"
           value={formatMs(data.p50DurationMs)}
           sub="median run"
           hint="Half of all runs finish faster than this — the typical case."
         />
-        <StatCard
+        <Readout
           label="Duration p95"
           value={formatMs(data.p95DurationMs)}
           sub="slowest 5%"
@@ -142,15 +149,15 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="rounded-[2px] border border-line bg-card/40 p-4">
+      <div className="border-t border-engrave pt-4">
         <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Executions per day</span>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">Executions per day</span>
           <span className="flex gap-3">
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-green-500/70" /> succeeded
+              <Lamp status="Succeeded" /> succeeded
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-sm bg-danger-solid/70" /> failed
+              <Lamp status="Failed" /> failed
             </span>
           </span>
         </div>
@@ -162,9 +169,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className="rounded-[2px] border border-line bg-card/40 p-4">
+        <div className="border-t border-engrave pt-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-fg-body">Workflows</span>
+            <span className="text-lg font-medium text-fg-strong">Workflows</span>
             <Link to="/workflows/new" className="text-xs text-brand hover:underline">
               + New
             </Link>
@@ -189,8 +196,16 @@ export default function Dashboard() {
                     {s ? (
                       <span className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
                         <span>{s.total} runs</span>
-                        <span className="text-green-500/80">{s.succeeded}✓</span>
-                        {s.failed > 0 ? <span className="text-red-500/80">{s.failed}✕</span> : null}
+                        <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                          <Lamp status="Succeeded" />
+                          {s.succeeded}
+                        </span>
+                        {s.failed > 0 ? (
+                          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                            <Lamp status="Failed" />
+                            {s.failed}
+                          </span>
+                        ) : null}
                         <span>{formatMs(s.avgDurationMs)}</span>
                       </span>
                     ) : (
@@ -203,8 +218,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="rounded-[2px] border border-line bg-card/40 p-4">
-          <div className="mb-3 text-sm font-medium text-fg-body">Recent failures</div>
+        <div className="border-t border-engrave pt-4">
+          <div className="mb-3 text-lg font-medium text-fg-strong">Recent failures</div>
           {data.recentFailures.length === 0 ? (
             <div className="text-sm text-muted-foreground">None in this window.</div>
           ) : (
